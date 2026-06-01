@@ -535,6 +535,34 @@ h1 {
     max-width: 520px;
 }
 
+.building-row {
+    display: flex;
+    align-items: stretch;
+    gap: 4px;
+}
+
+.btn-expand {
+    background: #2a2410;
+    border: 1px solid #5a4a1e;
+    border-radius: 4px;
+    padding: 0 12px;
+    color: #6a5a30;
+    font-size: 0.7rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.btn-expand:hover {
+    background: #352e14;
+    color: #c9a84c;
+    border-color: #8a7240;
+}
+
+.building-card--defense .btn-expand {
+    border-color: #2a3a5a;
+}
+
 .btn-building {
     display: flex;
     align-items: center;
@@ -547,7 +575,8 @@ h1 {
     font-family: Georgia, 'Times New Roman', serif;
     font-size: 1rem;
     cursor: pointer;
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     text-align: left;
     transition: background 0.15s, border-color 0.15s;
 }
@@ -594,9 +623,26 @@ h1 {
     color: #6a5a30;
 }
 
+.building-stats {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
 .building-owned {
     font-size: 0.85rem;
     color: #8a7240;
+}
+
+.building-income-total {
+    font-size: 0.85rem;
+    color: #e8c96d;
+}
+
+.building-income-total--defense {
+    color: #7aaad4;
 }
 
 .btn-building--locked {

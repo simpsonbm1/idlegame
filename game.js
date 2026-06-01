@@ -14,6 +14,7 @@ let nextRecruitId = 0;
 let confirmingReset = false;
 let buyQuantity = 1;
 let autoRecruitRarity = null;
+const buildingExpanded = {};
 
 const rarityOrder = ['common', 'rare', 'epic', 'legendary'];
 
@@ -138,6 +139,11 @@ function getBuildingCap(id) {
 
 function setBuyQuantity(qty) {
     buyQuantity = qty;
+    updateUI();
+}
+
+function toggleBuilding(id) {
+    buildingExpanded[id] = !buildingExpanded[id];
     updateUI();
 }
 
@@ -531,26 +537,43 @@ function renderBuildings() {
             ? `${b.cost.toLocaleString()} gold`
             : `${totalCost.toLocaleString()} gold (×${n})`;
 
-        html += `<div class="building-card ${isDefense ? 'building-card--defense' : ''}">
-            <button class="btn-building" onclick="buyBuilding('${id}')" ${canAffordBuilding ? '' : 'disabled'}>
-                <span class="building-name">${b.name}</span>
-                <span class="building-meta">
-                    <span class="building-cost">Cost: ${costLabel}</span>
-                    <span class="building-desc">Adds ${b.slotsPerBuilding} resident slots</span>
-                </span>
-                <span class="building-owned">${b.count} / ${cap}</span>
-            </button>`;
+        const isExpanded = buildingExpanded[id] || false;
+        const buildingTotal = b.residents.reduce((sum, r) => sum + r.income, 0);
+        const totalLabel = buildingTotal > 0
+            ? `${buildingTotal.toLocaleString()} ${isDefense ? 'def' : 'g/s'}`
+            : '';
 
-        if (b.count > 0) {
+        html += `<div class="building-card ${isDefense ? 'building-card--defense' : ''}">
+            <div class="building-row">
+                <button class="btn-building" onclick="buyBuilding('${id}')" ${canAffordBuilding ? '' : 'disabled'}>
+                    <span class="building-name">${b.name}</span>
+                    <span class="building-meta">
+                        <span class="building-cost">Cost: ${costLabel}</span>
+                        <span class="building-desc">Adds ${b.slotsPerBuilding} resident slots</span>
+                    </span>
+                    <span class="building-stats">
+                        <span class="building-owned">${b.count} / ${cap} buildings</span>
+                        ${b.count > 0 ? `<span class="building-owned">${b.residents.length} / ${totalSlots} residents</span>` : ''}
+                        ${totalLabel ? `<span class="building-income-total ${isDefense ? 'building-income-total--defense' : ''}">${totalLabel}</span>` : ''}
+                    </span>
+                </button>
+                ${b.count > 0 ? `<button class="btn-expand" onclick="toggleBuilding('${id}')" title="${isExpanded ? 'Collapse' : 'Expand residents'}">${isExpanded ? '▲' : '▼'}</button>` : ''}
+            </div>`;
+
+        if (b.count > 0 && isExpanded) {
             html += `<div class="slot-grid">`;
 
-            b.residents.forEach((r, i) => {
+            const sorted = b.residents
+                .map((r, i) => ({ ...r, originalIndex: i }))
+                .sort((a, b) => a.income - b.income);
+
+            sorted.forEach((r) => {
                 const letter = r.name ? r.name[0].toUpperCase() : '?';
                 const valueLabel = isDefense ? `${r.income} def` : `${r.income} g/s`;
                 const rarityInfo = rarityTiers[r.rarity] || rarityTiers.common;
                 html += `<div class="portrait portrait--${r.rarity || 'common'}" data-type="${r.typeId || 'villager'}"
                     title="${r.name} (${rarityInfo.name}) — ${valueLabel}&#10;Click to dismiss"
-                    onclick="fireResident('${id}', ${i})">
+                    onclick="fireResident('${id}', ${r.originalIndex})">
                     <span class="portrait-letter">${letter}</span>
                     <span class="portrait-stat">${r.income}</span>
                 </div>`;
