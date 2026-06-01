@@ -104,14 +104,17 @@ All numbers are tunable.
 
 **Loot bonus:** Repelling an invasion awards a one-time gold bonus (soldiers brought back loot). Fixed amount per invasion.
 
-**Invasion schedule:**
+**Invasion schedule:** Periodic — once triggered, raids repeat every 5 minutes (300 seconds). Timer only counts down while not under siege.
 
-| # | Name | Trigger | Defense needed | Loot reward |
-|---|---|---|---|---|
-| 1 | Goblin Raid | Town level + 12,000 total gold earned | 500 | 4,000g |
-| 2 | Orc Warband | Kingdom level + 150,000 total gold earned | 2,000 | TBD |
+**Trigger:** Town level (2) + 12,000 total gold earned. After that, raids repeat indefinitely.
 
-More invasions can be added as the game expands.
+**Scaling per wave:**
+- Defense required: `500 × 1.5^waveNumber` (wave 0=500, 1=750, 2=1125, ...)
+- Loot reward: `4000 × 1.3^waveNumber` (wave 0=4000, 1=5200, 2=6760, ...)
+
+**Wave names:** Goblin Raid → Orc Warband → Bandit Horde → Dark Army → Dragon Siege (then "Dragon Siege Wave N")
+
+**Preview:** Left panel always shows next raid name, defense needed, and countdown timer.
 
 **Loot:** Fixed gold reward on repelling. Does not count toward `goldEarned` (to avoid immediately triggering the next invasion). Persists as "Last Victory" in the left panel.
 

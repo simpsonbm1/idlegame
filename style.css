@@ -221,6 +221,30 @@ h1 {
     font-style: italic;
 }
 
+.invasion-name--warning {
+    color: #c9a84c;
+}
+
+.invasion-preview {
+    font-size: 0.85rem;
+    color: #c9a84c;
+    margin-top: 2px;
+}
+
+.invasion-timer {
+    font-size: 1rem;
+    color: #e8c96d;
+    margin-top: 4px;
+    font-variant-numeric: tabular-nums;
+}
+
+.victory-inline {
+    font-size: 0.75rem;
+    color: #6a5a30;
+    margin-top: 8px;
+    font-style: italic;
+}
+
 .victory-name {
     font-size: 1rem;
     color: #e8c96d;
@@ -248,6 +272,10 @@ h1 {
 }
 
 .pool-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
     margin-bottom: 10px;
 }
 
@@ -255,7 +283,44 @@ h1 {
     font-size: 0.8rem;
     color: #6a5a30;
     font-style: italic;
+    flex-shrink: 0;
 }
+
+.auto-recruit {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.auto-recruit-label {
+    font-size: 0.78rem;
+    color: #6a5a30;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.btn-auto {
+    background: #2a2410;
+    border: 1px solid #4a3a18;
+    border-radius: 3px;
+    padding: 3px 8px;
+    color: #6a5a30;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.btn-auto:hover {
+    color: #c9a84c;
+    border-color: #6a5a30;
+}
+
+.btn-auto--active            { color: #c9a84c; border-color: #6a5a30; background: #352e14; }
+.btn-auto--rare.btn-auto--active      { color: #4488ff; border-color: #4488ff; background: #1a2035; }
+.btn-auto--epic.btn-auto--active      { color: #cc88ff; border-color: #aa44ff; background: #2a1535; }
+.btn-auto--legendary.btn-auto--active { color: #ffcc44; border-color: #ffaa00; background: #2a2010; }
 
 .pool-cards {
     display: flex;
@@ -395,6 +460,47 @@ h1 {
 .recruit-card .portrait {
     width: 60px;
     height: 60px;
+}
+
+/* --- Buy quantity selector --- */
+
+.buy-mode {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+
+.buy-mode-label {
+    font-size: 0.8rem;
+    color: #6a5a30;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-right: 2px;
+}
+
+.btn-qty {
+    background: #2a2410;
+    border: 1px solid #4a3a18;
+    border-radius: 3px;
+    padding: 4px 10px;
+    color: #8a7240;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.btn-qty:hover {
+    background: #352e14;
+    color: #c9a84c;
+    border-color: #6a5a30;
+}
+
+.btn-qty--active {
+    background: #352e14;
+    border-color: #8a7240;
+    color: #e8c96d;
 }
 
 /* --- Buildings section --- */

@@ -3,33 +3,46 @@ let goldEarned = 0;
 let goldPerSecond = 0;
 let totalDefense = 0;
 let kingdomLevel = 0;
-let invasionIndex = 0;
+let raidsStarted = false;
+let invasionCount = 0;
+let invasionTimer = 0;
 let currentInvasion = null;
 let lastVictory = null;
 let recruitPool = [];
 let poolTimer = 0;
 let nextRecruitId = 0;
 let confirmingReset = false;
+let buyQuantity = 1;
+let autoRecruitRarity = null;
+
+const rarityOrder = ['common', 'rare', 'epic', 'legendary'];
 
 const POOL_SIZE = 5;
 const POOL_REFRESH_INTERVAL = 10;
 
-const invasions = [
-    {
-        name: 'Goblin Raid',
-        triggerLevel: 2,
-        triggerGoldEarned: 12000,
-        defenseRequired: 500,
-        loot: 4000
-    },
-    {
-        name: 'Orc Warband',
-        triggerLevel: 4,
-        triggerGoldEarned: 150000,
-        defenseRequired: 2000,
-        loot: 40000
-    }
-];
+const RAID_INTERVAL = 300;
+const RAID_TRIGGER_LEVEL = 2;
+const RAID_TRIGGER_GOLD = 12000;
+const INVASION_NAMES = ['Goblin Raid', 'Orc Warband', 'Bandit Horde', 'Dark Army', 'Dragon Siege'];
+
+function getInvasionName(count) {
+    if (count < INVASION_NAMES.length) return INVASION_NAMES[count];
+    return `Dragon Siege (Wave ${count - INVASION_NAMES.length + 2})`;
+}
+
+function getRequiredDefense(count) {
+    return Math.floor(500 * Math.pow(1.5, count));
+}
+
+function getInvasionLoot(count) {
+    return Math.floor(4000 * Math.pow(1.3, count));
+}
+
+function formatTimer(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+}
 
 const levels = [
     {
@@ -96,6 +109,25 @@ function getBuildingCap(id) {
     return levels[kingdomLevel].caps[id];
 }
 
+function setBuyQuantity(qty) {
+    buyQuantity = qty;
+    updateUI();
+}
+
+function bulkBuildingCost(id, n) {
+    const b = buildings[id];
+    return Math.floor(b.cost * (Math.pow(1.15, n) - 1) / 0.15);
+}
+
+function maxAffordableBuildings(id) {
+    const b = buildings[id];
+    const cap = getBuildingCap(id);
+    const remaining = cap - b.count;
+    if (remaining <= 0 || b.cost > gold) return 0;
+    const maxByGold = Math.floor(Math.log(gold * 0.15 / b.cost + 1) / Math.log(1.15));
+    return Math.min(maxByGold, remaining);
+}
+
 function getRarityWeights() {
     const table = [
         [{ r: 'common', w: 85 }, { r: 'rare', w: 15 }],
@@ -142,6 +174,45 @@ function refreshPool() {
         const r = generateRecruit();
         if (r) recruitPool.push(r);
     }
+    autoRecruit();
+}
+
+function setAutoRecruit(rarity) {
+    autoRecruitRarity = rarity;
+    autoRecruit();
+    saveGame();
+    updateUI();
+}
+
+function autoRecruit() {
+    if (!autoRecruitRarity) return;
+    const threshold = rarityOrder.indexOf(autoRecruitRarity);
+    let anyHired = false;
+
+    for (let i = recruitPool.length - 1; i >= 0; i--) {
+        const recruit = recruitPool[i];
+        if (rarityOrder.indexOf(recruit.rarity) < threshold) continue;
+
+        const b = buildings[recruit.buildingId];
+        const slots = b.count * b.slotsPerBuilding;
+        if (getBuildingCap(recruit.buildingId) <= 0) continue;
+        if (b.residents.length >= slots) continue;
+        if (gold < recruit.cost) continue;
+
+        gold -= recruit.cost;
+        recruitPool.splice(i, 1);
+        b.residents.push({ typeId: recruit.typeId, name: recruit.name, rarity: recruit.rarity, income: recruit.income });
+
+        if (b.type === 'defense') totalDefense += recruit.income;
+        else goldPerSecond += recruit.income;
+
+        anyHired = true;
+    }
+
+    if (anyHired) {
+        checkRepel();
+        saveGame();
+    }
 }
 
 function hireRecruit(recruitId) {
@@ -163,7 +234,7 @@ function hireRecruit(recruitId) {
         goldPerSecond += recruit.income;
     }
 
-    checkInvasion();
+    checkRepel();
     saveGame();
     updateUI();
 }
@@ -181,28 +252,39 @@ function fireResident(buildingId, index) {
     updateUI();
 }
 
-function checkInvasion() {
-    if (currentInvasion !== null) {
-        if (totalDefense >= currentInvasion.defenseRequired) repelInvasion();
-        return;
+function checkRaidTrigger() {
+    if (raidsStarted) return;
+    if (kingdomLevel >= RAID_TRIGGER_LEVEL && goldEarned >= RAID_TRIGGER_GOLD) {
+        raidsStarted = true;
+        invasionTimer = RAID_INTERVAL;
     }
-    if (invasionIndex >= invasions.length) return;
-    const next = invasions[invasionIndex];
-    if (kingdomLevel >= next.triggerLevel && goldEarned >= next.triggerGoldEarned) {
-        currentInvasion = invasions[invasionIndex];
-        invasionIndex++;
+}
+
+function startInvasion() {
+    currentInvasion = {
+        name: getInvasionName(invasionCount),
+        defenseRequired: getRequiredDefense(invasionCount),
+        loot: getInvasionLoot(invasionCount)
+    };
+}
+
+function checkRepel() {
+    if (currentInvasion && totalDefense >= currentInvasion.defenseRequired) {
+        repelInvasion();
     }
 }
 
 function repelInvasion() {
     lastVictory = { name: currentInvasion.name, loot: currentInvasion.loot };
     gold += currentInvasion.loot;
+    invasionCount++;
     currentInvasion = null;
+    invasionTimer = RAID_INTERVAL;
 }
 
 function saveGame() {
     const state = {
-        gold, goldEarned, kingdomLevel, invasionIndex, currentInvasion, lastVictory,
+        gold, goldEarned, kingdomLevel, raidsStarted, invasionCount, invasionTimer, currentInvasion, lastVictory, autoRecruitRarity,
         recruitPool, poolTimer, nextRecruitId,
         buildings: {}
     };
@@ -220,9 +302,12 @@ function loadGame() {
     gold = state.gold ?? 50;
     goldEarned = state.goldEarned ?? 0;
     kingdomLevel = state.kingdomLevel ?? 0;
-    invasionIndex = state.invasionIndex ?? 0;
+    raidsStarted = state.raidsStarted ?? false;
+    invasionCount = state.invasionCount ?? 0;
+    invasionTimer = state.invasionTimer ?? 0;
     currentInvasion = state.currentInvasion ?? null;
     lastVictory = state.lastVictory ?? null;
+    autoRecruitRarity = state.autoRecruitRarity ?? null;
     recruitPool = state.recruitPool ?? [];
     poolTimer = state.poolTimer ?? 0;
     nextRecruitId = state.nextRecruitId ?? 0;
@@ -275,7 +360,16 @@ function tick() {
         refreshPool();
     }
 
-    checkInvasion();
+    checkRaidTrigger();
+    if (raidsStarted) {
+        if (currentInvasion) {
+            checkRepel();
+        } else {
+            invasionTimer--;
+            if (invasionTimer <= 0) startInvasion();
+        }
+    }
+
     saveGame();
     updateUI();
 }
@@ -292,18 +386,40 @@ function levelUpKingdom() {
 function buyBuilding(id) {
     const b = buildings[id];
     const cap = getBuildingCap(id);
-    if (gold < b.cost || b.count >= cap) return;
-    gold -= b.cost;
-    b.count += 1;
-    b.cost = Math.floor(b.cost * 1.15);
+    const n = buyQuantity === 'max' ? maxAffordableBuildings(id) : buyQuantity;
+    const affordable = Math.min(n, cap - b.count);
+    if (affordable <= 0) return;
+    const totalCost = bulkBuildingCost(id, affordable);
+    if (gold < totalCost) return;
+    gold -= totalCost;
+    b.cost = Math.floor(b.cost * Math.pow(1.15, affordable));
+    b.count += affordable;
     saveGame();
     updateUI();
 }
 
 function renderRecruitPool() {
     const timeUntilRefresh = POOL_REFRESH_INTERVAL - poolTimer;
+
+    const autoOptions = [
+        { value: null,        label: 'Off'       },
+        { value: 'common',    label: 'Common+'   },
+        { value: 'rare',      label: 'Rare+'     },
+        { value: 'epic',      label: 'Epic+'     },
+        { value: 'legendary', label: 'Legendary' }
+    ];
+
     let html = `<div class="pool-header">
         <span class="pool-timer">New arrivals in ${timeUntilRefresh}s</span>
+        <div class="auto-recruit">
+            <span class="auto-recruit-label">Auto-hire:</span>
+            ${autoOptions.map(({ value, label }) => {
+                const active = autoRecruitRarity === value;
+                const arg = value === null ? 'null' : `'${value}'`;
+                const rarityClass = value ? `btn-auto--${value}` : '';
+                return `<button class="btn-auto ${rarityClass} ${active ? 'btn-auto--active' : ''}" onclick="setAutoRecruit(${arg})">${label}</button>`;
+            }).join('')}
+        </div>
     </div><div class="pool-cards">`;
 
     if (recruitPool.length === 0) {
@@ -348,7 +464,12 @@ function renderRecruitPool() {
 }
 
 function renderBuildings() {
-    let html = '';
+    const qtys = [1, 5, 10, 'max'];
+    let html = `<div class="buy-mode">
+        <span class="buy-mode-label">Buy:</span>
+        ${qtys.map(q => `<button class="btn-qty ${buyQuantity === q ? 'btn-qty--active' : ''}" onclick="setBuyQuantity(${q === 'max' ? "'max'" : q})">×${q}</button>`).join('')}
+    </div>`;
+
     for (const id in buildings) {
         const b = buildings[id];
         const cap = getBuildingCap(id);
@@ -366,15 +487,21 @@ function renderBuildings() {
         }
 
         const isDefense = b.type === 'defense';
-        const atCap = b.count >= cap;
-        const canAffordBuilding = gold >= b.cost && !atCap;
         const totalSlots = b.count * b.slotsPerBuilding;
+        const n = buyQuantity === 'max' ? maxAffordableBuildings(id) : Math.min(buyQuantity, cap - b.count);
+        const totalCost = n > 0 ? bulkBuildingCost(id, n) : 0;
+        const canAffordBuilding = n > 0 && gold >= totalCost;
+        const costLabel = buyQuantity === 'max'
+            ? (n > 0 ? `${totalCost.toLocaleString()} gold (×${n})` : 'At cap')
+            : buyQuantity === 1
+            ? `${b.cost.toLocaleString()} gold`
+            : `${totalCost.toLocaleString()} gold (×${n})`;
 
         html += `<div class="building-card ${isDefense ? 'building-card--defense' : ''}">
             <button class="btn-building" onclick="buyBuilding('${id}')" ${canAffordBuilding ? '' : 'disabled'}>
                 <span class="building-name">${b.name}</span>
                 <span class="building-meta">
-                    <span class="building-cost">Cost: ${b.cost.toLocaleString()} gold</span>
+                    <span class="building-cost">Cost: ${costLabel}</span>
                     <span class="building-desc">Adds ${b.slotsPerBuilding} resident slots</span>
                 </span>
                 <span class="building-owned">${b.count} / ${cap}</span>
@@ -426,12 +553,20 @@ function renderLeftPanel() {
             <div class="invasion-progress">${totalDefense.toLocaleString()} / ${currentInvasion.defenseRequired.toLocaleString()} defense</div>
             <div class="invasion-note">Income reduced to 25%</div>
         </div>`;
-    } else if (lastVictory) {
+    } else if (raidsStarted) {
+        const nextName = getInvasionName(invasionCount);
+        const nextDefense = getRequiredDefense(invasionCount);
         html += `<div class="panel-section">
-            <div class="panel-label">Last Victory</div>
-            <div class="victory-name">${lastVictory.name}</div>
-            <div class="victory-loot">+${lastVictory.loot.toLocaleString()} gold looted</div>
+            <div class="panel-label">Next Raid</div>
+            <div class="invasion-name invasion-name--warning">${nextName}</div>
+            <div class="invasion-preview">Needs ${nextDefense.toLocaleString()} defense</div>
+            <div class="invasion-timer">Arrives in ${formatTimer(invasionTimer)}</div>
         </div>`;
+        if (lastVictory) {
+            html += `<div class="victory-inline">
+                Last: ${lastVictory.name} +${lastVictory.loot.toLocaleString()}g
+            </div>`;
+        }
     }
 
     const current = levels[kingdomLevel];
