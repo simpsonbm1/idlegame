@@ -71,6 +71,11 @@ The old per-resident lucky-roll system is replaced by the rarity tier system.
 | Smithy | 2500g (scales) | 3 | Blacksmith | 700g | 15–40 g/s | 70–120 g/s | 10% |
 | Library | 15000g (scales) | 5 | Scholar | 3500g | 50–130 g/s | 220–380 g/s | 10% |
 
+| Keep | 500,000g (scales) | 3 | Knight | 5,000g | 50–120 defense | — | — |
+| Alchemist's Workshop | 80,000g (scales) | 4 | Alchemist | 25,000g | 150–350 g/s | — | — |
+| Wizard's Tower | 600,000g (scales) | 3 | Mage | 150,000g | 400–900 g/s | — | — |
+| Cathedral | 5,000,000g (scales) | 5 | High Priest | 1,000,000g | 1,000–2,500 g/s | — | — |
+
 All numbers are tunable — balance pass pending.
 
 ## Kingdom level system
@@ -82,13 +87,16 @@ This replaces a separate "unlock threshold" system — kingdom level IS the unlo
 
 Level-up is manual (spend gold via a button), not automatic.
 
-| Level | Name | Cost | Cottage | Tavern | Smithy | Library | Barracks | Unlocks |
-|---|---|---|---|---|---|---|---|---|
-| 0 | Hamlet | — | 10 | — | — | — | — | Cottage |
-| 1 | Village | 500g | 25 | 8 | — | — | 1 | Tavern, Barracks |
-| 2 | Town | 5,000g | 50 | 20 | 8 | — | Smithy |
-| 3 | City | 35,000g | 75 | 35 | 20 | 8 | Library |
-| 4 | Kingdom | 200,000g | 100 | 60 | 35 | 20 | — |
+| Level | Name | Cost | Cottage | Tavern | Smithy | Library | Barracks | Keep | Workshop | Tower | Cathedral | Unlocks |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0 | Hamlet | — | 10 | — | — | — | — | — | — | — | — | Cottage |
+| 1 | Village | 500g | 25 | 8 | — | — | 1 | — | — | — | — | Tavern, Barracks |
+| 2 | Town | 5,000g | 50 | 20 | 8 | — | 5 | — | — | — | — | Smithy |
+| 3 | City | 35,000g | 75 | 35 | 20 | 8 | 8 | — | — | — | — | Library |
+| 4 | Kingdom | 200,000g | 100 | 60 | 35 | 20 | 12 | — | — | — | — | — |
+| 5 | Empire | 1,000,000g | 150 | 90 | 55 | 30 | 18 | 3 | 8 | — | — | Workshop, Keep |
+| 6 | Dynasty | 8,000,000g | 200 | 120 | 75 | 50 | 25 | 6 | 15 | 6 | — | Wizard's Tower |
+| 7 | Realm | 60,000,000g | 250 | 160 | 100 | 70 | 35 | 10 | 25 | 12 | 5 | Cathedral |
 
 Locked buildings show in the UI with a hint ("Unlocks at Village") so the player can see what they're working toward.
 

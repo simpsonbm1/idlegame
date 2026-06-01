@@ -49,31 +49,49 @@ const levels = [
         name: 'Hamlet',
         cost: 0,
         unlocks: ['cottage'],
-        caps: { cottage: 10, tavern: 0, smithy: 0, library: 0, barracks: 0 }
+        caps: { cottage: 10, tavern: 0, smithy: 0, library: 0, barracks: 0, workshop: 0, tower: 0, cathedral: 0, keep: 0 }
     },
     {
         name: 'Village',
         cost: 500,
         unlocks: ['tavern', 'barracks'],
-        caps: { cottage: 25, tavern: 8, smithy: 0, library: 0, barracks: 1 }
+        caps: { cottage: 25, tavern: 8, smithy: 0, library: 0, barracks: 1, workshop: 0, tower: 0, cathedral: 0, keep: 0 }
     },
     {
         name: 'Town',
         cost: 5000,
         unlocks: ['smithy'],
-        caps: { cottage: 50, tavern: 20, smithy: 8, library: 0, barracks: 5 }
+        caps: { cottage: 50, tavern: 20, smithy: 8, library: 0, barracks: 5, workshop: 0, tower: 0, cathedral: 0, keep: 0 }
     },
     {
         name: 'City',
         cost: 35000,
         unlocks: ['library'],
-        caps: { cottage: 75, tavern: 35, smithy: 20, library: 8, barracks: 8 }
+        caps: { cottage: 75, tavern: 35, smithy: 20, library: 8, barracks: 8, workshop: 0, tower: 0, cathedral: 0, keep: 0 }
     },
     {
         name: 'Kingdom',
         cost: 200000,
         unlocks: [],
-        caps: { cottage: 100, tavern: 60, smithy: 35, library: 20, barracks: 12 }
+        caps: { cottage: 100, tavern: 60, smithy: 35, library: 20, barracks: 12, workshop: 0, tower: 0, cathedral: 0, keep: 0 }
+    },
+    {
+        name: 'Empire',
+        cost: 1000000,
+        unlocks: ['workshop', 'keep'],
+        caps: { cottage: 150, tavern: 90, smithy: 55, library: 30, barracks: 18, workshop: 8, tower: 0, cathedral: 0, keep: 3 }
+    },
+    {
+        name: 'Dynasty',
+        cost: 8000000,
+        unlocks: ['tower'],
+        caps: { cottage: 200, tavern: 120, smithy: 75, library: 50, barracks: 25, workshop: 15, tower: 6, cathedral: 0, keep: 6 }
+    },
+    {
+        name: 'Realm',
+        cost: 60000000,
+        unlocks: ['cathedral'],
+        caps: { cottage: 250, tavern: 160, smithy: 100, library: 70, barracks: 35, workshop: 25, tower: 12, cathedral: 5, keep: 10 }
     }
 ];
 
@@ -82,7 +100,11 @@ const buildings = {
     tavern:   { name: 'Tavern',   cost: 300,   count: 0, slotsPerBuilding: 4, type: 'gold',    residents: [] },
     smithy:   { name: 'Smithy',   cost: 2500,  count: 0, slotsPerBuilding: 3, type: 'gold',    residents: [] },
     library:  { name: 'Library',  cost: 15000, count: 0, slotsPerBuilding: 5, type: 'gold',    residents: [] },
-    barracks: { name: 'Barracks', cost: 400,   count: 0, slotsPerBuilding: 4, type: 'defense', residents: [] }
+    barracks: { name: 'Barracks', cost: 400,    count: 0, slotsPerBuilding: 4, type: 'defense', residents: [] },
+    keep:     { name: 'Keep',     cost: 500000, count: 0, slotsPerBuilding: 3, type: 'defense', residents: [] },
+    workshop: { name: "Alchemist's Workshop", cost: 80000,    count: 0, slotsPerBuilding: 4, type: 'gold',    residents: [] },
+    tower:    { name: "Wizard's Tower",       cost: 600000,   count: 0, slotsPerBuilding: 3, type: 'gold',    residents: [] },
+    cathedral:{ name: 'Cathedral',            cost: 5000000,  count: 0, slotsPerBuilding: 5, type: 'gold',    residents: [] }
 };
 
 const rarityTiers = {
@@ -97,12 +119,17 @@ const recruitTypes = {
     tavernkeeper: { name: 'Tavernkeeper', buildingId: 'tavern',   baseCost: 120,  incomeMin: 5,  incomeMax: 12  },
     blacksmith:   { name: 'Blacksmith',   buildingId: 'smithy',   baseCost: 700,  incomeMin: 15, incomeMax: 40  },
     scholar:      { name: 'Scholar',      buildingId: 'library',  baseCost: 3500, incomeMin: 50, incomeMax: 130 },
-    guard:        { name: 'Guard',        buildingId: 'barracks', baseCost: 200,  incomeMin: 10, incomeMax: 30  }
+    guard:        { name: 'Guard',        buildingId: 'barracks',  baseCost: 200,     incomeMin: 10,   incomeMax: 30   },
+    knight:       { name: 'Knight',       buildingId: 'keep',      baseCost: 5000,    incomeMin: 50,   incomeMax: 120  },
+    alchemist:    { name: 'Alchemist',    buildingId: 'workshop',  baseCost: 25000,   incomeMin: 150,  incomeMax: 350  },
+    mage:         { name: 'Mage',         buildingId: 'tower',     baseCost: 150000,  incomeMin: 400,  incomeMax: 900  },
+    priest:       { name: 'High Priest',  buildingId: 'cathedral', baseCost: 1000000, incomeMin: 1000, incomeMax: 2500 }
 };
 
 const buildingToTypeId = {
     cottage: 'villager', tavern: 'tavernkeeper', smithy: 'blacksmith',
-    library: 'scholar',  barracks: 'guard'
+    library: 'scholar',  barracks: 'guard',
+    workshop: 'alchemist', tower: 'mage', cathedral: 'priest', keep: 'knight'
 };
 
 function getBuildingCap(id) {
@@ -134,7 +161,10 @@ function getRarityWeights() {
         [{ r: 'common', w: 75 }, { r: 'rare', w: 25 }],
         [{ r: 'common', w: 60 }, { r: 'rare', w: 30 }, { r: 'epic', w: 10 }],
         [{ r: 'common', w: 45 }, { r: 'rare', w: 35 }, { r: 'epic', w: 15 }, { r: 'legendary', w: 5 }],
-        [{ r: 'common', w: 30 }, { r: 'rare', w: 35 }, { r: 'epic', w: 25 }, { r: 'legendary', w: 10 }]
+        [{ r: 'common', w: 30 }, { r: 'rare', w: 35 }, { r: 'epic', w: 25 }, { r: 'legendary', w: 10 }],
+        [{ r: 'common', w: 20 }, { r: 'rare', w: 30 }, { r: 'epic', w: 35 }, { r: 'legendary', w: 15 }],
+        [{ r: 'common', w: 15 }, { r: 'rare', w: 25 }, { r: 'epic', w: 40 }, { r: 'legendary', w: 20 }],
+        [{ r: 'common', w: 10 }, { r: 'rare', w: 20 }, { r: 'epic', w: 40 }, { r: 'legendary', w: 30 }]
     ];
     return table[Math.min(kingdomLevel, table.length - 1)];
 }
