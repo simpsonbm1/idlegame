@@ -449,12 +449,16 @@ function renderRecruitPool() {
                 <div class="portrait portrait--${recruit.rarity}" data-type="${recruit.typeId}">
                     <span class="portrait-letter">${letter}</span>
                 </div>
-                <div class="recruit-name">${recruit.name}</div>
-                <div class="recruit-rarity" style="color:${rarityInfo.color}">${rarityInfo.name}</div>
-                <div class="recruit-stat">${valueLabel}</div>
-                <div class="recruit-cost">${recruit.cost.toLocaleString()}g</div>
-                ${hint ? `<div class="recruit-hint">${hint}</div>` : ''}
-                <button class="btn-hire-recruit" onclick="hireRecruit(${recruit.id})" ${canHire ? '' : 'disabled'}>Hire</button>
+                <div class="recruit-info">
+                    <div class="recruit-name">${recruit.name}</div>
+                    <div class="recruit-rarity" style="color:${rarityInfo.color}">${rarityInfo.name}</div>
+                    <div class="recruit-stat">${valueLabel}</div>
+                    ${hint ? `<div class="recruit-hint">${hint}</div>` : ''}
+                </div>
+                <div class="recruit-action">
+                    <div class="recruit-cost">${recruit.cost.toLocaleString()}g</div>
+                    <button class="btn-hire-recruit" onclick="hireRecruit(${recruit.id})" ${canHire ? '' : 'disabled'}>Hire</button>
+                </div>
             </div>`;
         });
     }

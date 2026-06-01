@@ -43,11 +43,22 @@ h1 {
     flex-shrink: 0;
     position: sticky;
     top: 40px;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+}
+
+#center-panel {
+    flex: 1;
+    min-width: 0;
 }
 
 #right-panel {
-    flex: 1;
-    min-width: 0;
+    width: 280px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 40px;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
 }
 
 /* --- Resources panel --- */
@@ -258,10 +269,6 @@ h1 {
 
 /* --- Town Square (recruit pool) --- */
 
-#recruit-section {
-    margin-bottom: 36px;
-}
-
 #recruit-section h2,
 #buildings h2 {
     font-size: 1rem;
@@ -273,41 +280,40 @@ h1 {
 
 .pool-header {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
 }
 
 .pool-timer {
     font-size: 0.8rem;
     color: #6a5a30;
     font-style: italic;
-    flex-shrink: 0;
 }
 
 .auto-recruit {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
     flex-wrap: wrap;
 }
 
 .auto-recruit-label {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: #6a5a30;
     text-transform: uppercase;
     letter-spacing: 1px;
+    margin-right: 2px;
 }
 
 .btn-auto {
     background: #2a2410;
     border: 1px solid #4a3a18;
     border-radius: 3px;
-    padding: 3px 8px;
+    padding: 3px 7px;
     color: #6a5a30;
     font-family: Georgia, 'Times New Roman', serif;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
@@ -317,15 +323,15 @@ h1 {
     border-color: #6a5a30;
 }
 
-.btn-auto--active            { color: #c9a84c; border-color: #6a5a30; background: #352e14; }
+.btn-auto--active                     { color: #c9a84c; border-color: #6a5a30; background: #352e14; }
 .btn-auto--rare.btn-auto--active      { color: #4488ff; border-color: #4488ff; background: #1a2035; }
 .btn-auto--epic.btn-auto--active      { color: #cc88ff; border-color: #aa44ff; background: #2a1535; }
 .btn-auto--legendary.btn-auto--active { color: #ffcc44; border-color: #ffaa00; background: #2a2010; }
 
 .pool-cards {
     display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 6px;
 }
 
 .pool-empty {
@@ -335,62 +341,75 @@ h1 {
 }
 
 .recruit-card {
-    width: 110px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
     background: #242010;
     border: 1px solid #4a3a18;
     border-radius: 4px;
-    padding: 10px 8px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 5px;
-    text-align: center;
+    padding: 8px;
 }
 
 .recruit-card--rare      { border-color: #2a3a6a; }
 .recruit-card--epic      { border-color: #4a2a6a; }
 .recruit-card--legendary { border-color: #6a4a10; }
 
+.recruit-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
 .recruit-name {
     font-size: 0.8rem;
     color: #c9a84c;
-    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .recruit-rarity {
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: 1px;
 }
 
 .recruit-stat {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: #e8c96d;
 }
 
+.recruit-hint {
+    font-size: 0.68rem;
+    color: #6a4040;
+    font-style: italic;
+}
+
+.recruit-action {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    flex-shrink: 0;
+}
+
 .recruit-cost {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     color: #8a7240;
 }
 
-.recruit-hint {
-    font-size: 0.7rem;
-    color: #6a4040;
-    font-style: italic;
-    line-height: 1.2;
-}
-
 .btn-hire-recruit {
-    margin-top: 2px;
     background: #2a2410;
     border: 1px solid #5a4a1e;
     border-radius: 3px;
-    padding: 4px 12px;
+    padding: 3px 10px;
     color: #c9a84c;
     font-family: Georgia, 'Times New Roman', serif;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     cursor: pointer;
-    width: 100%;
     transition: background 0.15s, border-color 0.15s;
 }
 
@@ -456,10 +475,11 @@ h1 {
     line-height: 1;
 }
 
-/* Portraits in recruit cards are slightly larger */
+/* Portraits in recruit cards are slightly smaller for the sidebar */
 .recruit-card .portrait {
-    width: 60px;
-    height: 60px;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
 }
 
 /* --- Buy quantity selector --- */
