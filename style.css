@@ -1,0 +1,394 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #1c1a0f;
+    color: #c9a84c;
+    font-family: Georgia, 'Times New Roman', serif;
+    min-height: 100vh;
+    padding: 40px 20px;
+    display: flex;
+    justify-content: center;
+}
+
+#game {
+    max-width: 1100px;
+    width: 100%;
+}
+
+h1 {
+    font-size: 2.5rem;
+    text-align: center;
+    color: #e8c96d;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-bottom: 40px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #5a4a1e;
+}
+
+/* --- Two-panel layout --- */
+
+#layout {
+    display: flex;
+    gap: 48px;
+    align-items: flex-start;
+}
+
+#left-panel {
+    width: 200px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 40px;
+}
+
+#right-panel {
+    flex: 1;
+    min-width: 0;
+}
+
+/* --- Resources panel --- */
+
+#resources {
+    background: #2a2410;
+    border: 1px solid #5a4a1e;
+    border-radius: 4px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.resource {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.resource-label {
+    font-size: 0.75rem;
+    color: #8a7240;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+#gold-display,
+#gps-display {
+    font-size: 1.6rem;
+    color: #e8c96d;
+}
+
+#siege-indicator {
+    font-size: 0.75rem;
+    color: #8a4040;
+    font-style: italic;
+}
+
+/* --- Left panel dynamic sections --- */
+
+.panel-section {
+    padding-top: 16px;
+    margin-top: 16px;
+    border-top: 1px solid #3a3010;
+}
+
+.panel-label {
+    font-size: 0.75rem;
+    color: #8a7240;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.stat-value {
+    font-size: 1.4rem;
+    color: #e8c96d;
+    margin-top: 4px;
+}
+
+/* --- Kingdom --- */
+
+.kingdom-name {
+    font-size: 1.4rem;
+    color: #e8c96d;
+    margin: 4px 0 10px;
+}
+
+.levelup-block {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.levelup-cost {
+    font-size: 0.85rem;
+    color: #c9a84c;
+}
+
+.levelup-unlocks {
+    font-size: 0.8rem;
+    color: #6a5a30;
+}
+
+.btn-levelup {
+    margin-top: 4px;
+    background: #2a2410;
+    border: 1px solid #5a4a1e;
+    border-radius: 4px;
+    padding: 8px 12px;
+    color: #c9a84c;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-levelup:hover:not(:disabled) {
+    background: #352e14;
+    border-color: #8a7240;
+}
+
+.btn-levelup:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.kingdom-maxed {
+    font-size: 0.85rem;
+    color: #6a5a30;
+    font-style: italic;
+    margin-top: 4px;
+}
+
+/* --- Invasion --- */
+
+.invasion-panel {
+    border-top-color: #6a2020;
+}
+
+.invasion-name {
+    font-size: 1.1rem;
+    color: #e06060;
+    margin: 4px 0 6px;
+}
+
+.invasion-progress {
+    font-size: 0.9rem;
+    color: #c9a84c;
+    margin-bottom: 4px;
+}
+
+.invasion-note {
+    font-size: 0.75rem;
+    color: #8a4040;
+    font-style: italic;
+}
+
+/* --- Last victory --- */
+
+.victory-name {
+    font-size: 1rem;
+    color: #e8c96d;
+    margin: 4px 0 2px;
+}
+
+.victory-loot {
+    font-size: 0.85rem;
+    color: #8a7240;
+}
+
+/* --- Buildings section --- */
+
+#buildings h2 {
+    font-size: 1rem;
+    color: #8a7240;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    margin-bottom: 16px;
+}
+
+#building-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.building-card {
+    max-width: 480px;
+}
+
+.btn-building {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    background: #2a2410;
+    border: 1px solid #5a4a1e;
+    border-radius: 4px;
+    padding: 16px 20px;
+    color: #c9a84c;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 1rem;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-building:hover:not(:disabled) {
+    background: #352e14;
+    border-color: #8a7240;
+}
+
+.btn-building:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.building-card--defense .btn-building {
+    border-color: #2a3a5a;
+}
+
+.building-card--defense .btn-building:hover:not(:disabled) {
+    background: #1a2030;
+    border-color: #4a6a8a;
+}
+
+.building-name {
+    font-size: 1.1rem;
+    color: #e8c96d;
+    min-width: 90px;
+}
+
+.building-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+}
+
+.building-cost {
+    font-size: 0.9rem;
+    color: #c9a84c;
+}
+
+.building-desc {
+    font-size: 0.8rem;
+    color: #6a5a30;
+}
+
+.building-owned {
+    font-size: 0.85rem;
+    color: #8a7240;
+}
+
+.btn-building--locked {
+    cursor: default;
+    opacity: 0.35;
+    border-color: #3a3010;
+}
+
+.building-locked-hint {
+    font-size: 0.8rem;
+    color: #6a5a30;
+    font-style: italic;
+}
+
+/* --- Resident roster --- */
+
+.building-roster {
+    margin-top: 10px;
+    padding-left: 4px;
+}
+
+.roster-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 8px;
+}
+
+.btn-hire {
+    background: #2a2410;
+    border: 1px solid #5a4a1e;
+    border-radius: 4px;
+    padding: 8px 16px;
+    color: #c9a84c;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-hire:hover:not(:disabled) {
+    background: #352e14;
+    border-color: #8a7240;
+}
+
+.btn-hire:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.slot-count {
+    font-size: 0.8rem;
+    color: #6a5a30;
+}
+
+.resident-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.resident {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 7px 4px;
+    border-bottom: 1px solid #242008;
+    font-size: 0.9rem;
+}
+
+.resident:last-child {
+    border-bottom: none;
+}
+
+.resident-name {
+    color: #c9a84c;
+    min-width: 100px;
+}
+
+.resident-income {
+    color: #e8c96d;
+    min-width: 90px;
+}
+
+.resident--defense .resident-income {
+    color: #7aaad4;
+}
+
+.resident-lucky {
+    color: #ffd700;
+    font-size: 0.8rem;
+}
+
+.btn-fire {
+    margin-left: auto;
+    background: none;
+    border: 1px solid #5a2020;
+    border-radius: 3px;
+    padding: 3px 8px;
+    color: #8a4040;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.btn-fire:hover {
+    background: #3a1818;
+    color: #c06060;
+    border-color: #8a4040;
+}

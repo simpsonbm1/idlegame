@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Idle Kingdom</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game">
+        <h1>Idle Kingdom</h1>
+
+        <div id="layout">
+            <div id="left-panel">
+                <div id="resources">
+                    <div class="resource">
+                        <span class="resource-label">Gold</span>
+                        <span id="gold-display">50</span>
+                    </div>
+                    <div class="resource">
+                        <span class="resource-label">Per second</span>
+                        <span id="gps-display">0</span>
+                        <span id="siege-indicator"></span>
+                    </div>
+                </div>
+                <div id="left-panel-dynamic"></div>
+            </div>
+
+            <div id="right-panel">
+                <div id="buildings">
+                    <h2>Buildings</h2>
+                    <div id="building-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
