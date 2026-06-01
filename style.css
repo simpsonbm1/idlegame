@@ -163,6 +163,40 @@ h1 {
     margin-top: 4px;
 }
 
+.btn-reset {
+    background: none;
+    border: 1px solid #4a2020;
+    border-radius: 4px;
+    padding: 6px 12px;
+    color: #6a3030;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.btn-reset:hover {
+    color: #c06060;
+    border-color: #8a4040;
+}
+
+.reset-confirm-buttons {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.btn-reset--confirm {
+    color: #c06060;
+    border-color: #6a2020;
+}
+
+.btn-reset--confirm:hover {
+    color: #ff8080;
+    border-color: #aa3030;
+    background: #2a1010;
+}
+
 /* --- Invasion --- */
 
 .invasion-panel {
@@ -187,8 +221,6 @@ h1 {
     font-style: italic;
 }
 
-/* --- Last victory --- */
-
 .victory-name {
     font-size: 1rem;
     color: #e8c96d;
@@ -200,15 +232,172 @@ h1 {
     color: #8a7240;
 }
 
-/* --- Buildings section --- */
+/* --- Town Square (recruit pool) --- */
 
+#recruit-section {
+    margin-bottom: 36px;
+}
+
+#recruit-section h2,
 #buildings h2 {
     font-size: 1rem;
     color: #8a7240;
     text-transform: uppercase;
     letter-spacing: 3px;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
 }
+
+.pool-header {
+    margin-bottom: 10px;
+}
+
+.pool-timer {
+    font-size: 0.8rem;
+    color: #6a5a30;
+    font-style: italic;
+}
+
+.pool-cards {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.pool-empty {
+    font-size: 0.9rem;
+    color: #6a5a30;
+    font-style: italic;
+}
+
+.recruit-card {
+    width: 110px;
+    background: #242010;
+    border: 1px solid #4a3a18;
+    border-radius: 4px;
+    padding: 10px 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    text-align: center;
+}
+
+.recruit-card--rare      { border-color: #2a3a6a; }
+.recruit-card--epic      { border-color: #4a2a6a; }
+.recruit-card--legendary { border-color: #6a4a10; }
+
+.recruit-name {
+    font-size: 0.8rem;
+    color: #c9a84c;
+    line-height: 1.2;
+}
+
+.recruit-rarity {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.recruit-stat {
+    font-size: 0.85rem;
+    color: #e8c96d;
+}
+
+.recruit-cost {
+    font-size: 0.78rem;
+    color: #8a7240;
+}
+
+.recruit-hint {
+    font-size: 0.7rem;
+    color: #6a4040;
+    font-style: italic;
+    line-height: 1.2;
+}
+
+.btn-hire-recruit {
+    margin-top: 2px;
+    background: #2a2410;
+    border: 1px solid #5a4a1e;
+    border-radius: 3px;
+    padding: 4px 12px;
+    color: #c9a84c;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 0.8rem;
+    cursor: pointer;
+    width: 100%;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-hire-recruit:hover:not(:disabled) {
+    background: #352e14;
+    border-color: #8a7240;
+}
+
+.btn-hire-recruit:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* --- Portraits --- */
+
+.portrait {
+    width: 52px;
+    height: 52px;
+    border: 2px solid;
+    border-radius: 2px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.portrait--common    { border-color: #666;    background: #2a2818; }
+.portrait--rare      { border-color: #4488ff; background: #1a2035; box-shadow: 0 0 6px #4488ff33; }
+.portrait--epic      { border-color: #aa44ff; background: #2a1535; box-shadow: 0 0 6px #aa44ff33; }
+.portrait--legendary { border-color: #ffaa00; background: #2a2010; box-shadow: 0 0 8px #ffaa0055; }
+.portrait--empty     { border-color: #3a3010; background: #1c1a0f; cursor: default; opacity: 0.5; }
+
+.portrait[data-type="villager"]     { background-color: #302a18; }
+.portrait[data-type="tavernkeeper"] { background-color: #352210; }
+.portrait[data-type="blacksmith"]   { background-color: #202428; }
+.portrait[data-type="scholar"]      { background-color: #181c2a; }
+.portrait[data-type="guard"]        { background-color: #281818; }
+
+.portrait-letter {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: #c9a84c;
+    line-height: 1;
+    margin-bottom: 2px;
+}
+
+.portrait--rare .portrait-letter      { color: #88aaff; }
+.portrait--epic .portrait-letter      { color: #cc88ff; }
+.portrait--legendary .portrait-letter { color: #ffcc44; }
+.portrait--empty .portrait-letter     { color: #3a3010; font-size: 1.6rem; margin-bottom: 0; }
+
+.portrait-stat {
+    position: absolute;
+    bottom: 2px;
+    right: 3px;
+    font-size: 0.55rem;
+    font-family: 'Courier New', Courier, monospace;
+    color: #8a7240;
+    line-height: 1;
+}
+
+/* Portraits in recruit cards are slightly larger */
+.recruit-card .portrait {
+    width: 60px;
+    height: 60px;
+}
+
+/* --- Buildings section --- */
 
 #building-list {
     display: flex;
@@ -217,7 +406,7 @@ h1 {
 }
 
 .building-card {
-    max-width: 480px;
+    max-width: 520px;
 }
 
 .btn-building {
@@ -296,99 +485,11 @@ h1 {
     font-style: italic;
 }
 
-/* --- Resident roster --- */
+/* --- Slot grid --- */
 
-.building-roster {
-    margin-top: 10px;
-    padding-left: 4px;
-}
-
-.roster-header {
+.slot-grid {
     display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 8px;
-}
-
-.btn-hire {
-    background: #2a2410;
-    border: 1px solid #5a4a1e;
-    border-radius: 4px;
-    padding: 8px 16px;
-    color: #c9a84c;
-    font-family: Georgia, 'Times New Roman', serif;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
-}
-
-.btn-hire:hover:not(:disabled) {
-    background: #352e14;
-    border-color: #8a7240;
-}
-
-.btn-hire:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-.slot-count {
-    font-size: 0.8rem;
-    color: #6a5a30;
-}
-
-.resident-list {
-    display: flex;
-    flex-direction: column;
-}
-
-.resident {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 7px 4px;
-    border-bottom: 1px solid #242008;
-    font-size: 0.9rem;
-}
-
-.resident:last-child {
-    border-bottom: none;
-}
-
-.resident-name {
-    color: #c9a84c;
-    min-width: 100px;
-}
-
-.resident-income {
-    color: #e8c96d;
-    min-width: 90px;
-}
-
-.resident--defense .resident-income {
-    color: #7aaad4;
-}
-
-.resident-lucky {
-    color: #ffd700;
-    font-size: 0.8rem;
-}
-
-.btn-fire {
-    margin-left: auto;
-    background: none;
-    border: 1px solid #5a2020;
-    border-radius: 3px;
-    padding: 3px 8px;
-    color: #8a4040;
-    font-family: Georgia, 'Times New Roman', serif;
-    font-size: 0.75rem;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-
-.btn-fire:hover {
-    background: #3a1818;
-    color: #c06060;
-    border-color: #8a4040;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 4px 4px;
 }

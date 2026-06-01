@@ -34,6 +34,25 @@ Roll structure (per building type):
 - Invasions scale with town wealth — richer towns are bigger targets
 - This creates a core tradeoff: maximize income vs. investing in defense
 
+## Recruit pool system
+Instead of hiring on demand, a pool of 5 recruits refreshes every 10 seconds in the "Town Square" section. Each recruit has a rarity tier that scales their income and cost.
+
+**Rarity tiers:**
+| Tier | Income mult | Cost mult | Color |
+|---|---|---|---|
+| Common | 1× | 1× | Gray |
+| Rare | 2.5× | 3× | Blue |
+| Epic | 5× | 8× | Purple |
+| Legendary | 10× | 20× | Gold |
+
+Rarity weights improve with kingdom level. Legendary only available at City+ level.
+
+**Recruit types** map to building types (Villager→Cottage, Tavernkeeper→Tavern, etc.). Only recruits for unlocked buildings appear in the pool.
+
+The old per-resident lucky-roll system is replaced by the rarity tier system.
+
+**Portrait grid:** Buildings show a grid of slot icons instead of a text list. Filled slots show a pixel-style portrait (letter + type color background + rarity glow border). Clicking a portrait dismisses that resident. Empty slots shown as dim squares.
+
 ## Design decisions locked in
 - Fully idle — no clicking to earn resources
 - One-time roll on hire (not per-tick variance)

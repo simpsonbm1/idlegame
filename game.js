@@ -6,6 +6,13 @@ let kingdomLevel = 0;
 let invasionIndex = 0;
 let currentInvasion = null;
 let lastVictory = null;
+let recruitPool = [];
+let poolTimer = 0;
+let nextRecruitId = 0;
+let confirmingReset = false;
+
+const POOL_SIZE = 5;
+const POOL_REFRESH_INTERVAL = 10;
 
 const invasions = [
     {
@@ -58,60 +65,125 @@ const levels = [
 ];
 
 const buildings = {
-    cottage: {
-        name: 'Cottage', cost: 10, count: 0, slotsPerBuilding: 3,
-        residentName: 'Villager', hireCost: 25,
-        incomeMin: 1, incomeMax: 5, luckyChance: 0.10, luckyMin: 8, luckyMax: 15,
-        residents: [], type: 'gold'
-    },
-    tavern: {
-        name: 'Tavern', cost: 300, count: 0, slotsPerBuilding: 4,
-        residentName: 'Tavernkeeper', hireCost: 120,
-        incomeMin: 5, incomeMax: 12, luckyChance: 0.10, luckyMin: 20, luckyMax: 35,
-        residents: [], type: 'gold'
-    },
-    smithy: {
-        name: 'Smithy', cost: 2500, count: 0, slotsPerBuilding: 3,
-        residentName: 'Blacksmith', hireCost: 700,
-        incomeMin: 15, incomeMax: 40, luckyChance: 0.10, luckyMin: 70, luckyMax: 120,
-        residents: [], type: 'gold'
-    },
-    library: {
-        name: 'Library', cost: 15000, count: 0, slotsPerBuilding: 5,
-        residentName: 'Scholar', hireCost: 3500,
-        incomeMin: 50, incomeMax: 130, luckyChance: 0.10, luckyMin: 220, luckyMax: 380,
-        residents: [], type: 'gold'
-    },
-    barracks: {
-        name: 'Barracks', cost: 400, count: 0, slotsPerBuilding: 4,
-        residentName: 'Guard', hireCost: 200,
-        incomeMin: 10, incomeMax: 30, luckyChance: 0.10, luckyMin: 60, luckyMax: 100,
-        residents: [], type: 'defense'
-    }
+    cottage:  { name: 'Cottage',  cost: 10,    count: 0, slotsPerBuilding: 3, type: 'gold',    residents: [] },
+    tavern:   { name: 'Tavern',   cost: 300,   count: 0, slotsPerBuilding: 4, type: 'gold',    residents: [] },
+    smithy:   { name: 'Smithy',   cost: 2500,  count: 0, slotsPerBuilding: 3, type: 'gold',    residents: [] },
+    library:  { name: 'Library',  cost: 15000, count: 0, slotsPerBuilding: 5, type: 'gold',    residents: [] },
+    barracks: { name: 'Barracks', cost: 400,   count: 0, slotsPerBuilding: 4, type: 'defense', residents: [] }
+};
+
+const rarityTiers = {
+    common:    { name: 'Common',    color: '#888888', costMult: 1,  incomeMult: 1   },
+    rare:      { name: 'Rare',      color: '#4488ff', costMult: 3,  incomeMult: 2.5 },
+    epic:      { name: 'Epic',      color: '#aa44ff', costMult: 8,  incomeMult: 5   },
+    legendary: { name: 'Legendary', color: '#ffaa00', costMult: 20, incomeMult: 10  }
+};
+
+const recruitTypes = {
+    villager:     { name: 'Villager',     buildingId: 'cottage',  baseCost: 25,   incomeMin: 1,  incomeMax: 5   },
+    tavernkeeper: { name: 'Tavernkeeper', buildingId: 'tavern',   baseCost: 120,  incomeMin: 5,  incomeMax: 12  },
+    blacksmith:   { name: 'Blacksmith',   buildingId: 'smithy',   baseCost: 700,  incomeMin: 15, incomeMax: 40  },
+    scholar:      { name: 'Scholar',      buildingId: 'library',  baseCost: 3500, incomeMin: 50, incomeMax: 130 },
+    guard:        { name: 'Guard',        buildingId: 'barracks', baseCost: 200,  incomeMin: 10, incomeMax: 30  }
+};
+
+const buildingToTypeId = {
+    cottage: 'villager', tavern: 'tavernkeeper', smithy: 'blacksmith',
+    library: 'scholar',  barracks: 'guard'
 };
 
 function getBuildingCap(id) {
     return levels[kingdomLevel].caps[id];
 }
 
-function rollIncome(b) {
-    if (Math.random() < b.luckyChance) {
-        return {
-            income: b.luckyMin + Math.floor(Math.random() * (b.luckyMax - b.luckyMin + 1)),
-            lucky: true
-        };
+function getRarityWeights() {
+    const table = [
+        [{ r: 'common', w: 85 }, { r: 'rare', w: 15 }],
+        [{ r: 'common', w: 75 }, { r: 'rare', w: 25 }],
+        [{ r: 'common', w: 60 }, { r: 'rare', w: 30 }, { r: 'epic', w: 10 }],
+        [{ r: 'common', w: 45 }, { r: 'rare', w: 35 }, { r: 'epic', w: 15 }, { r: 'legendary', w: 5 }],
+        [{ r: 'common', w: 30 }, { r: 'rare', w: 35 }, { r: 'epic', w: 25 }, { r: 'legendary', w: 10 }]
+    ];
+    return table[Math.min(kingdomLevel, table.length - 1)];
+}
+
+function rollRarity() {
+    const weights = getRarityWeights();
+    const total = weights.reduce((sum, w) => sum + w.w, 0);
+    let roll = Math.random() * total;
+    for (const { r, w } of weights) {
+        roll -= w;
+        if (roll <= 0) return r;
     }
-    return {
-        income: b.incomeMin + Math.floor(Math.random() * (b.incomeMax - b.incomeMin + 1)),
-        lucky: false
-    };
+    return 'common';
+}
+
+function generateRecruit() {
+    const availableTypeIds = Object.keys(recruitTypes).filter(typeId =>
+        getBuildingCap(recruitTypes[typeId].buildingId) > 0
+    );
+    if (availableTypeIds.length === 0) return null;
+
+    const typeId = availableTypeIds[Math.floor(Math.random() * availableTypeIds.length)];
+    const type = recruitTypes[typeId];
+    const rarity = rollRarity();
+    const tier = rarityTiers[rarity];
+
+    const baseIncome = type.incomeMin + Math.floor(Math.random() * (type.incomeMax - type.incomeMin + 1));
+    const income = Math.max(1, Math.floor(baseIncome * tier.incomeMult));
+    const cost = Math.floor(type.baseCost * tier.costMult);
+
+    return { id: nextRecruitId++, typeId, buildingId: type.buildingId, name: type.name, rarity, income, cost };
+}
+
+function refreshPool() {
+    recruitPool = [];
+    for (let i = 0; i < POOL_SIZE; i++) {
+        const r = generateRecruit();
+        if (r) recruitPool.push(r);
+    }
+}
+
+function hireRecruit(recruitId) {
+    const index = recruitPool.findIndex(r => r.id === recruitId);
+    if (index === -1) return;
+    const recruit = recruitPool[index];
+
+    const b = buildings[recruit.buildingId];
+    const slots = b.count * b.slotsPerBuilding;
+    if (gold < recruit.cost || b.residents.length >= slots) return;
+
+    gold -= recruit.cost;
+    recruitPool.splice(index, 1);
+    b.residents.push({ typeId: recruit.typeId, name: recruit.name, rarity: recruit.rarity, income: recruit.income });
+
+    if (b.type === 'defense') {
+        totalDefense += recruit.income;
+    } else {
+        goldPerSecond += recruit.income;
+    }
+
+    checkInvasion();
+    saveGame();
+    updateUI();
+}
+
+function fireResident(buildingId, index) {
+    const b = buildings[buildingId];
+    const r = b.residents[index];
+    if (b.type === 'defense') {
+        totalDefense -= r.income;
+    } else {
+        goldPerSecond -= r.income;
+    }
+    b.residents.splice(index, 1);
+    saveGame();
+    updateUI();
 }
 
 function checkInvasion() {
     if (currentInvasion !== null) {
-        if (totalDefense >= currentInvasion.defenseRequired) {
-            repelInvasion();
-        }
+        if (totalDefense >= currentInvasion.defenseRequired) repelInvasion();
         return;
     }
     if (invasionIndex >= invasions.length) return;
@@ -128,11 +200,83 @@ function repelInvasion() {
     currentInvasion = null;
 }
 
+function saveGame() {
+    const state = {
+        gold, goldEarned, kingdomLevel, invasionIndex, currentInvasion, lastVictory,
+        recruitPool, poolTimer, nextRecruitId,
+        buildings: {}
+    };
+    for (const id in buildings) {
+        state.buildings[id] = { cost: buildings[id].cost, count: buildings[id].count, residents: buildings[id].residents };
+    }
+    localStorage.setItem('idleKingdomSave', JSON.stringify(state));
+}
+
+function loadGame() {
+    const saved = localStorage.getItem('idleKingdomSave');
+    if (!saved) return;
+    const state = JSON.parse(saved);
+
+    gold = state.gold ?? 50;
+    goldEarned = state.goldEarned ?? 0;
+    kingdomLevel = state.kingdomLevel ?? 0;
+    invasionIndex = state.invasionIndex ?? 0;
+    currentInvasion = state.currentInvasion ?? null;
+    lastVictory = state.lastVictory ?? null;
+    recruitPool = state.recruitPool ?? [];
+    poolTimer = state.poolTimer ?? 0;
+    nextRecruitId = state.nextRecruitId ?? 0;
+
+    for (const id in (state.buildings || {})) {
+        if (!buildings[id]) continue;
+        buildings[id].cost = state.buildings[id].cost;
+        buildings[id].count = state.buildings[id].count;
+        buildings[id].residents = (state.buildings[id].residents || []).map(r => ({
+            income: r.income,
+            rarity: r.rarity || 'common',
+            typeId: r.typeId || buildingToTypeId[id] || 'villager',
+            name: r.name || (recruitTypes[buildingToTypeId[id]] || {}).name || 'Resident'
+        }));
+    }
+
+    goldPerSecond = 0;
+    totalDefense = 0;
+    for (const id in buildings) {
+        for (const r of buildings[id].residents) {
+            if (buildings[id].type === 'defense') totalDefense += r.income;
+            else goldPerSecond += r.income;
+        }
+    }
+}
+
+function showResetConfirm() {
+    confirmingReset = true;
+    updateUI();
+}
+
+function cancelReset() {
+    confirmingReset = false;
+    updateUI();
+}
+
+function doResetGame() {
+    localStorage.removeItem('idleKingdomSave');
+    location.reload();
+}
+
 function tick() {
     const income = currentInvasion ? goldPerSecond * 0.25 : goldPerSecond;
     gold += income;
     goldEarned += goldPerSecond;
+
+    poolTimer++;
+    if (poolTimer >= POOL_REFRESH_INTERVAL) {
+        poolTimer = 0;
+        refreshPool();
+    }
+
     checkInvasion();
+    saveGame();
     updateUI();
 }
 
@@ -141,6 +285,7 @@ function levelUpKingdom() {
     if (!next || gold < next.cost) return;
     gold -= next.cost;
     kingdomLevel += 1;
+    saveGame();
     updateUI();
 }
 
@@ -151,35 +296,117 @@ function buyBuilding(id) {
     gold -= b.cost;
     b.count += 1;
     b.cost = Math.floor(b.cost * 1.15);
+    saveGame();
     updateUI();
 }
 
-function hireResident(id) {
-    const b = buildings[id];
-    const slots = b.count * b.slotsPerBuilding;
-    if (gold < b.hireCost || b.residents.length >= slots) return;
-    gold -= b.hireCost;
-    const result = rollIncome(b);
-    b.residents.push(result);
-    if (b.type === 'defense') {
-        totalDefense += result.income;
+function renderRecruitPool() {
+    const timeUntilRefresh = POOL_REFRESH_INTERVAL - poolTimer;
+    let html = `<div class="pool-header">
+        <span class="pool-timer">New arrivals in ${timeUntilRefresh}s</span>
+    </div><div class="pool-cards">`;
+
+    if (recruitPool.length === 0) {
+        html += `<div class="pool-empty">No one seeking work right now.</div>`;
     } else {
-        goldPerSecond += result.income;
+        recruitPool.forEach(recruit => {
+            const b = buildings[recruit.buildingId];
+            const slots = b.count * b.slotsPerBuilding;
+            const hasSlot = b.residents.length < slots;
+            const canAfford = gold >= recruit.cost;
+            const buildingUnlocked = getBuildingCap(recruit.buildingId) > 0;
+            const canHire = canAfford && hasSlot && buildingUnlocked;
+            const isDefense = b.type === 'defense';
+            const type = recruitTypes[recruit.typeId];
+            const tier = rarityTiers[recruit.rarity];
+            const minVal = Math.max(1, Math.floor(type.incomeMin * tier.incomeMult));
+            const maxVal = Math.floor(type.incomeMax * tier.incomeMult);
+            const valueLabel = isDefense ? `${minVal}-${maxVal} def` : `${minVal}-${maxVal} g/s`;
+            const rarityInfo = rarityTiers[recruit.rarity];
+            const letter = recruit.name[0].toUpperCase();
+
+            let hint = '';
+            if (!buildingUnlocked) hint = `Needs ${b.name}`;
+            else if (!hasSlot) hint = `No open slots`;
+
+            html += `<div class="recruit-card recruit-card--${recruit.rarity}">
+                <div class="portrait portrait--${recruit.rarity}" data-type="${recruit.typeId}">
+                    <span class="portrait-letter">${letter}</span>
+                </div>
+                <div class="recruit-name">${recruit.name}</div>
+                <div class="recruit-rarity" style="color:${rarityInfo.color}">${rarityInfo.name}</div>
+                <div class="recruit-stat">${valueLabel}</div>
+                <div class="recruit-cost">${recruit.cost.toLocaleString()}g</div>
+                ${hint ? `<div class="recruit-hint">${hint}</div>` : ''}
+                <button class="btn-hire-recruit" onclick="hireRecruit(${recruit.id})" ${canHire ? '' : 'disabled'}>Hire</button>
+            </div>`;
+        });
     }
-    checkInvasion();
-    updateUI();
+
+    html += `</div>`;
+    document.getElementById('recruit-pool').innerHTML = html;
 }
 
-function fireResident(id, index) {
-    const b = buildings[id];
-    const r = b.residents[index];
-    if (b.type === 'defense') {
-        totalDefense -= r.income;
-    } else {
-        goldPerSecond -= r.income;
+function renderBuildings() {
+    let html = '';
+    for (const id in buildings) {
+        const b = buildings[id];
+        const cap = getBuildingCap(id);
+        const isUnlocked = cap > 0;
+
+        if (!isUnlocked) {
+            const unlocksAtLevel = levels.find(l => l.caps[id] > 0);
+            html += `<div class="building-card">
+                <div class="btn-building btn-building--locked">
+                    <span class="building-name">${b.name}</span>
+                    <span class="building-locked-hint">Unlocks at ${unlocksAtLevel ? unlocksAtLevel.name : '???'}</span>
+                </div>
+            </div>`;
+            continue;
+        }
+
+        const isDefense = b.type === 'defense';
+        const atCap = b.count >= cap;
+        const canAffordBuilding = gold >= b.cost && !atCap;
+        const totalSlots = b.count * b.slotsPerBuilding;
+
+        html += `<div class="building-card ${isDefense ? 'building-card--defense' : ''}">
+            <button class="btn-building" onclick="buyBuilding('${id}')" ${canAffordBuilding ? '' : 'disabled'}>
+                <span class="building-name">${b.name}</span>
+                <span class="building-meta">
+                    <span class="building-cost">Cost: ${b.cost.toLocaleString()} gold</span>
+                    <span class="building-desc">Adds ${b.slotsPerBuilding} resident slots</span>
+                </span>
+                <span class="building-owned">${b.count} / ${cap}</span>
+            </button>`;
+
+        if (b.count > 0) {
+            html += `<div class="slot-grid">`;
+
+            b.residents.forEach((r, i) => {
+                const letter = r.name ? r.name[0].toUpperCase() : '?';
+                const valueLabel = isDefense ? `${r.income} def` : `${r.income} g/s`;
+                const rarityInfo = rarityTiers[r.rarity] || rarityTiers.common;
+                html += `<div class="portrait portrait--${r.rarity || 'common'}" data-type="${r.typeId || 'villager'}"
+                    title="${r.name} (${rarityInfo.name}) — ${valueLabel}&#10;Click to dismiss"
+                    onclick="fireResident('${id}', ${i})">
+                    <span class="portrait-letter">${letter}</span>
+                    <span class="portrait-stat">${r.income}</span>
+                </div>`;
+            });
+
+            for (let i = b.residents.length; i < totalSlots; i++) {
+                html += `<div class="portrait portrait--empty" title="Empty slot">
+                    <span class="portrait-letter">·</span>
+                </div>`;
+            }
+
+            html += `</div>`;
+        }
+
+        html += `</div>`;
     }
-    b.residents.splice(index, 1);
-    updateUI();
+    document.getElementById('building-list').innerHTML = html;
 }
 
 function renderLeftPanel() {
@@ -230,70 +457,21 @@ function renderLeftPanel() {
 
     html += `</div>`;
 
-    document.getElementById('left-panel-dynamic').innerHTML = html;
-}
-
-function renderBuildings() {
-    let html = '';
-    for (const id in buildings) {
-        const b = buildings[id];
-        const cap = getBuildingCap(id);
-        const isUnlocked = cap > 0;
-
-        if (!isUnlocked) {
-            const unlocksAtLevel = levels.find(l => l.caps[id] > 0);
-            html += `<div class="building-card">
-                <div class="btn-building btn-building--locked">
-                    <span class="building-name">${b.name}</span>
-                    <span class="building-locked-hint">Unlocks at ${unlocksAtLevel ? unlocksAtLevel.name : '???'}</span>
-                </div>
-            </div>`;
-            continue;
-        }
-
-        const isDefense = b.type === 'defense';
-        const atCap = b.count >= cap;
-        const canAffordBuilding = gold >= b.cost && !atCap;
-        const slots = b.count * b.slotsPerBuilding;
-        const canAffordHire = gold >= b.hireCost && b.residents.length < slots;
-        const valueLabel = isDefense ? 'defense' : 'gold/sec';
-
-        html += `<div class="building-card ${isDefense ? 'building-card--defense' : ''}">
-            <button class="btn-building" onclick="buyBuilding('${id}')" ${canAffordBuilding ? '' : 'disabled'}>
-                <span class="building-name">${b.name}</span>
-                <span class="building-meta">
-                    <span class="building-cost">Cost: ${b.cost.toLocaleString()} gold</span>
-                    <span class="building-desc">Adds ${b.slotsPerBuilding} resident slots</span>
-                </span>
-                <span class="building-owned">${b.count} / ${cap}</span>
-            </button>`;
-
-        if (b.count > 0) {
-            html += `<div class="building-roster">
-                <div class="roster-header">
-                    <button class="btn-hire" onclick="hireResident('${id}')" ${canAffordHire ? '' : 'disabled'}>
-                        Hire ${b.residentName} — ${b.hireCost.toLocaleString()} gold
-                    </button>
-                    <span class="slot-count">${b.residents.length} / ${slots} residents</span>
-                </div>
-                <div class="resident-list">`;
-
-            b.residents.forEach((r, i) => {
-                html += `<div class="resident ${isDefense ? 'resident--defense' : ''}">
-                    <span class="resident-name">${b.residentName}</span>
-                    <span class="resident-income">${r.income} ${valueLabel}</span>
-                    ${r.lucky ? '<span class="resident-lucky">&#9733; Lucky</span>' : ''}
-                    <button class="btn-fire" onclick="fireResident('${id}', ${i})">Fire</button>
-                </div>`;
-            });
-
-            html += `</div></div>`;
-        }
-
-        html += `</div>`;
+    if (confirmingReset) {
+        html += `<div class="panel-section">
+            <div class="panel-label" style="color:#8a4040">Reset all progress?</div>
+            <div class="reset-confirm-buttons">
+                <button class="btn-reset btn-reset--confirm" onclick="doResetGame()">Yes, reset</button>
+                <button class="btn-reset" onclick="cancelReset()">Cancel</button>
+            </div>
+        </div>`;
+    } else {
+        html += `<div class="panel-section">
+            <button class="btn-reset" onclick="showResetConfirm()">Reset game</button>
+        </div>`;
     }
 
-    document.getElementById('building-list').innerHTML = html;
+    document.getElementById('left-panel-dynamic').innerHTML = html;
 }
 
 function updateUI() {
@@ -304,7 +482,11 @@ function updateUI() {
     document.getElementById('siege-indicator').textContent = currentInvasion ? ' (siege)' : '';
 
     renderLeftPanel();
+    renderRecruitPool();
     renderBuildings();
 }
 
+loadGame();
+if (recruitPool.length === 0) refreshPool();
+updateUI();
 setInterval(tick, 1000);
