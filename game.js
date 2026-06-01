@@ -15,6 +15,8 @@ let confirmingReset = false;
 let buyQuantity = 1;
 let autoRecruitRarity = null;
 const buildingExpanded = {};
+let gameSpeed = 1;
+let tickInterval = null;
 
 const rarityOrder = ['common', 'rare', 'epic', 'legendary'];
 
@@ -145,6 +147,15 @@ function setBuyQuantity(qty) {
 function toggleBuilding(id) {
     buildingExpanded[id] = !buildingExpanded[id];
     updateUI();
+}
+
+function setGameSpeed(speed) {
+    gameSpeed = speed;
+    clearInterval(tickInterval);
+    tickInterval = setInterval(tick, Math.floor(1000 / speed));
+    [1, 10, 50, 100].forEach(s => {
+        document.getElementById(`speed-${s}`).classList.toggle('btn-speed--active', s === speed);
+    });
 }
 
 function bulkBuildingCost(id, n) {
@@ -394,6 +405,7 @@ function tick() {
     if (poolTimer >= POOL_REFRESH_INTERVAL) {
         poolTimer = 0;
         refreshPool();
+        renderRecruitPool();
     }
 
     checkRaidTrigger();
@@ -407,7 +419,7 @@ function tick() {
     }
 
     saveGame();
-    updateUI();
+    tickRender();
 }
 
 function levelUpKingdom() {
@@ -446,7 +458,7 @@ function renderRecruitPool() {
     ];
 
     let html = `<div class="pool-header">
-        <span class="pool-timer">New arrivals in ${timeUntilRefresh}s</span>
+        <span class="pool-timer" id="pool-timer-text">New arrivals in ${timeUntilRefresh}s</span>
         <div class="auto-recruit">
             <span class="auto-recruit-label">Auto-hire:</span>
             ${autoOptions.map(({ value, label }) => {
@@ -666,14 +678,20 @@ function renderLeftPanel() {
     document.getElementById('left-panel-dynamic').innerHTML = html;
 }
 
-function updateUI() {
+function tickRender() {
     document.getElementById('gold-display').textContent = Math.floor(gold).toLocaleString();
-
     const actualGps = currentInvasion ? Math.floor(goldPerSecond * 0.25) : goldPerSecond;
     document.getElementById('gps-display').textContent = actualGps.toLocaleString();
     document.getElementById('siege-indicator').textContent = currentInvasion ? ' (siege)' : '';
 
     renderLeftPanel();
+
+    const poolTimerEl = document.getElementById('pool-timer-text');
+    if (poolTimerEl) poolTimerEl.textContent = `New arrivals in ${POOL_REFRESH_INTERVAL - poolTimer}s`;
+}
+
+function updateUI() {
+    tickRender();
     renderRecruitPool();
     renderBuildings();
 }
@@ -681,4 +699,4 @@ function updateUI() {
 loadGame();
 if (recruitPool.length === 0) refreshPool();
 updateUI();
-setInterval(tick, 1000);
+tickInterval = setInterval(tick, 1000);

@@ -174,6 +174,35 @@ h1 {
     margin-top: 4px;
 }
 
+.speed-buttons {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.btn-speed {
+    background: #2a2410;
+    border: 1px solid #4a3a18;
+    border-radius: 3px;
+    padding: 3px 7px;
+    color: #6a5a30;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.btn-speed:hover {
+    color: #c9a84c;
+    border-color: #6a5a30;
+}
+
+.btn-speed--active {
+    background: #352e14;
+    border-color: #8a7240;
+    color: #e8c96d;
+}
+
 .btn-reset {
     background: none;
     border: 1px solid #4a2020;
