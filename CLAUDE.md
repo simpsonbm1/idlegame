@@ -134,6 +134,45 @@ All numbers are tunable.
 
 **Soldiers do not generate gold** — each Barracks is an income sacrifice, making the defense investment a real tradeoff.
 
+## Prestige system (planned — not yet built)
+
+**Theme:** "Found a New Age" — the kingdom falls but its legend persists, granting bonuses to the rebuild.
+
+**Trigger:** Manual. Player can prestige any time after reaching Realm level (7). A prominent button appears once eligible.
+
+**What resets:**
+- Gold, buildings, residents, kingdom level — back to Hamlet with starting gold
+
+**What persists:**
+- Legacy Points (the prestige currency)
+- Auto-recruit setting
+- Dev speed setting
+
+**Legacy Points formula:**
+```
+Legacy Points earned = floor( sqrt( goldEarned / 100,000 ) )
+Total Legacy Points = sum across all runs
+```
+Based on lifetime earnings model (always gain something, even from suboptimal runs).
+
+**What Legacy Points do:**
+- Each point = +5% gold income permanently
+- Each point = +5% defense power permanently
+- Both scale together so the soft cap (raids outpacing defense) moves further out each run
+
+**The soft cap mechanic:**
+Raids scale indefinitely (500 × 1.5^wave). Eventually waves outpace defense and income is permanently at 25%. This is the signal to prestige — not a hard failure, just a nudge. After prestiging, the income/defense multipliers push that ceiling further out.
+
+**UI:**
+- Left panel shows "Legacy: X points (+Y%)" once first prestige has happened
+- "Found a New Age" button appears at Realm level, shows how many Legacy Points the current run would earn
+- Confirmation screen before resetting (same in-page pattern as reset button)
+
+**Balance notes:**
+- At 1,000,000 goldEarned: 3 points (+15% income/defense)
+- At 100,000,000 goldEarned: 31 points (+155%)
+- Numbers tunable — the formula shape matters more than exact values
+
 ## Milestone tracker
 - [x] Milestone 1: Gold counter ticking automatically
 - [x] Milestone 2: Cottage building — buy to earn gold/sec
