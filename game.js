@@ -4,7 +4,9 @@ let goldPerSecond = 0;
 let totalDefense = 0;
 let kingdomLevel = 0;
 let raidsStarted = false;
-let invasionCount = 0;
+let raidTierIndex = 0;
+let tierWave = 0;
+let raidWinStreak = 0;
 let invasionTimer = 0;
 let currentInvasion = null;
 let lastVictory = null;
@@ -26,19 +28,44 @@ const POOL_REFRESH_INTERVAL = 10;
 const RAID_INTERVAL = 300;
 const RAID_TRIGGER_LEVEL = 2;
 const RAID_TRIGGER_GOLD = 12000;
-const INVASION_NAMES = ['Goblin Raid', 'Orc Warband', 'Bandit Horde', 'Dark Army', 'Dragon Siege'];
 
-function getInvasionName(count) {
-    if (count < INVASION_NAMES.length) return INVASION_NAMES[count];
-    return `Dragon Siege (Wave ${count - INVASION_NAMES.length + 2})`;
+const SIEGE_BASE_DURATION = 60;
+const SIEGE_MIN_DURATION = 10;
+const SIEGE_MAX_DURATION = 180;
+const RAID_TIERS = [
+    { minLevel: 2, name: 'Goblin Raid',  baseDefense: 500,   defenseGrowth: 1.15, baseLoot: 200000,    lootGrowth: 1.30 },
+    { minLevel: 3, name: 'Orc Warband',  baseDefense: 1200,  defenseGrowth: 1.15, baseLoot: 1000000,   lootGrowth: 1.30 },
+    { minLevel: 4, name: 'Bandit Horde', baseDefense: 3000,  defenseGrowth: 1.15, baseLoot: 5000000,   lootGrowth: 1.32 },
+    { minLevel: 5, name: 'Dark Army',    baseDefense: 7500,  defenseGrowth: 1.15, baseLoot: 25000000,  lootGrowth: 1.34 },
+    { minLevel: 6, name: 'Dragon Siege', baseDefense: 11000, defenseGrowth: 1.15, baseLoot: 120000000, lootGrowth: 1.36 }
+];
+
+function getRaidTierIndex(level) {
+    let idx = 0;
+    for (let i = 0; i < RAID_TIERS.length; i++) {
+        if (level >= RAID_TIERS[i].minLevel) idx = i;
+    }
+    return idx;
 }
 
-function getRequiredDefense(count) {
-    return Math.floor(500 * Math.pow(1.5, count));
+function getInvasionName(tierIndex, wave) {
+    const tier = RAID_TIERS[tierIndex];
+    return wave === 0 ? tier.name : `${tier.name} (Wave ${wave + 1})`;
 }
 
-function getInvasionLoot(count) {
-    return Math.floor(4000 * Math.pow(1.3, count));
+function getRequiredDefense(tierIndex, wave) {
+    const tier = RAID_TIERS[tierIndex];
+    return Math.floor(tier.baseDefense * Math.pow(tier.defenseGrowth, wave));
+}
+
+function getInvasionLoot(tierIndex, streak) {
+    const tier = RAID_TIERS[tierIndex];
+    return Math.floor(tier.baseLoot * Math.pow(tier.lootGrowth, streak));
+}
+
+function getFailureLoot(tierIndex) {
+    const tier = RAID_TIERS[tierIndex];
+    return Math.floor(tier.baseLoot * 0.5);
 }
 
 function formatTimer(seconds) {
@@ -99,15 +126,15 @@ const levels = [
 ];
 
 const buildings = {
-    cottage:  { name: 'Cottage',  cost: 10,    count: 0, slotsPerBuilding: 3, type: 'gold',    residents: [] },
-    tavern:   { name: 'Tavern',   cost: 300,   count: 0, slotsPerBuilding: 4, type: 'gold',    residents: [] },
-    smithy:   { name: 'Smithy',   cost: 2500,  count: 0, slotsPerBuilding: 3, type: 'gold',    residents: [] },
-    library:  { name: 'Library',  cost: 15000, count: 0, slotsPerBuilding: 5, type: 'gold',    residents: [] },
-    barracks: { name: 'Barracks', cost: 400,    count: 0, slotsPerBuilding: 4, type: 'defense', residents: [] },
-    keep:     { name: 'Keep',     cost: 500000, count: 0, slotsPerBuilding: 3, type: 'defense', residents: [] },
-    workshop: { name: "Alchemist's Workshop", cost: 80000,    count: 0, slotsPerBuilding: 4, type: 'gold',    residents: [] },
-    tower:    { name: "Wizard's Tower",       cost: 600000,   count: 0, slotsPerBuilding: 3, type: 'gold',    residents: [] },
-    cathedral:{ name: 'Cathedral',            cost: 5000000,  count: 0, slotsPerBuilding: 5, type: 'gold',    residents: [] }
+    cottage:  { name: 'Cottage',  cost: 10,    count: 0, slotsPerBuilding: 3, costGrowth: 1.10, type: 'gold',    residents: [] },
+    tavern:   { name: 'Tavern',   cost: 300,   count: 0, slotsPerBuilding: 4, costGrowth: 1.09, type: 'gold',    residents: [] },
+    smithy:   { name: 'Smithy',   cost: 2500,  count: 0, slotsPerBuilding: 3, costGrowth: 1.10, type: 'gold',    residents: [] },
+    library:  { name: 'Library',  cost: 15000, count: 0, slotsPerBuilding: 5, costGrowth: 1.11, type: 'gold',    residents: [] },
+    barracks: { name: 'Barracks', cost: 400,    count: 0, slotsPerBuilding: 4, costGrowth: 1.12, type: 'defense', residents: [] },
+    keep:     { name: 'Keep',     cost: 500000, count: 0, slotsPerBuilding: 3, costGrowth: 1.16, type: 'defense', residents: [] },
+    workshop: { name: "Alchemist's Workshop", cost: 80000,    count: 0, slotsPerBuilding: 8, costGrowth: 1.18, type: 'gold',    residents: [] },
+    tower:    { name: "Wizard's Tower",       cost: 600000,   count: 0, slotsPerBuilding: 10, costGrowth: 1.21, type: 'gold',    residents: [] },
+    cathedral:{ name: 'Cathedral',            cost: 5000000,  count: 0, slotsPerBuilding: 14, costGrowth: 1.25, type: 'gold',    residents: [] }
 };
 
 const rarityTiers = {
@@ -124,9 +151,9 @@ const recruitTypes = {
     scholar:      { name: 'Scholar',      buildingId: 'library',  baseCost: 3500, incomeMin: 50, incomeMax: 130 },
     guard:        { name: 'Guard',        buildingId: 'barracks',  baseCost: 200,     incomeMin: 10,   incomeMax: 30   },
     knight:       { name: 'Knight',       buildingId: 'keep',      baseCost: 5000,    incomeMin: 50,   incomeMax: 120  },
-    alchemist:    { name: 'Alchemist',    buildingId: 'workshop',  baseCost: 25000,   incomeMin: 150,  incomeMax: 350  },
-    mage:         { name: 'Mage',         buildingId: 'tower',     baseCost: 150000,  incomeMin: 400,  incomeMax: 900  },
-    priest:       { name: 'High Priest',  buildingId: 'cathedral', baseCost: 1000000, incomeMin: 1000, incomeMax: 2500 }
+    alchemist:    { name: 'Alchemist',    buildingId: 'workshop',  baseCost: 25000,   incomeMin: 190,  incomeMax: 440  },
+    mage:         { name: 'Mage',         buildingId: 'tower',     baseCost: 150000,  incomeMin: 650,  incomeMax: 1450 },
+    priest:       { name: 'High Priest',  buildingId: 'cathedral', baseCost: 1000000, incomeMin: 2050, incomeMax: 5150 }
 };
 
 const buildingToTypeId = {
@@ -160,15 +187,17 @@ function setGameSpeed(speed) {
 
 function bulkBuildingCost(id, n) {
     const b = buildings[id];
-    return Math.floor(b.cost * (Math.pow(1.15, n) - 1) / 0.15);
+    const r = b.costGrowth;
+    return Math.floor(b.cost * (Math.pow(r, n) - 1) / (r - 1));
 }
 
 function maxAffordableBuildings(id) {
     const b = buildings[id];
+    const r = b.costGrowth;
     const cap = getBuildingCap(id);
     const remaining = cap - b.count;
     if (remaining <= 0 || b.cost > gold) return 0;
-    const maxByGold = Math.floor(Math.log(gold * 0.15 / b.cost + 1) / Math.log(1.15));
+    const maxByGold = Math.floor(Math.log(gold * (r - 1) / b.cost + 1) / Math.log(r));
     return Math.min(maxByGold, remaining);
 }
 
@@ -221,7 +250,7 @@ function refreshPool() {
         const r = generateRecruit();
         if (r) recruitPool.push(r);
     }
-    autoRecruit();
+    return autoRecruit();
 }
 
 function setAutoRecruit(rarity) {
@@ -257,9 +286,9 @@ function autoRecruit() {
     }
 
     if (anyHired) {
-        checkRepel();
         saveGame();
     }
+    return anyHired;
 }
 
 function hireRecruit(recruitId) {
@@ -281,7 +310,6 @@ function hireRecruit(recruitId) {
         goldPerSecond += recruit.income;
     }
 
-    checkRepel();
     saveGame();
     updateUI();
 }
@@ -308,30 +336,44 @@ function checkRaidTrigger() {
 }
 
 function startInvasion() {
+    const newTierIndex = getRaidTierIndex(kingdomLevel);
+    if (newTierIndex !== raidTierIndex) {
+        raidTierIndex = newTierIndex;
+        tierWave = 0;
+        raidWinStreak = 0;
+    }
+    const defenseRequired = getRequiredDefense(raidTierIndex, tierWave);
+    const ratio = totalDefense / defenseRequired;
+    const duration = Math.round(Math.min(SIEGE_MAX_DURATION, Math.max(SIEGE_MIN_DURATION, SIEGE_BASE_DURATION / ratio)));
     currentInvasion = {
-        name: getInvasionName(invasionCount),
-        defenseRequired: getRequiredDefense(invasionCount),
-        loot: getInvasionLoot(invasionCount)
+        name: getInvasionName(raidTierIndex, tierWave),
+        defenseRequired,
+        duration,
+        timer: duration
     };
 }
 
-function checkRepel() {
-    if (currentInvasion && totalDefense >= currentInvasion.defenseRequired) {
-        repelInvasion();
+function endInvasion() {
+    const ratio = totalDefense / currentInvasion.defenseRequired;
+    const won = ratio >= 1;
+    let loot;
+    if (won) {
+        loot = getInvasionLoot(raidTierIndex, raidWinStreak);
+        raidWinStreak++;
+    } else {
+        loot = getFailureLoot(raidTierIndex);
+        raidWinStreak = 0;
     }
-}
-
-function repelInvasion() {
-    lastVictory = { name: currentInvasion.name, loot: currentInvasion.loot };
-    gold += currentInvasion.loot;
-    invasionCount++;
+    lastVictory = { name: currentInvasion.name, loot, won };
+    gold += loot;
+    tierWave++;
     currentInvasion = null;
     invasionTimer = RAID_INTERVAL;
 }
 
 function saveGame() {
     const state = {
-        gold, goldEarned, kingdomLevel, raidsStarted, invasionCount, invasionTimer, currentInvasion, lastVictory, autoRecruitRarity,
+        gold, goldEarned, kingdomLevel, raidsStarted, raidTierIndex, tierWave, raidWinStreak, invasionTimer, currentInvasion, lastVictory, autoRecruitRarity,
         recruitPool, poolTimer, nextRecruitId,
         buildings: {}
     };
@@ -350,7 +392,15 @@ function loadGame() {
     goldEarned = state.goldEarned ?? 0;
     kingdomLevel = state.kingdomLevel ?? 0;
     raidsStarted = state.raidsStarted ?? false;
-    invasionCount = state.invasionCount ?? 0;
+    if (state.raidTierIndex !== undefined) {
+        raidTierIndex = state.raidTierIndex;
+        tierWave = state.tierWave ?? 0;
+        raidWinStreak = state.raidWinStreak ?? 0;
+    } else {
+        raidTierIndex = getRaidTierIndex(kingdomLevel);
+        tierWave = 0;
+        raidWinStreak = 0;
+    }
     invasionTimer = state.invasionTimer ?? 0;
     currentInvasion = state.currentInvasion ?? null;
     lastVictory = state.lastVictory ?? null;
@@ -379,6 +429,13 @@ function loadGame() {
             else goldPerSecond += r.income;
         }
     }
+
+    if (currentInvasion && (currentInvasion.timer === undefined || currentInvasion.duration === undefined)) {
+        const ratio = totalDefense / currentInvasion.defenseRequired;
+        const duration = Math.round(Math.min(SIEGE_MAX_DURATION, Math.max(SIEGE_MIN_DURATION, SIEGE_BASE_DURATION / ratio)));
+        currentInvasion.duration = duration;
+        currentInvasion.timer = duration;
+    }
 }
 
 function showResetConfirm() {
@@ -404,14 +461,16 @@ function tick() {
     poolTimer++;
     if (poolTimer >= POOL_REFRESH_INTERVAL) {
         poolTimer = 0;
-        refreshPool();
+        const hired = refreshPool();
         renderRecruitPool();
+        if (hired) renderBuildings();
     }
 
     checkRaidTrigger();
     if (raidsStarted) {
         if (currentInvasion) {
-            checkRepel();
+            currentInvasion.timer--;
+            if (currentInvasion.timer <= 0) endInvasion();
         } else {
             invasionTimer--;
             if (invasionTimer <= 0) startInvasion();
@@ -440,7 +499,7 @@ function buyBuilding(id) {
     const totalCost = bulkBuildingCost(id, affordable);
     if (gold < totalCost) return;
     gold -= totalCost;
-    b.cost = Math.floor(b.cost * Math.pow(1.15, affordable));
+    b.cost = Math.floor(b.cost * Math.pow(b.costGrowth, affordable));
     b.count += affordable;
     saveGame();
     updateUI();
@@ -616,15 +675,21 @@ function renderLeftPanel() {
     }
 
     if (currentInvasion) {
+        const outlook = totalDefense >= currentInvasion.defenseRequired
+            ? 'Defenses holding strong'
+            : 'Defenses are not enough — brace for losses';
         html += `<div class="panel-section invasion-panel">
             <div class="panel-label">Under Siege</div>
             <div class="invasion-name">${currentInvasion.name}</div>
             <div class="invasion-progress">${totalDefense.toLocaleString()} / ${currentInvasion.defenseRequired.toLocaleString()} defense</div>
-            <div class="invasion-note">Income reduced to 25%</div>
+            <div class="invasion-timer">Ends in ${formatTimer(currentInvasion.timer)}</div>
+            <div class="invasion-note">${outlook} · Income reduced to 25%</div>
         </div>`;
     } else if (raidsStarted) {
-        const nextName = getInvasionName(invasionCount);
-        const nextDefense = getRequiredDefense(invasionCount);
+        const previewTierIndex = getRaidTierIndex(kingdomLevel);
+        const previewWave = previewTierIndex === raidTierIndex ? tierWave : 0;
+        const nextName = getInvasionName(previewTierIndex, previewWave);
+        const nextDefense = getRequiredDefense(previewTierIndex, previewWave);
         html += `<div class="panel-section">
             <div class="panel-label">Next Raid</div>
             <div class="invasion-name invasion-name--warning">${nextName}</div>
@@ -632,8 +697,9 @@ function renderLeftPanel() {
             <div class="invasion-timer">Arrives in ${formatTimer(invasionTimer)}</div>
         </div>`;
         if (lastVictory) {
+            const verb = lastVictory.won ? 'Repelled' : 'Survived';
             html += `<div class="victory-inline">
-                Last: ${lastVictory.name} +${lastVictory.loot.toLocaleString()}g
+                ${verb}: ${lastVictory.name} +${lastVictory.loot.toLocaleString()}g
             </div>`;
         }
     }
