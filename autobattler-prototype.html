@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Autobattler Prototype</title>
+<style>
+  body {
+    background: #1a1610;
+    color: #e8dcc4;
+    font-family: Georgia, serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px;
+  }
+  h1 { color: #d4af37; margin-bottom: 4px; }
+  .subtitle { color: #a89a7e; margin-bottom: 20px; font-size: 14px; }
+
+  .battlefield {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .vs { font-size: 28px; color: #d4af37; font-weight: bold; }
+
+  .squad {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+  }
+  .column {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 120px;
+  }
+  .row-label {
+    font-size: 11px;
+    color: #a89a7e;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: center;
+    margin-bottom: 2px;
+  }
+
+  .unit-slot {
+    border: 1px solid #4a4030;
+    border-radius: 4px;
+    background: #241f17;
+    min-height: 86px;
+    padding: 8px;
+    box-sizing: border-box;
+  }
+  .unit-slot.empty {
+    border-style: dashed;
+    opacity: 0.4;
+  }
+  .unit-slot.dead {
+    opacity: 0.35;
+    border-color: #5a2a2a;
+  }
+  .unit-slot[draggable="true"] {
+    cursor: grab;
+  }
+  .unit-slot.drag-over {
+    border-color: #d4af37;
+    background: #2f2818;
+  }
+  .unit-name { font-weight: bold; font-size: 13px; color: #e8dcc4; }
+  .unit-stats { font-size: 10px; color: #a89a7e; margin: 2px 0 6px; }
+  .hp-bar-track {
+    background: #3a2f22;
+    border-radius: 3px;
+    height: 8px;
+    overflow: hidden;
+  }
+  .hp-bar-fill {
+    background: linear-gradient(90deg, #6b8c3e, #9bbf5a);
+    height: 100%;
+    transition: width 0.15s linear;
+  }
+  .hp-bar-fill.enemy {
+    background: linear-gradient(90deg, #8c3e3e, #bf5a5a);
+  }
+  .hp-text { font-size: 10px; color: #a89a7e; margin-top: 2px; }
+
+  .controls { margin-top: 24px; display: flex; gap: 12px; align-items: center; }
+  .controls select {
+    background: #3a2f22;
+    color: #e8dcc4;
+    border: 1px solid #d4af37;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-family: Georgia, serif;
+    font-size: 14px;
+  }
+  button {
+    background: #3a2f22;
+    color: #e8dcc4;
+    border: 1px solid #d4af37;
+    border-radius: 4px;
+    padding: 8px 18px;
+    font-family: Georgia, serif;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  button:hover { background: #4a3f30; }
+  button:disabled { opacity: 0.4; cursor: default; }
+
+  .log {
+    margin-top: 20px;
+    width: 600px;
+    max-height: 220px;
+    overflow-y: auto;
+    background: #14110c;
+    border: 1px solid #4a4030;
+    border-radius: 4px;
+    padding: 10px 14px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .log div.outcome { color: #d4af37; font-weight: bold; margin-top: 4px; }
+
+  .preview {
+    margin-top: 28px;
+    width: 600px;
+    border: 1px solid #4a4030;
+    border-radius: 4px;
+    background: #1f1a12;
+    padding: 14px 18px;
+  }
+  .preview h2 {
+    margin: 0 0 4px;
+    font-size: 16px;
+    color: #d4af37;
+  }
+  .preview .hint {
+    font-size: 12px;
+    color: #a89a7e;
+    margin-bottom: 12px;
+  }
+  .preview-controls select {
+    background: #3a2f22;
+    color: #e8dcc4;
+    border: 1px solid #4a4030;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-family: Georgia, serif;
+    font-size: 13px;
+    margin-right: 10px;
+  }
+  .preview-card {
+    margin-top: 14px;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .preview-name {
+    font-size: 20px;
+    font-weight: bold;
+  }
+  .preview-rarity {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    border: 1px solid currentColor;
+  }
+  .preview-stats {
+    margin-top: 6px;
+    font-size: 13px;
+    color: #c8bca4;
+  }
+  .rarity-common    { color: #aaa396; }
+  .rarity-rare      { color: #6fa8dc; }
+  .rarity-epic      { color: #b56fdc; }
+  .rarity-legendary { color: #d4af37; }
+</style>
+</head>
+<body>
+
+<h1>Autobattler Prototype</h1>
+<div class="subtitle">2x3 formations &middot; frontline absorbs hits first &middot; real-time attack cooldowns</div>
+
+<div class="battlefield">
+  <div class="squad" id="heroSquad"></div>
+  <div class="vs">VS</div>
+  <div class="squad" id="enemySquad"></div>
+</div>
+
+<div class="controls">
+  <select id="raidThemeSelect"></select>
+  <button id="startBtn">Start Battle</button>
+  <button id="resetBtn">Reset</button>
+</div>
+
+<div class="log" id="log"></div>
+
+<div class="preview">
+  <h2>Hero Tier Preview</h2>
+  <div class="hint">Same role, different rarity — name and stats scale together, just like the townspeople rarity system.</div>
+  <div class="preview-controls">
+    <select id="archetypeSelect"></select>
+    <select id="tierSelect"></select>
+  </div>
+  <div class="preview-card" id="previewCard"></div>
+</div>
+
+<script>
+// --- Squad definitions (hardcoded for prototyping) ---
+// row: 0 = frontline (targeted first), 1 = backline
+// defense = % reduction applied to incoming damage
+//
+// A unit's combat capabilities are independent actions, each with its own
+// power and speed (attacks/heals per ~2.5s baseline) and its own cooldown —
+// so a unit can attack only, heal only, or (e.g. a future Paladin) do both
+// on staggered timers.
+const BASE_ATTACK_INTERVAL = 2500; // ms at speed 1.0
+
+function attackAction(power, speed) {
+  return { power, speed, cooldown: BASE_ATTACK_INTERVAL / speed };
+}
+function healAction(power, speed) {
+  return { power, speed, cooldown: BASE_ATTACK_INTERVAL / speed };
+}
+
+// backlineChance: probability this unit's attack targets the backline instead
+// of the frontline (when both rows have someone alive). Most units lean
+// heavily toward the frontline; ranged/sniping units can be tuned higher.
+const DEFAULT_BACKLINE_CHANCE = 0.15;
+
+function makeUnit(name, defense, hp, row, col, side, attack = null, heal = null, backlineChance = DEFAULT_BACKLINE_CHANCE) {
+  return { name, defense, hp, maxHp: hp, row, col, side, attack, heal, backlineChance, alive: true };
+}
+
+let heroes, enemies, running = false, tickHandle = null;
+
+function buildSquads() {
+  heroes = [
+    // Frontline — a spread across the defense/attack/heal spectrum:
+    makeUnit('Knight',  35, 140, 0, 0, 'hero', attackAction(8, 0.7)),                     // high DEF, low ATK — the wall
+    makeUnit('Templar', 32, 125, 0, 1, 'hero', null, healAction(7, 0.6)),                 // high DEF, low HLR — tanky trickle-support
+    makeUnit('Duelist',  8,  80, 0, 2, 'hero', attackAction(24, 1.0), null, 0.4),         // low DEF, high ATK — aggressive, hunts backline targets
+    // Backline:
+    makeUnit('Mage',     0,  50, 1, 0, 'hero', attackAction(28, 0.6)),                    // low DEF, high ATK — glass-cannon nuker
+    makeUnit('Druid',    5,  55, 1, 1, 'hero', null, healAction(24, 0.6)),                // low DEF, high HLR — huge heals, paper-thin
+    makeUnit('Paladin', 16,  95, 1, 2, 'hero', attackAction(9, 0.7), healAction(8, 0.5)), // both ATK and HLR — hybrid support/damage
+  ];
+  // Enemy roster is generated from the selected raid theme — see RAID_THEMES.
+  const themeIndex = parseInt(raidThemeSelect.value, 10);
+  enemies = [
+    generateEnemy(themeIndex, 'brute',      0, 0),
+    generateEnemy(themeIndex, 'skirmisher', 0, 1),
+    null, // empty frontline slot
+    generateEnemy(themeIndex, 'caster',     1, 0),
+    generateEnemy(themeIndex, 'shaman',     1, 1),
+    null, // empty backline slot
+  ];
+}
+
+function randomFrom(list) {
+  return list[Math.floor(Math.random() * list.length)];
+}
+
+// --- Targeting: frontline is favored but not absolute. Each attacker rolls
+// against its own backlineChance to decide which row it goes after; if its
+// preferred row is empty, it falls back to whichever row still has the living. ---
+function pickTarget(attacker, enemySquad) {
+  const front = enemySquad.filter(u => u && u.row === 0 && u.alive);
+  const back = enemySquad.filter(u => u && u.row === 1 && u.alive);
+  if (front.length === 0 && back.length === 0) return null;
+  if (front.length === 0) return randomFrom(back);
+  if (back.length === 0) return randomFrom(front);
+
+  const wantsBackline = Math.random() < attacker.backlineChance;
+  return randomFrom(wantsBackline ? back : front);
+}
+
+// Healers always tend to whoever's lowest on HP%, ignoring full-health allies.
+function pickHealTarget(friendlySquad) {
+  const wounded = friendlySquad.filter(u => u && u.alive && u.hp < u.maxHp);
+  if (wounded.length === 0) return null;
+  wounded.sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp));
+  return wounded[0];
+}
+
+function resolveHeal(healer, target) {
+  const before = target.hp;
+  target.hp = Math.min(target.maxHp, target.hp + healer.heal.power);
+  const restored = Math.round(target.hp - before);
+  log(`${healer.name} heals ${target.name} for ${restored}`, healer.side);
+}
+
+function resolveAttack(attacker, defender) {
+  const dmg = Math.max(1, Math.round(attacker.attack.power * (1 - defender.defense / 100)));
+  defender.hp -= dmg;
+  log(`${attacker.name} hits ${defender.name} for ${dmg}`, attacker.side);
+  if (defender.hp <= 0) {
+    defender.hp = 0;
+    defender.alive = false;
+    log(`${defender.name} falls!`, 'outcome');
+  }
+}
+
+function squadAlive(squad) {
+  return squad.some(u => u && u.alive);
+}
+
+// --- Main combat loop: each unit's attack and heal actions tick down independently ---
+function tick(deltaMs) {
+  for (const unit of [...heroes, ...enemies]) {
+    if (!unit || !unit.alive) continue;
+
+    if (unit.attack) {
+      unit.attack.cooldown -= deltaMs;
+      if (unit.attack.cooldown <= 0) {
+        const enemySquad = unit.side === 'hero' ? enemies : heroes;
+        const target = pickTarget(unit, enemySquad);
+        if (target) resolveAttack(unit, target);
+        unit.attack.cooldown += BASE_ATTACK_INTERVAL / unit.attack.speed;
+      }
+    }
+
+    if (unit.heal) {
+      unit.heal.cooldown -= deltaMs;
+      if (unit.heal.cooldown <= 0) {
+        const friendlySquad = unit.side === 'hero' ? heroes : enemies;
+        const target = pickHealTarget(friendlySquad);
+        if (target) {
+          resolveHeal(unit, target);
+          unit.heal.cooldown += BASE_ATTACK_INTERVAL / unit.heal.speed;
+        }
+        // Nobody wounded yet — hold the heal ready and check again next tick.
+      }
+    }
+  }
+  render();
+
+  if (!squadAlive(heroes) || !squadAlive(enemies)) {
+    endBattle();
+  }
+}
+
+function endBattle() {
+  running = false;
+  clearInterval(tickHandle);
+  startBtn.disabled = false;
+  raidThemeSelect.disabled = false;
+  const heroesWon = squadAlive(heroes);
+  log(heroesWon ? 'Heroes win!' : 'Heroes are defeated...', 'outcome');
+}
+
+// --- Rendering ---
+// columnOrder controls left-to-right display order, e.g. backline-then-frontline
+// puts the frontline column nearest the center battle line.
+// `interactive` enables drag-and-drop repositioning (heroes only — the player
+// doesn't get to rearrange the enemy formation).
+function renderSquad(containerId, squad, sideClass, columnOrder, interactive) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  for (const colDef of columnOrder) {
+    const colEl = document.createElement('div');
+    colEl.className = 'column';
+
+    const label = document.createElement('div');
+    label.className = 'row-label';
+    label.textContent = colDef.label;
+    colEl.appendChild(label);
+
+    for (let i = 0; i < 3; i++) {
+      const index = colDef.row * 3 + i;
+      const unit = squad[index];
+      const slot = document.createElement('div');
+      if (!unit) {
+        slot.className = 'unit-slot empty';
+      } else {
+        slot.className = 'unit-slot' + (unit.alive ? '' : ' dead');
+        const pct = Math.max(0, (unit.hp / unit.maxHp) * 100);
+        const statParts = [];
+        if (unit.attack) statParts.push(`ATK ${unit.attack.power} (${unit.attack.speed}/s)`);
+        if (unit.heal) statParts.push(`HLR ${unit.heal.power} (${unit.heal.speed}/s)`);
+        statParts.push(`DEF ${unit.defense}%`);
+        slot.innerHTML = `
+          <div class="unit-name">${unit.name}</div>
+          <div class="unit-stats">${statParts.join(' &middot; ')}</div>
+          <div class="hp-bar-track"><div class="hp-bar-fill ${sideClass}" style="width:${pct}%"></div></div>
+          <div class="hp-text">${Math.max(0, Math.round(unit.hp))} / ${unit.maxHp}</div>
+        `;
+      }
+      if (interactive) attachDragHandlers(slot, index, squad);
+      colEl.appendChild(slot);
+    }
+    el.appendChild(colEl);
+  }
+}
+
+// --- Drag-and-drop repositioning (heroes only) ---
+// Re-rendering mid-drag would yank the dragged element out from under the
+// browser's drag session, so render() is suppressed while a drag is active
+// and forced once on drop/dragend.
+let isDragging = false;
+
+function attachDragHandlers(slot, index, squad) {
+  const unit = squad[index];
+  if (unit && unit.alive) {
+    slot.draggable = true;
+    slot.addEventListener('dragstart', e => {
+      isDragging = true;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', String(index));
+    });
+    slot.addEventListener('dragend', () => {
+      isDragging = false;
+      render();
+    });
+  }
+
+  slot.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  });
+  slot.addEventListener('dragenter', e => {
+    e.preventDefault();
+    slot.classList.add('drag-over');
+  });
+  slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+  slot.addEventListener('drop', e => {
+    e.preventDefault();
+    slot.classList.remove('drag-over');
+    const sourceIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+    swapHeroes(sourceIndex, index);
+  });
+}
+
+function swapHeroes(sourceIndex, targetIndex) {
+  if (sourceIndex === targetIndex || isNaN(sourceIndex)) return;
+  const rowOf = idx => Math.floor(idx / 3);
+  const colOf = idx => idx % 3;
+
+  const a = heroes[sourceIndex];
+  const b = heroes[targetIndex];
+  if (a) { a.row = rowOf(targetIndex); a.col = colOf(targetIndex); }
+  if (b) { b.row = rowOf(sourceIndex); b.col = colOf(sourceIndex); }
+  heroes[sourceIndex] = b;
+  heroes[targetIndex] = a;
+
+  log(`Repositioned ${a.name}${b ? ` and ${b.name}` : ''}`, 'outcome');
+}
+
+function render() {
+  if (isDragging) return;
+  // Frontline column sits nearest the center "VS" line for both squads.
+  renderSquad('heroSquad', heroes, '', [{ label: 'Backline', row: 1 }, { label: 'Frontline', row: 0 }], true);
+  renderSquad('enemySquad', enemies, 'enemy', [{ label: 'Frontline', row: 0 }, { label: 'Backline', row: 1 }], false);
+}
+
+function log(msg, kind) {
+  const logEl = document.getElementById('log');
+  const line = document.createElement('div');
+  if (kind === 'outcome') line.className = 'outcome';
+  else if (kind === 'enemy') line.style.color = '#bf8a8a';
+  else if (kind === 'hero') line.style.color = '#a8c08a';
+  line.textContent = msg;
+  logEl.appendChild(line);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+// --- Controls ---
+const startBtn = document.getElementById('startBtn');
+const resetBtn = document.getElementById('resetBtn');
+
+startBtn.addEventListener('click', () => {
+  if (running) return;
+  running = true;
+  startBtn.disabled = true;
+  raidThemeSelect.disabled = true;
+  log('--- Battle begins ---', 'outcome');
+  tickHandle = setInterval(() => tick(100), 100);
+});
+
+resetBtn.addEventListener('click', () => {
+  running = false;
+  clearInterval(tickHandle);
+  document.getElementById('log').innerHTML = '';
+  startBtn.disabled = false;
+  raidThemeSelect.disabled = false;
+  buildSquads();
+  render();
+});
+
+// --- Enemy raid themes (mirrors the hero archetype/tier model so both sides
+// scale on a comparable curve — same four roles, reskinned and re-powered per
+// raid family from the invasion system: Goblin Raid -> Orc Warband ->
+// Bandit Horde -> Dark Army -> Dragon Siege) ---
+const ENEMY_ARCHETYPES = {
+  brute:      { base: { defense: 20, hp: 120, attack: { power: 14, speed: 0.7 } } },
+  skirmisher: { base: { defense: 8,  hp: 70,  attack: { power: 18, speed: 1.1 }, backlineChance: 0.4 } },
+  caster:     { base: { defense: 5,  hp: 55,  attack: { power: 20, speed: 0.9 } } },
+  shaman:     { base: { defense: 8,  hp: 60,  heal: { power: 15, speed: 0.7 } } },
+};
+
+// powerMult climbs with raid tier — rough placeholder curve for prototyping;
+// a real balance pass would tune this against hero rarity output and the
+// raid defense benchmarks already documented for the invasion system.
+const RAID_THEMES = [
+  { name: 'Goblin Raid',  powerMult: 1,   roster: { brute: 'Goblin Brute',    skirmisher: 'Goblin Skulker',   caster: 'Goblin Slinger',  shaman: 'Goblin Shaman' } },
+  { name: 'Orc Warband',  powerMult: 1.6, roster: { brute: 'Orc Brute',       skirmisher: 'Orc Berserker',    caster: 'Orc Warcaster',   shaman: 'Orc Witch Doctor' } },
+  { name: 'Bandit Horde', powerMult: 2.4, roster: { brute: 'Bandit Enforcer', skirmisher: 'Bandit Cutthroat', caster: 'Bandit Marksman', shaman: 'Bandit Medic' } },
+  { name: 'Dark Army',    powerMult: 3.6, roster: { brute: 'Death Knight',    skirmisher: 'Shadow Reaver',    caster: 'Necromancer',     shaman: 'Bone Priest' } },
+  { name: 'Dragon Siege', powerMult: 5.5, roster: { brute: 'Dragon Guard',    skirmisher: 'Wyrmling',         caster: 'Dragon Mage',     shaman: 'Dragonpriest' } },
+];
+
+function generateEnemy(themeIndex, archetypeKey, row, col) {
+  const theme = RAID_THEMES[themeIndex];
+  const archetype = ENEMY_ARCHETYPES[archetypeKey];
+  const base = archetype.base;
+  const scalePower = v => Math.round(v * theme.powerMult);
+  const scaleHp = v => Math.round(v * Math.sqrt(theme.powerMult));
+
+  const attack = base.attack ? attackAction(scalePower(base.attack.power), base.attack.speed) : null;
+  const heal = base.heal ? healAction(scalePower(base.heal.power), base.heal.speed) : null;
+  const backlineChance = base.backlineChance !== undefined ? base.backlineChance : DEFAULT_BACKLINE_CHANCE;
+
+  const unit = makeUnit(theme.roster[archetypeKey], base.defense, scaleHp(base.hp), row, col, 'enemy', attack, heal, backlineChance);
+  unit.raidTheme = theme.name;
+  return unit;
+}
+
+const raidThemeSelect = document.getElementById('raidThemeSelect');
+RAID_THEMES.forEach((theme, i) => {
+  const opt = document.createElement('option');
+  opt.value = String(i);
+  opt.textContent = theme.name;
+  raidThemeSelect.appendChild(opt);
+});
+raidThemeSelect.addEventListener('change', () => {
+  if (running) return;
+  buildSquads();
+  render();
+  log(`-- Facing the ${RAID_THEMES[raidThemeSelect.value].name} --`, 'outcome');
+});
+
+// --- Hero rarity tiers (mirrors the townspeople rarity system: same role,
+// scaling power and a distinct name per tier rather than a generic label) ---
+const RARITY_TIERS = [
+  { rarity: 'common',    powerMult: 1 },
+  { rarity: 'rare',      powerMult: 2.5 },
+  { rarity: 'epic',      powerMult: 5 },
+  { rarity: 'legendary', powerMult: 10 },
+];
+
+// Each archetype defines a base statline plus one display name per tier.
+// Power stats (attack/heal) scale with the tier's full multiplier — like
+// townspeople income does. HP scales more gently (sqrt of the multiplier) so
+// higher tiers hit much harder without becoming absurdly bulky.
+const HERO_ARCHETYPES = {
+  ranged: {
+    label: 'Ranged DPS',
+    names: ['Archer', 'Sharpshooter', 'Hunter', 'Marksman'],
+    base: { defense: 5, hp: 60, attack: { power: 18, speed: 1.3 } },
+  },
+  guardian: {
+    label: 'Guardian',
+    names: ['Knight', 'Sentinel', 'Vanguard', 'Paragon'],
+    base: { defense: 35, hp: 140, attack: { power: 8, speed: 0.7 } },
+  },
+  mender: {
+    label: 'Mender',
+    names: ['Acolyte', 'Cleric', 'Druid', 'Saint'],
+    base: { defense: 5, hp: 55, heal: { power: 20, speed: 0.7 } },
+  },
+};
+
+function generateHero(archetypeKey, tierIndex, row, col, side) {
+  const archetype = HERO_ARCHETYPES[archetypeKey];
+  const tier = RARITY_TIERS[tierIndex];
+  const scalePower = v => Math.round(v * tier.powerMult);
+  const scaleHp = v => Math.round(v * Math.sqrt(tier.powerMult));
+
+  const base = archetype.base;
+  const attack = base.attack ? attackAction(scalePower(base.attack.power), base.attack.speed) : null;
+  const heal = base.heal ? healAction(scalePower(base.heal.power), base.heal.speed) : null;
+
+  const unit = makeUnit(archetype.names[tierIndex], base.defense, scaleHp(base.hp), row, col, side, attack, heal);
+  unit.rarity = tier.rarity;
+  return unit;
+}
+
+// --- Hero tier preview panel ---
+const archetypeSelect = document.getElementById('archetypeSelect');
+const tierSelect = document.getElementById('tierSelect');
+const previewCard = document.getElementById('previewCard');
+
+for (const [key, archetype] of Object.entries(HERO_ARCHETYPES)) {
+  const opt = document.createElement('option');
+  opt.value = key;
+  opt.textContent = archetype.label;
+  archetypeSelect.appendChild(opt);
+}
+RARITY_TIERS.forEach((tier, i) => {
+  const opt = document.createElement('option');
+  opt.value = String(i);
+  opt.textContent = tier.rarity[0].toUpperCase() + tier.rarity.slice(1);
+  tierSelect.appendChild(opt);
+});
+
+function updatePreview() {
+  const hero = generateHero(archetypeSelect.value, parseInt(tierSelect.value, 10), 0, 0, 'hero');
+  const statParts = [`HP ${hero.maxHp}`, `DEF ${hero.defense}%`];
+  if (hero.attack) statParts.push(`ATK ${hero.attack.power} (${hero.attack.speed}/s)`);
+  if (hero.heal) statParts.push(`HLR ${hero.heal.power} (${hero.heal.speed}/s)`);
+
+  previewCard.innerHTML = `
+    <div class="preview-name rarity-${hero.rarity}">${hero.name}</div>
+    <div class="preview-rarity rarity-${hero.rarity}">${hero.rarity}</div>
+  `;
+  const statsLine = document.createElement('div');
+  statsLine.className = 'preview-stats';
+  statsLine.style.flexBasis = '100%';
+  statsLine.textContent = statParts.join(' · ');
+  previewCard.appendChild(statsLine);
+}
+
+archetypeSelect.addEventListener('change', updatePreview);
+tierSelect.addEventListener('change', updatePreview);
+updatePreview();
+
+buildSquads();
+render();
+</script>
+</body>
+</html>

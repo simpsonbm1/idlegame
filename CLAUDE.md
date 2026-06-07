@@ -151,6 +151,26 @@ Per-tier loot values (`baseLoot` / `lootGrowth`): Goblin Raid 200,000 / 1.30, Or
 
 **Soldiers do not generate gold** — each Barracks is an income sacrifice, making the defense investment a real tradeoff.
 
+## Raid system redesign — active autobattler direction (exploratory)
+
+**Status:** directional ideation plus a standalone prototype only — nothing here is wired into `game.js` yet. The duration-based siege system documented above is the current implementation; this section captures where it's headed next.
+
+**Why a redesign:** the documented siege system resolves passively (compare a number to a benchmark, wait out a timer), which doesn't give the player a reason to look at the screen. The fix isn't faster clicking — that's the Cookie Clicker trap, trivially autoclickable — it's positioning and composition decisions that depend on reading the current state, the way Gnorp Apologue / Wizard Tower / Scritchy Scratchy keep players engaged.
+
+**New direction — heroes vs. raiders autobattler:**
+- Town Square splits into two pools: townspeople (gold income) and heroes (defense/combat)
+- Combat resolves on a 2x3 grid per side (3 frontline slots targeted first, 3 backline); the player drags hero tiles between slots to set formation, including mid-battle
+- Targeting is weighted, not absolute — each unit rolls its own `backlineChance` (most ~15%) to decide whether it goes after the front or back row, so "ranged units skip the frontline" falls naturally out of giving those units a higher chance rather than needing a hard-coded rule
+- Units have independent `attack` and `heal` actions, each with its own power/speed/cooldown, so hybrids (e.g. a future Paladin) can do both on staggered timers without special-casing
+- Hero rarity mirrors the townspeople rarity system conceptually, but goes further: same role, different *name* and scaled stats per tier (Archer → Sharpshooter → Hunter → Marksman) rather than a generic "Rare Archer" label
+- Enemy rosters generate the same way, reskinned per raid family (Goblin Raid, Orc Warband, Bandit Horde, Dark Army, Dragon Siege), so both sides scale on a comparable curve
+
+**Prototype:** `autobattler-prototype.html` — standalone page (not linked from `index.html`) for testing combat feel: drag-and-drop formations, live battle simulation, a hero-tier preview panel, and a raid-theme selector for difficulty testing. Early playtesting: a default Common-tier hero roster comfortably beats Goblin Raid, struggles through Orc Warband, and gets crushed by Bandit Horde — a believable ramp, though the placeholder enemy `powerMult` curve and hero rarity multipliers haven't been tuned against each other yet.
+
+**The bigger picture — losing as the core progression loop:** the vision has shifted from "prestige is an optional late-game milestone" (the Realm-level gate described in the Prestige section below) toward a Hades/Rogue Legacy model: **the kingdom has an HP bar and is expected to eventually fall** — not a failure state, but the intended rhythm that drives meta-progression. Losing heroes damages the kingdom; the kingdom falling triggers a reset into the Legacy Points system. A manual "pull the cord early" reset would sit alongside the forced one, both feeding the same meta-currency — the existing `floor(sqrt(goldEarned / 100,000))` formula already works for either trigger, since it only cares about lifetime earnings, not how the run ended. This would likely replace the Realm-level prestige gate entirely, since the raid difficulty curve does that gating naturally (a fresh kingdom could fall to a Goblin Raid long before reaching Realm, and that's fine).
+
+**Open questions before building for real:** how hero-rarity scaling and raid-tier scaling should track each other (so the loop stays fair as both climb); how kingdom HP loss should be calculated from lost heroes; whether the manual and forced reset paths should reward identically or differently; what meta-progression upgrades should do beyond the already-planned +5%/point income & defense bonuses.
+
 ## Prestige system (planned — not yet built)
 
 **Theme:** "Found a New Age" — the kingdom falls but its legend persists, granting bonuses to the rebuild.
