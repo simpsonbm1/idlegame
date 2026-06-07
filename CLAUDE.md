@@ -5,6 +5,9 @@ A medieval fantasy idle game. The player builds a town by constructing buildings
 
 This is the developer's first coding project. Keep explanations clear, define new terms, and prefer small working milestones over large upfront designs.
 
+## Keeping this file current
+**Before committing or pushing changes, update this file to reflect the current state of the project.** Mechanics, formulas, balance values, and design decisions documented here should match what's actually implemented in `game.js` — this file is the map other sessions (and the developer) use to understand the game without re-reading all the code.
+
 ## Tech stack
 Plain HTML + CSS + JavaScript. No frameworks, no build step. Open `index.html` in a browser to run.
 
@@ -16,7 +19,7 @@ Plain HTML + CSS + JavaScript. No frameworks, no build step. Open `index.html` i
 ## Core mechanics
 
 ### Buildings
-Buildings are slot containers — they don't generate income directly. Each building purchased opens a fixed number of resident slots. Buildings scale in cost by 1.15x per purchase.
+Buildings are slot containers — they don't generate income directly. Each building purchased opens a fixed number of resident slots. Each building type has its own cost growth rate (`costGrowth` in `game.js`), individually tuned so early buildings (Cottage, Tavern, Smithy, Library) stay affordable for longer while late-game buildings (Workshop, Tower, Cathedral) ramp up faster — replacing the old single global 1.15x multiplier.
 
 ### Residents
 Residents are hired to fill building slots. Each hire costs gold and does a **one-time random roll** that permanently determines that resident's gold/sec income. Residents can be fired for free (no cost) and re-hired to reroll — this is the core optimization loop.
@@ -58,7 +61,7 @@ The old per-resident lucky-roll system is replaced by the rarity tier system.
 - One-time roll on hire (not per-tick variance)
 - Free eviction (fire and re-hire to reroll)
 - Buildings are slot containers, not direct income sources
-- Cost scaling: 1.15x per building purchase
+- Cost scaling: per-building growth rates (no single global multiplier) — each building's curve is tuned to its place in the progression
 - Single resource (gold) to start; more added iteratively
 - RPG/dungeon elements are a possible future addition
 
@@ -104,27 +107,41 @@ All numbers are tunable.
 
 ## Invasion / defense system
 
-**Trigger:** Kingdom level threshold + total gold *earned* (a counter that only goes up, separate from current gold — spending down can't delay an invasion).
+**Trigger:** Town level (2) + 12,000 total gold *earned* (a counter that only goes up, separate from current gold — spending down can't delay an invasion). After the first raid, they repeat indefinitely.
 
 **Siege effect:** While under siege, gold income drops to 25% of normal.
 
-**Resolution:** When total defense power >= invasion's required defense, the invasion is instantly repelled. Defense power is the sum of all soldiers' rolled stats — same mechanic as residents generating gold.
+**Resolution — duration-based, not a pass/fail gate:** Sieges no longer instantly resolve once defense crosses a threshold. Instead, every siege lasts a set duration that's calculated when it starts, based on how your current defense compares to that raid's benchmark (`ratio = totalDefense / defenseRequired`):
+- `siegeDuration = clamp(60 / ratio, 10, 180)` seconds — strong defense means a short siege near the 10s floor, weak defense means a long siege capped at 180s. **Sieges always end** — this is what prevents a "permanent siege" once raids outscale your defense.
+- When the timer runs out, the siege resolves as a win (`ratio >= 1`) or a loss, which determines the loot payout (see below).
 
-**Loot bonus:** Repelling an invasion awards a one-time gold bonus (soldiers brought back loot). Fixed amount per invasion.
+**Raid types are tied to kingdom tier:** instead of one global ever-climbing wave counter, each kingdom level from Town onward has its own raid family with its own difficulty curve and wave counter that **resets when you advance to the next tier**:
+
+| Kingdom level | Raid name | Base defense | Defense growth/wave |
+|---|---|---|---|
+| Town (2) | Goblin Raid | 500 | 1.15 |
+| City (3) | Orc Warband | 1,200 | 1.15 |
+| Kingdom (4) | Bandit Horde | 3,000 | 1.15 |
+| Empire (5) | Dark Army | 7,500 | 1.15 |
+| Dynasty/Realm (6+) | Dragon Siege | 11,000 | 1.15 |
+
+Since there's no raid type defined past Dragon Siege (minLevel 6) and Realm is level 7, both tiers share Dragon Siege — the wave count and win streak carry through that transition without resetting (the lookup naturally "saturates" at the last defined tier).
+
+**Loot — win-streak combo system:** loot is no longer a flat amount or a simple ratio of the reward. Each raid type tracks a win streak:
+- **Win** (`ratio >= 1`): payout = `baseLoot × lootGrowth^streak`, then the streak increments — chaining repels compounds the reward.
+- **Loss**: payout = a flat `baseLoot × 0.5` consolation amount, and the streak resets to zero.
+
+This keeps difficulty climbing forever (via the wave counter, win or lose) while preventing runaway rewards from "farming" failed sieges — losing always pays a small, fixed amount tied to the tier's base, never scaling with how far the difficulty has outrun your defense. Switching raid tiers resets the streak too.
+
+Per-tier loot values (`baseLoot` / `lootGrowth`): Goblin Raid 200,000 / 1.30, Orc Warband 1,000,000 / 1.30, Bandit Horde 5,000,000 / 1.32, Dark Army 25,000,000 / 1.34, Dragon Siege 120,000,000 / 1.36.
 
 **Invasion schedule:** Periodic — once triggered, raids repeat every 5 minutes (300 seconds). Timer only counts down while not under siege.
 
-**Trigger:** Town level (2) + 12,000 total gold earned. After that, raids repeat indefinitely.
+**Wave naming:** first raid of a tier shows as just the tier name (e.g. "Goblin Raid"); subsequent waves show as "Goblin Raid (Wave 2)", etc.
 
-**Scaling per wave:**
-- Defense required: `500 × 1.5^waveNumber` (wave 0=500, 1=750, 2=1125, ...)
-- Loot reward: `4000 × 1.3^waveNumber` (wave 0=4000, 1=5200, 2=6760, ...)
+**Preview:** Left panel always shows next raid name, defense benchmark, and countdown timer. While under siege it shows a live countdown to resolution and an outlook hint ("Defenses holding strong" / "Defenses are not enough — brace for losses").
 
-**Wave names:** Goblin Raid → Orc Warband → Bandit Horde → Dark Army → Dragon Siege (then "Dragon Siege Wave N")
-
-**Preview:** Left panel always shows next raid name, defense needed, and countdown timer.
-
-**Loot:** Fixed gold reward on repelling. Does not count toward `goldEarned` (to avoid immediately triggering the next invasion). Persists as "Last Victory" in the left panel.
+**Loot display:** Does not count toward `goldEarned` (to avoid immediately triggering the next invasion trigger check). The last raid's outcome persists as "Repelled: ..." or "Survived: ..." in the left panel depending on whether it was a win or a loss.
 
 **Barracks:**
 - Unlocks at Village level (one level before first invasion)
@@ -161,7 +178,7 @@ Based on lifetime earnings model (always gain something, even from suboptimal ru
 - Both scale together so the soft cap (raids outpacing defense) moves further out each run
 
 **The soft cap mechanic:**
-Raids scale indefinitely (500 × 1.5^wave). Eventually waves outpace defense and income is permanently at 25%. This is the signal to prestige — not a hard failure, just a nudge. After prestiging, the income/defense multipliers push that ceiling further out.
+Raid difficulty scales indefinitely per tier (each tier's defense requirement grows ~1.15x per wave, forever — see *Invasion / defense system*). Eventually defense capacity (capped by Barracks slots × max roll) falls behind, win streaks stop forming, and sieges spend more time at 25% income. This is the signal to prestige — not a hard failure, just a nudge. After prestiging, the income/defense multipliers push that ceiling further out.
 
 **UI:**
 - Left panel shows "Legacy: X points (+Y%)" once first prestige has happened
@@ -178,7 +195,7 @@ Raids scale indefinitely (500 × 1.5^wave). Eventually waves outpace defense and
 - [x] Milestone 2: Cottage building — buy to earn gold/sec
 - [x] Milestone 3: Residents with random rolls, hire/fire system
 - [x] Milestone 4: Multiple building types with different residents; dynamic rendering
-- [ ] Milestone 5: Kingdom level system — building caps + unlock gates unified
+- [x] Milestone 5: Kingdom level system — building caps + unlock gates unified
 - [x] Milestone 6: Barracks + defense meter + invasion system
 
 ## Starting state
