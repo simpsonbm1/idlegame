@@ -4,61 +4,280 @@
     box-sizing: border-box;
 }
 
+html, body {
+    height: 100%;
+}
+
 body {
     background-color: #1c1a0f;
     color: #c9a84c;
     font-family: Georgia, 'Times New Roman', serif;
-    min-height: 100vh;
-    padding: 40px 20px;
-    display: flex;
-    justify-content: center;
+    padding: 0;
+    overflow: hidden;
 }
 
 #game {
-    max-width: 1100px;
-    width: 100%;
+    max-width: none;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 0 24px;
 }
 
 h1 {
+    flex-shrink: 0;
     font-size: 2.5rem;
     text-align: center;
     color: #e8c96d;
     letter-spacing: 4px;
     text-transform: uppercase;
-    margin-bottom: 40px;
-    padding-bottom: 20px;
+    margin: 0;
+    padding: 20px 0;
     border-bottom: 1px solid #5a4a1e;
 }
 
-/* --- Two-panel layout --- */
+/* --- Three-column "battle at the gates" layout --- */
 
 #layout {
-    display: flex;
-    gap: 48px;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: 200px minmax(380px, 1fr) 560px;
+    gap: 24px;
+    flex: 1;
+    min-height: 0;
+    padding: 20px 0;
 }
 
-#left-panel {
-    width: 200px;
-    flex-shrink: 0;
-    position: sticky;
-    top: 40px;
-    max-height: calc(100vh - 80px);
+#admin-panel {
+    height: 100%;
     overflow-y: auto;
 }
 
-#center-panel {
+.section-heading {
+    font-size: 1rem;
+    color: #8a7240;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    margin-bottom: 12px;
+}
+
+/* --- Town column: scrollable buildings on top, fixed Town Square below --- */
+
+#town-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+}
+
+#town-buildings {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-bottom: 16px;
+}
+
+#town-square {
+    flex-shrink: 0;
+    border-top: 1px solid #3a3010;
+    padding-top: 16px;
+    max-height: 45vh;
+    overflow-y: auto;
+}
+
+/* --- Battle column: defenders + enemies squads + hero recruiting --- */
+
+#battle-panel {
+    height: 100%;
+    overflow-y: auto;
+    background: #221f10;
+    border: 1px solid #3a3010;
+    border-radius: 4px;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.battle-squads {
+    display: flex;
+    gap: 16px;
+}
+
+.battle-squad-area {
     flex: 1;
     min-width: 0;
 }
 
-#right-panel {
-    width: 280px;
-    flex-shrink: 0;
-    position: sticky;
-    top: 40px;
-    max-height: calc(100vh - 80px);
-    overflow-y: auto;
+.battle-squad-area--enemy {
+    border-left: 1px solid #3a3010;
+    padding-left: 16px;
+}
+
+.raid-status-bar {
+    text-align: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #3a3010;
+}
+
+.raid-status-name {
+    font-size: 0.85rem;
+    color: #c9a84c;
+}
+
+.raid-status-timer {
+    font-size: 1rem;
+    color: #e8c96d;
+    font-variant-numeric: tabular-nums;
+    margin-top: 2px;
+}
+
+.battle-squad {
+    display: flex;
+    gap: 8px;
+}
+
+.battle-column {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.battle-row-label {
+    font-size: 0.65rem;
+    color: #6a5a30;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: center;
+    margin-bottom: 2px;
+}
+
+.battle-slot {
+    border: 1px solid #4a3a18;
+    border-radius: 4px;
+    background: #2a2410;
+    min-height: 76px;
+    padding: 6px;
+    box-sizing: border-box;
+}
+
+.battle-slot.empty {
+    border-style: dashed;
+    opacity: 0.4;
+}
+
+.battle-slot.dead {
+    opacity: 0.35;
+    border-color: #5a2020;
+}
+
+.battle-slot[draggable="true"] {
+    cursor: grab;
+}
+
+.battle-slot.drag-over {
+    border-color: #e8c96d;
+    background: #352e14;
+}
+
+.battle-unit-name {
+    font-weight: bold;
+    font-size: 0.75rem;
+    color: #e8c96d;
+}
+
+.battle-unit-stats {
+    font-size: 0.6rem;
+    color: #8a7240;
+    margin: 2px 0 4px;
+}
+
+.battle-hp-track {
+    background: #1c1a0f;
+    border-radius: 3px;
+    height: 6px;
+    overflow: hidden;
+}
+
+.battle-hp-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6b8c3e, #9bbf5a);
+}
+
+.battle-hp-fill.enemy {
+    background: linear-gradient(90deg, #8c3e3e, #bf5a5a);
+}
+
+.battle-hp-text {
+    font-size: 0.6rem;
+    color: #8a7240;
+    margin-top: 2px;
+}
+
+#hero-recruit-pool {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* --- Kingdom HP --- */
+
+.hp-bar-track {
+    background: #1c1a0f;
+    border: 1px solid #5a4a1e;
+    border-radius: 3px;
+    height: 14px;
+    overflow: hidden;
+    margin-top: 6px;
+}
+
+.hp-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6b8c3e, #9bbf5a);
+}
+
+.hp-bar-caption {
+    font-size: 0.8rem;
+    color: #c9a84c;
+    margin-top: 4px;
+}
+
+.kingdom-falling {
+    font-size: 0.85rem;
+    color: #e06060;
+    font-style: italic;
+    margin-top: 4px;
+}
+
+/* --- Narrow-screen fallback: drop the fixed-viewport layout and let
+   everything stack and scroll normally. --- */
+@media (max-width: 1300px) {
+    html, body {
+        height: auto;
+    }
+    body {
+        overflow: visible;
+    }
+    #game {
+        height: auto;
+    }
+    #layout {
+        display: block;
+        padding: 20px 0;
+    }
+    #admin-panel,
+    #town-panel,
+    #town-buildings,
+    #town-square,
+    #battle-panel {
+        height: auto;
+        max-height: none;
+        overflow: visible;
+    }
+    #town-panel,
+    #battle-panel {
+        margin-top: 24px;
+    }
 }
 
 /* --- Resources panel --- */
@@ -111,12 +330,6 @@ h1 {
     color: #8a7240;
     text-transform: uppercase;
     letter-spacing: 2px;
-}
-
-.stat-value {
-    font-size: 1.4rem;
-    color: #e8c96d;
-    margin-top: 4px;
 }
 
 /* --- Kingdom --- */
@@ -237,63 +450,11 @@ h1 {
     background: #2a1010;
 }
 
-/* --- Invasion --- */
-
-.invasion-panel {
-    border-top-color: #6a2020;
-}
-
-.invasion-name {
-    font-size: 1.1rem;
-    color: #e06060;
-    margin: 4px 0 6px;
-}
-
-.invasion-progress {
-    font-size: 0.9rem;
-    color: #c9a84c;
-    margin-bottom: 4px;
-}
-
-.invasion-note {
-    font-size: 0.75rem;
-    color: #8a4040;
-    font-style: italic;
-}
-
-.invasion-name--warning {
-    color: #c9a84c;
-}
-
-.invasion-preview {
-    font-size: 0.85rem;
-    color: #c9a84c;
-    margin-top: 2px;
-}
-
-.invasion-timer {
-    font-size: 1rem;
-    color: #e8c96d;
-    margin-top: 4px;
-    font-variant-numeric: tabular-nums;
-}
-
 .victory-inline {
     font-size: 0.75rem;
     color: #6a5a30;
     margin-top: 8px;
     font-style: italic;
-}
-
-.victory-name {
-    font-size: 1rem;
-    color: #e8c96d;
-    margin: 4px 0 2px;
-}
-
-.victory-loot {
-    font-size: 0.85rem;
-    color: #8a7240;
 }
 
 /* --- Town Square (recruit pool) --- */
@@ -478,7 +639,10 @@ h1 {
 .portrait[data-type="tavernkeeper"] { background-color: #352210; }
 .portrait[data-type="blacksmith"]   { background-color: #202428; }
 .portrait[data-type="scholar"]      { background-color: #181c2a; }
-.portrait[data-type="guard"]        { background-color: #281818; }
+.portrait[data-type="builder"]      { background-color: #281818; }
+.portrait[data-type="guardian"]     { background-color: #1c2a1c; }
+.portrait[data-type="ranged"]       { background-color: #2a2410; }
+.portrait[data-type="mender"]       { background-color: #1c2630; }
 
 .portrait-letter {
     font-family: 'Courier New', Courier, monospace;
@@ -588,7 +752,7 @@ h1 {
     border-color: #8a7240;
 }
 
-.building-card--defense .btn-expand {
+.building-card--hpregen .btn-expand {
     border-color: #2a3a5a;
 }
 
@@ -620,11 +784,11 @@ h1 {
     cursor: not-allowed;
 }
 
-.building-card--defense .btn-building {
+.building-card--hpregen .btn-building {
     border-color: #2a3a5a;
 }
 
-.building-card--defense .btn-building:hover:not(:disabled) {
+.building-card--hpregen .btn-building:hover:not(:disabled) {
     background: #1a2030;
     border-color: #4a6a8a;
 }
@@ -670,7 +834,7 @@ h1 {
     color: #e8c96d;
 }
 
-.building-income-total--defense {
+.building-income-total--hpregen {
     color: #7aaad4;
 }
 

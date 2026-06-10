@@ -11,7 +11,7 @@
         <h1>Idle Kingdom</h1>
 
         <div id="layout">
-            <div id="left-panel">
+            <div id="admin-panel">
                 <div id="resources">
                     <div class="resource">
                         <span class="resource-label">Gold</span>
@@ -23,7 +23,11 @@
                         <span id="siege-indicator"></span>
                     </div>
                 </div>
+
+                <div class="panel-section" id="kingdom-hp"></div>
+
                 <div id="left-panel-dynamic"></div>
+
                 <div class="panel-section">
                     <div class="panel-label">Dev Speed</div>
                     <div class="speed-buttons">
@@ -35,18 +39,37 @@
                 </div>
             </div>
 
-            <div id="center-panel">
-                <div id="buildings">
-                    <h2>Buildings</h2>
-                    <div id="building-list"></div>
+            <div id="town-panel">
+                <div id="town-buildings">
+                    <div id="buildings">
+                        <h2>Buildings</h2>
+                        <div id="building-list"></div>
+                    </div>
+                </div>
+                <div id="town-square">
+                    <div id="recruit-section">
+                        <h2>Town Square</h2>
+                        <div id="recruit-pool"></div>
+                    </div>
                 </div>
             </div>
 
-            <div id="right-panel">
-                <div id="recruit-section">
-                    <h2>Town Square</h2>
-                    <div id="recruit-pool"></div>
+            <div id="battle-panel">
+                <div class="raid-status-bar" id="raid-status-bar"></div>
+
+                <div class="battle-squads">
+                    <div class="battle-squad-area">
+                        <div class="section-heading">Defenders</div>
+                        <div class="battle-squad" id="heroSquad"></div>
+                    </div>
+                    <div class="battle-squad-area battle-squad-area--enemy">
+                        <div class="section-heading">Enemies</div>
+                        <div class="battle-squad" id="enemySquad"></div>
+                    </div>
                 </div>
+
+                <div class="section-heading" style="margin-top:20px;">Hero Recruits</div>
+                <div id="hero-recruit-pool"></div>
             </div>
         </div>
     </div>

@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Idle Kingdom — Layout Prototype</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* --- Layout prototype overrides ---
+           This page reuses the real game.js + style.css for the Admin and
+           Town columns (so buildings/recruiting are fully live), and adds a
+           "battle at the gates" column on the right using a trimmed copy of
+           the autobattler prototype's combat loop.
+
+           Three fixed-height columns fill the viewport (no page scroll):
+           Admin (left) | Town (middle, split into a scrolling building list
+           over a fixed Town Square) | Battle (right, defenders + enemies +
+           hero recruiting). */
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            padding: 0;
+            display: block;
+            overflow: hidden;
+        }
+
+        #game {
+            max-width: none;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 0 24px;
+        }
+
+        h1 {
+            flex-shrink: 0;
+            margin: 0;
+            padding: 20px 0;
+            border-bottom: 1px solid #5a4a1e;
+        }
+
+        #layout {
+            display: grid;
+            grid-template-columns: 200px minmax(380px, 1fr) 560px;
+            gap: 24px;
+            flex: 1;
+            min-height: 0;
+            padding: 20px 0;
+        }
+
+        #admin-panel {
+            height: 100%;
+            overflow-y: auto;
+        }
+
+        .section-heading {
+            font-size: 1rem;
+            color: #8a7240;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 12px;
+        }
+
+        /* --- Kingdom HP (concept placeholder, not yet wired up) --- */
+
+        .hp-bar-track {
+            background: #1c1a0f;
+            border: 1px solid #5a4a1e;
+            border-radius: 3px;
+            height: 14px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+
+        .hp-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6b8c3e, #9bbf5a);
+        }
+
+        .hp-bar-caption {
+            font-size: 0.8rem;
+            color: #c9a84c;
+            margin-top: 4px;
+        }
+
+        .concept-note {
+            font-size: 0.7rem;
+            color: #6a5a30;
+            font-style: italic;
+        }
+
+        /* --- Town column: scrollable buildings on top, fixed Town Square below --- */
+
+        #town-panel {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            height: 100%;
+        }
+
+        #town-buildings {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding-bottom: 16px;
+        }
+
+        #town-square {
+            flex-shrink: 0;
+            border-top: 1px solid #3a3010;
+            padding-top: 16px;
+            max-height: 45vh;
+            overflow-y: auto;
+        }
+
+        /* --- Battle column: defenders + enemies squads, controls, log, hero recruits --- */
+
+        #battle-panel {
+            height: 100%;
+            overflow-y: auto;
+            background: #221f10;
+            border: 1px solid #3a3010;
+            border-radius: 4px;
+            padding: 16px;
+            box-sizing: border-box;
+        }
+
+        .battle-squads {
+            display: flex;
+            gap: 16px;
+        }
+
+        .battle-squad-area {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .battle-squad-area--enemy {
+            border-left: 1px solid #3a3010;
+            padding-left: 16px;
+        }
+
+        .raid-status-bar {
+            text-align: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #3a3010;
+        }
+
+        .raid-status-name {
+            font-size: 0.85rem;
+            color: #c9a84c;
+        }
+
+        .raid-status-timer {
+            font-size: 1rem;
+            color: #e8c96d;
+            font-variant-numeric: tabular-nums;
+            margin-top: 2px;
+        }
+
+        .raid-status-bar .concept-note {
+            margin-top: 4px;
+        }
+
+        .battle-squad {
+            display: flex;
+            gap: 8px;
+        }
+
+        .battle-column {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .battle-row-label {
+            font-size: 0.65rem;
+            color: #6a5a30;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-align: center;
+            margin-bottom: 2px;
+        }
+
+        .battle-slot {
+            border: 1px solid #4a3a18;
+            border-radius: 4px;
+            background: #2a2410;
+            min-height: 76px;
+            padding: 6px;
+            box-sizing: border-box;
+        }
+
+        .battle-slot.empty {
+            border-style: dashed;
+            opacity: 0.4;
+        }
+
+        .battle-slot.dead {
+            opacity: 0.35;
+            border-color: #5a2020;
+        }
+
+        .battle-slot[draggable="true"] {
+            cursor: grab;
+        }
+
+        .battle-slot.drag-over {
+            border-color: #e8c96d;
+            background: #352e14;
+        }
+
+        .battle-unit-name {
+            font-weight: bold;
+            font-size: 0.75rem;
+            color: #e8c96d;
+        }
+
+        .battle-unit-stats {
+            font-size: 0.6rem;
+            color: #8a7240;
+            margin: 2px 0 4px;
+        }
+
+        .battle-hp-track {
+            background: #1c1a0f;
+            border-radius: 3px;
+            height: 6px;
+            overflow: hidden;
+        }
+
+        .battle-hp-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6b8c3e, #9bbf5a);
+        }
+
+        .battle-hp-fill.enemy {
+            background: linear-gradient(90deg, #8c3e3e, #bf5a5a);
+        }
+
+        .battle-hp-text {
+            font-size: 0.6rem;
+            color: #8a7240;
+            margin-top: 2px;
+        }
+
+        /* --- Battle controls + log --- */
+
+        .battle-controls {
+            display: flex;
+            gap: 8px;
+            margin: 14px 0;
+            flex-wrap: wrap;
+        }
+
+        .battle-controls select,
+        .btn-battle {
+            background: #2a2410;
+            border: 1px solid #5a4a1e;
+            border-radius: 4px;
+            padding: 6px 10px;
+            color: #c9a84c;
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .btn-battle:hover:not(:disabled) {
+            background: #352e14;
+            border-color: #8a7240;
+        }
+
+        .btn-battle:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .battle-log {
+            margin-top: 12px;
+            max-height: 160px;
+            overflow-y: auto;
+            background: #14110c;
+            border: 1px solid #3a3010;
+            border-radius: 4px;
+            padding: 8px 10px;
+            font-size: 0.7rem;
+            line-height: 1.5;
+        }
+
+        .battle-log div.outcome { color: #e8c96d; font-weight: bold; margin-top: 4px; }
+        .battle-log div.enemy-line { color: #bf8a8a; }
+        .battle-log div.hero-line { color: #a8c08a; }
+
+        /* --- Hero recruit pool placeholder (concept — not wired up) --- */
+
+        #hero-recruit-pool {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        /* --- Narrow-screen fallback: drop the fixed-viewport layout and let
+           everything stack and scroll normally. --- */
+        @media (max-width: 1300px) {
+            html, body {
+                height: auto;
+            }
+            body {
+                overflow: visible;
+            }
+            #game {
+                height: auto;
+            }
+            #layout {
+                display: block;
+                padding: 20px 0;
+            }
+            #admin-panel,
+            #town-panel,
+            #town-buildings,
+            #town-square,
+            #battle-panel {
+                height: auto;
+                max-height: none;
+                overflow: visible;
+            }
+            #town-panel,
+            #battle-panel {
+                margin-top: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="game">
+        <h1>Idle Kingdom</h1>
+
+        <div id="layout">
+            <!-- ADMIN: kingdom stats, HP, raid status, dev controls -->
+            <div id="admin-panel">
+                <div id="resources">
+                    <div class="resource">
+                        <span class="resource-label">Gold</span>
+                        <span id="gold-display">50</span>
+                    </div>
+                    <div class="resource">
+                        <span class="resource-label">Per second</span>
+                        <span id="gps-display">0</span>
+                        <span id="siege-indicator"></span>
+                    </div>
+                </div>
+
+                <div class="panel-section">
+                    <div class="panel-label">Kingdom HP</div>
+                    <div class="hp-bar-track"><div class="hp-bar-fill" style="width:78%"></div></div>
+                    <div class="hp-bar-caption">780 / 1,000</div>
+                    <div class="concept-note">(concept — not yet wired up)</div>
+                </div>
+
+                <div id="left-panel-dynamic"></div>
+
+                <div class="panel-section">
+                    <div class="panel-label">Dev Speed</div>
+                    <div class="speed-buttons">
+                        <button class="btn-speed btn-speed--active" id="speed-1"   onclick="setGameSpeed(1)">1×</button>
+                        <button class="btn-speed"                   id="speed-10"  onclick="setGameSpeed(10)">10×</button>
+                        <button class="btn-speed"                   id="speed-50"  onclick="setGameSpeed(50)">50×</button>
+                        <button class="btn-speed"                   id="speed-100" onclick="setGameSpeed(100)">100×</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TOWN: scrollable building list over a fixed Town Square -->
+            <div id="town-panel">
+                <div id="town-buildings">
+                    <div id="buildings">
+                        <h2>Buildings</h2>
+                        <div id="building-list"></div>
+                    </div>
+                </div>
+                <div id="town-square">
+                    <div id="recruit-section">
+                        <h2>Town Square</h2>
+                        <div id="recruit-pool"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BATTLE: defenders + enemies squads, controls, log, hero recruiting -->
+            <div id="battle-panel">
+                <div class="raid-status-bar">
+                    <div class="raid-status-name">Next: Goblin Raid (Wave 3)</div>
+                    <div class="raid-status-timer">Arrives in 0:18</div>
+                    <div class="concept-note">(raid timing — concept, not wired up)</div>
+                </div>
+
+                <div class="battle-squads">
+                    <div class="battle-squad-area">
+                        <div class="section-heading">Defenders</div>
+                        <div class="battle-squad" id="heroSquad"></div>
+                    </div>
+                    <div class="battle-squad-area battle-squad-area--enemy">
+                        <div class="section-heading">Enemies</div>
+                        <div class="battle-squad" id="enemySquad"></div>
+                    </div>
+                </div>
+
+                <div class="battle-controls">
+                    <select id="raidThemeSelect"></select>
+                    <button class="btn-battle" id="startBtn">Start Battle</button>
+                    <button class="btn-battle" id="resetBtn">Reset</button>
+                </div>
+
+                <div class="battle-log" id="log"></div>
+
+                <div class="section-heading" style="margin-top:20px;">Hero Recruits</div>
+                <div id="hero-recruit-pool">
+                    <div class="recruit-card recruit-card--rare">
+                        <div class="portrait portrait--rare" data-type="guard">
+                            <span class="portrait-letter">S</span>
+                        </div>
+                        <div class="recruit-info">
+                            <div class="recruit-name">Sentinel</div>
+                            <div class="recruit-rarity" style="color:#4488ff">Rare</div>
+                            <div class="recruit-stat">DEF 35% · ATK 20</div>
+                        </div>
+                        <div class="recruit-action">
+                            <div class="recruit-cost">3,000g</div>
+                            <button class="btn-hire-recruit" disabled>Hire</button>
+                        </div>
+                    </div>
+                    <div class="recruit-card">
+                        <div class="portrait portrait--common" data-type="guard">
+                            <span class="portrait-letter">A</span>
+                        </div>
+                        <div class="recruit-info">
+                            <div class="recruit-name">Acolyte</div>
+                            <div class="recruit-rarity" style="color:#aaa396">Common</div>
+                            <div class="recruit-stat">HLR 20 (0.7/s)</div>
+                        </div>
+                        <div class="recruit-action">
+                            <div class="recruit-cost">900g</div>
+                            <button class="btn-hire-recruit" disabled>Hire</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="concept-note" style="margin-top:6px;">(hero recruiting — concept, not wired up)</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+    <script>
+        // --- Trimmed-down autobattler combat loop, adapted from
+        // autobattler-prototype.html, for visualizing the Defenders/Enemies
+        // squads. The hero tier preview panel and rarity generator were
+        // dropped — this is purely for checking how the layout reads. ---
+
+        const BASE_ATTACK_INTERVAL = 2500; // ms at speed 1.0
+        const DEFAULT_BACKLINE_CHANCE = 0.15;
+
+        function attackAction(power, speed) {
+            return { power, speed, cooldown: BASE_ATTACK_INTERVAL / speed };
+        }
+        function healAction(power, speed) {
+            return { power, speed, cooldown: BASE_ATTACK_INTERVAL / speed };
+        }
+
+        function makeUnit(name, defense, hp, row, col, side, attack = null, heal = null, backlineChance = DEFAULT_BACKLINE_CHANCE) {
+            return { name, defense, hp, maxHp: hp, row, col, side, attack, heal, backlineChance, alive: true };
+        }
+
+        let heroes, enemies, running = false, tickHandle = null;
+
+        function buildSquads() {
+            heroes = [
+                makeUnit('Knight',  35, 140, 0, 0, 'hero', attackAction(8, 0.7)),
+                makeUnit('Templar', 32, 125, 0, 1, 'hero', null, healAction(7, 0.6)),
+                makeUnit('Duelist',  8,  80, 0, 2, 'hero', attackAction(24, 1.0), null, 0.4),
+                makeUnit('Mage',     0,  50, 1, 0, 'hero', attackAction(28, 0.6)),
+                makeUnit('Druid',    5,  55, 1, 1, 'hero', null, healAction(24, 0.6)),
+                makeUnit('Paladin', 16,  95, 1, 2, 'hero', attackAction(9, 0.7), healAction(8, 0.5)),
+            ];
+            const themeIndex = parseInt(raidThemeSelect.value, 10);
+            enemies = [
+                generateEnemy(themeIndex, 'brute',      0, 0),
+                generateEnemy(themeIndex, 'skirmisher', 0, 1),
+                null,
+                generateEnemy(themeIndex, 'caster',     1, 0),
+                generateEnemy(themeIndex, 'shaman',     1, 1),
+                null,
+            ];
+        }
+
+        function randomFrom(list) {
+            return list[Math.floor(Math.random() * list.length)];
+        }
+
+        function pickTarget(attacker, enemySquad) {
+            const front = enemySquad.filter(u => u && u.row === 0 && u.alive);
+            const back = enemySquad.filter(u => u && u.row === 1 && u.alive);
+            if (front.length === 0 && back.length === 0) return null;
+            if (front.length === 0) return randomFrom(back);
+            if (back.length === 0) return randomFrom(front);
+            const wantsBackline = Math.random() < attacker.backlineChance;
+            return randomFrom(wantsBackline ? back : front);
+        }
+
+        function pickHealTarget(friendlySquad) {
+            const wounded = friendlySquad.filter(u => u && u.alive && u.hp < u.maxHp);
+            if (wounded.length === 0) return null;
+            wounded.sort((a, b) => (a.hp / a.maxHp) - (b.hp / b.maxHp));
+            return wounded[0];
+        }
+
+        function resolveHeal(healer, target) {
+            const before = target.hp;
+            target.hp = Math.min(target.maxHp, target.hp + healer.heal.power);
+            const restored = Math.round(target.hp - before);
+            log(`${healer.name} heals ${target.name} for ${restored}`, healer.side);
+        }
+
+        function resolveAttack(attacker, defender) {
+            const dmg = Math.max(1, Math.round(attacker.attack.power * (1 - defender.defense / 100)));
+            defender.hp -= dmg;
+            log(`${attacker.name} hits ${defender.name} for ${dmg}`, attacker.side);
+            if (defender.hp <= 0) {
+                defender.hp = 0;
+                defender.alive = false;
+                log(`${defender.name} falls!`, 'outcome');
+            }
+        }
+
+        function squadAlive(squad) {
+            return squad.some(u => u && u.alive);
+        }
+
+        function tick(deltaMs) {
+            for (const unit of [...heroes, ...enemies]) {
+                if (!unit || !unit.alive) continue;
+
+                if (unit.attack) {
+                    unit.attack.cooldown -= deltaMs;
+                    if (unit.attack.cooldown <= 0) {
+                        const enemySquad = unit.side === 'hero' ? enemies : heroes;
+                        const target = pickTarget(unit, enemySquad);
+                        if (target) resolveAttack(unit, target);
+                        unit.attack.cooldown += BASE_ATTACK_INTERVAL / unit.attack.speed;
+                    }
+                }
+
+                if (unit.heal) {
+                    unit.heal.cooldown -= deltaMs;
+                    if (unit.heal.cooldown <= 0) {
+                        const friendlySquad = unit.side === 'hero' ? heroes : enemies;
+                        const target = pickHealTarget(friendlySquad);
+                        if (target) {
+                            resolveHeal(unit, target);
+                            unit.heal.cooldown += BASE_ATTACK_INTERVAL / unit.heal.speed;
+                        }
+                    }
+                }
+            }
+            render();
+
+            if (!squadAlive(heroes) || !squadAlive(enemies)) {
+                endBattle();
+            }
+        }
+
+        function endBattle() {
+            running = false;
+            clearInterval(tickHandle);
+            startBtn.disabled = false;
+            raidThemeSelect.disabled = false;
+            const heroesWon = squadAlive(heroes);
+            log(heroesWon ? 'Heroes win!' : 'Heroes are defeated...', 'outcome');
+        }
+
+        // columnOrder controls left-to-right order within each squad area.
+        // Heroes: backline first, frontline second (frontline sits nearest
+        // the "gate" against the Enemies area to its right).
+        // Enemies: frontline first, backline second (frontline sits nearest
+        // the "gate" against the Defenders area to its left).
+        function renderSquad(containerId, squad, sideClass, columnOrder, interactive) {
+            const el = document.getElementById(containerId);
+            el.innerHTML = '';
+            for (const colDef of columnOrder) {
+                const colEl = document.createElement('div');
+                colEl.className = 'battle-column';
+
+                const label = document.createElement('div');
+                label.className = 'battle-row-label';
+                label.textContent = colDef.label;
+                colEl.appendChild(label);
+
+                for (let i = 0; i < 3; i++) {
+                    const index = colDef.row * 3 + i;
+                    const unit = squad[index];
+                    const slot = document.createElement('div');
+                    if (!unit) {
+                        slot.className = 'battle-slot empty';
+                    } else {
+                        slot.className = 'battle-slot' + (unit.alive ? '' : ' dead');
+                        const pct = Math.max(0, (unit.hp / unit.maxHp) * 100);
+                        const statParts = [];
+                        if (unit.attack) statParts.push(`ATK ${unit.attack.power}`);
+                        if (unit.heal) statParts.push(`HLR ${unit.heal.power}`);
+                        statParts.push(`DEF ${unit.defense}%`);
+                        slot.innerHTML = `
+                            <div class="battle-unit-name">${unit.name}</div>
+                            <div class="battle-unit-stats">${statParts.join(' &middot; ')}</div>
+                            <div class="battle-hp-track"><div class="battle-hp-fill ${sideClass}" style="width:${pct}%"></div></div>
+                            <div class="battle-hp-text">${Math.max(0, Math.round(unit.hp))} / ${unit.maxHp}</div>
+                        `;
+                    }
+                    if (interactive) attachDragHandlers(slot, index, squad);
+                    colEl.appendChild(slot);
+                }
+                el.appendChild(colEl);
+            }
+        }
+
+        let isDragging = false;
+
+        function attachDragHandlers(slot, index, squad) {
+            const unit = squad[index];
+            if (unit && unit.alive) {
+                slot.draggable = true;
+                slot.addEventListener('dragstart', e => {
+                    isDragging = true;
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', String(index));
+                });
+                slot.addEventListener('dragend', () => {
+                    isDragging = false;
+                    render();
+                });
+            }
+
+            slot.addEventListener('dragover', e => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+            });
+            slot.addEventListener('dragenter', e => {
+                e.preventDefault();
+                slot.classList.add('drag-over');
+            });
+            slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+            slot.addEventListener('drop', e => {
+                e.preventDefault();
+                slot.classList.remove('drag-over');
+                const sourceIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+                swapHeroes(sourceIndex, index);
+            });
+        }
+
+        function swapHeroes(sourceIndex, targetIndex) {
+            if (sourceIndex === targetIndex || isNaN(sourceIndex)) return;
+            const rowOf = idx => Math.floor(idx / 3);
+            const colOf = idx => idx % 3;
+
+            const a = heroes[sourceIndex];
+            const b = heroes[targetIndex];
+            if (a) { a.row = rowOf(targetIndex); a.col = colOf(targetIndex); }
+            if (b) { b.row = rowOf(sourceIndex); b.col = colOf(sourceIndex); }
+            heroes[sourceIndex] = b;
+            heroes[targetIndex] = a;
+
+            log(`Repositioned ${a.name}${b ? ` and ${b.name}` : ''}`, 'outcome');
+        }
+
+        function render() {
+            if (isDragging) return;
+            renderSquad('heroSquad', heroes, '', [{ label: 'Backline', row: 1 }, { label: 'Frontline', row: 0 }], true);
+            renderSquad('enemySquad', enemies, 'enemy', [{ label: 'Frontline', row: 0 }, { label: 'Backline', row: 1 }], false);
+        }
+
+        function log(msg, kind) {
+            const logEl = document.getElementById('log');
+            const line = document.createElement('div');
+            if (kind === 'outcome') line.className = 'outcome';
+            else if (kind === 'enemy') line.className = 'enemy-line';
+            else if (kind === 'hero') line.className = 'hero-line';
+            line.textContent = msg;
+            logEl.appendChild(line);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        const startBtn = document.getElementById('startBtn');
+        const resetBtn = document.getElementById('resetBtn');
+
+        startBtn.addEventListener('click', () => {
+            if (running) return;
+            running = true;
+            startBtn.disabled = true;
+            raidThemeSelect.disabled = true;
+            log('--- Battle begins ---', 'outcome');
+            tickHandle = setInterval(() => tick(100), 100);
+        });
+
+        resetBtn.addEventListener('click', () => {
+            running = false;
+            clearInterval(tickHandle);
+            document.getElementById('log').innerHTML = '';
+            startBtn.disabled = false;
+            raidThemeSelect.disabled = false;
+            buildSquads();
+            render();
+        });
+
+        // --- Enemy raid themes (mirrors the invasion system's tiers) ---
+        const ENEMY_ARCHETYPES = {
+            brute:      { base: { defense: 20, hp: 120, attack: { power: 14, speed: 0.7 } } },
+            skirmisher: { base: { defense: 8,  hp: 70,  attack: { power: 18, speed: 1.1 }, backlineChance: 0.4 } },
+            caster:     { base: { defense: 5,  hp: 55,  attack: { power: 20, speed: 0.9 } } },
+            shaman:     { base: { defense: 8,  hp: 60,  heal: { power: 15, speed: 0.7 } } },
+        };
+
+        const RAID_THEMES = [
+            { name: 'Goblin Raid',  powerMult: 1,   roster: { brute: 'Goblin Brute',    skirmisher: 'Goblin Skulker',   caster: 'Goblin Slinger',  shaman: 'Goblin Shaman' } },
+            { name: 'Orc Warband',  powerMult: 1.6, roster: { brute: 'Orc Brute',       skirmisher: 'Orc Berserker',    caster: 'Orc Warcaster',   shaman: 'Orc Witch Doctor' } },
+            { name: 'Bandit Horde', powerMult: 2.4, roster: { brute: 'Bandit Enforcer', skirmisher: 'Bandit Cutthroat', caster: 'Bandit Marksman', shaman: 'Bandit Medic' } },
+            { name: 'Dark Army',    powerMult: 3.6, roster: { brute: 'Death Knight',    skirmisher: 'Shadow Reaver',    caster: 'Necromancer',     shaman: 'Bone Priest' } },
+            { name: 'Dragon Siege', powerMult: 5.5, roster: { brute: 'Dragon Guard',    skirmisher: 'Wyrmling',         caster: 'Dragon Mage',     shaman: 'Dragonpriest' } },
+        ];
+
+        function generateEnemy(themeIndex, archetypeKey, row, col) {
+            const theme = RAID_THEMES[themeIndex];
+            const archetype = ENEMY_ARCHETYPES[archetypeKey];
+            const base = archetype.base;
+            const scalePower = v => Math.round(v * theme.powerMult);
+            const scaleHp = v => Math.round(v * Math.sqrt(theme.powerMult));
+
+            const attack = base.attack ? attackAction(scalePower(base.attack.power), base.attack.speed) : null;
+            const heal = base.heal ? healAction(scalePower(base.heal.power), base.heal.speed) : null;
+            const backlineChance = base.backlineChance !== undefined ? base.backlineChance : DEFAULT_BACKLINE_CHANCE;
+
+            const unit = makeUnit(theme.roster[archetypeKey], base.defense, scaleHp(base.hp), row, col, 'enemy', attack, heal, backlineChance);
+            unit.raidTheme = theme.name;
+            return unit;
+        }
+
+        const raidThemeSelect = document.getElementById('raidThemeSelect');
+        RAID_THEMES.forEach((theme, i) => {
+            const opt = document.createElement('option');
+            opt.value = String(i);
+            opt.textContent = theme.name;
+            raidThemeSelect.appendChild(opt);
+        });
+        raidThemeSelect.addEventListener('change', () => {
+            if (running) return;
+            buildSquads();
+            render();
+            log(`-- Facing the ${RAID_THEMES[raidThemeSelect.value].name} --`, 'outcome');
+        });
+
+        buildSquads();
+        render();
+    </script>
+</body>
+</html>
