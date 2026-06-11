@@ -80,7 +80,7 @@ h1 {
     flex-shrink: 0;
     border-top: 1px solid #3a3010;
     padding-top: 16px;
-    max-height: 45vh;
+    height: 45vh;
     overflow-y: auto;
 }
 
@@ -130,6 +130,19 @@ h1 {
     margin-top: 2px;
 }
 
+.raid-status-siege {
+    font-size: 0.8rem;
+    color: #e06060;
+    font-style: italic;
+    margin-top: 4px;
+    animation: siege-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes siege-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
 .battle-squad {
     display: flex;
     gap: 8px;
@@ -173,6 +186,16 @@ h1 {
 
 .battle-slot[draggable="true"] {
     cursor: grab;
+}
+
+.battle-slot.dismissable:not([draggable="true"]) {
+    cursor: pointer;
+}
+
+.battle-slot.armed {
+    border-color: #c0392b;
+    background: #3a1c1c;
+    box-shadow: 0 0 0 1px #c0392b inset;
 }
 
 .battle-slot.drag-over {
@@ -245,6 +268,13 @@ h1 {
 .kingdom-falling {
     font-size: 0.85rem;
     color: #e06060;
+    font-style: italic;
+    margin-top: 4px;
+}
+
+.kingdom-fall-record {
+    font-size: 0.75rem;
+    color: #8a7240;
     font-style: italic;
     margin-top: 4px;
 }

@@ -11,6 +11,7 @@ let raidWinStreak = 0;
 let invasionTimer = 0;
 let currentInvasion = null;
 let lastVictory = null;
+let kingdomFallRecord = null;
 let recruitPool = [];
 let poolTimer = 0;
 let nextRecruitId = 0;
@@ -25,6 +26,8 @@ const buildingExpanded = {};
 let gameSpeed = 1;
 let tickInterval = null;
 let isDraggingHero = false;
+let armedHeroSlot = null;
+let armedHeroSlotTime = 0;
 
 const rarityOrder = ['common', 'rare', 'epic', 'legendary'];
 
@@ -35,6 +38,9 @@ const HERO_POOL_SIZE = 3;
 const HERO_POOL_REFRESH_INTERVAL = 15;
 
 const KINGDOM_HP_MAX = 1000;
+const KINGDOM_DEFENSE = 15;
+
+const ARM_TIMEOUT_MS = 3000;
 
 const RAID_INTERVAL = 20;
 const RAID_TRIGGER_LEVEL = 2;
@@ -434,6 +440,14 @@ function squadAlive(squad) {
     return squad.some(u => u && u.alive);
 }
 
+// Once the hero squad is wiped, nothing stands between the enemy and the
+// Kingdom itself — enemies attack Kingdom HP directly until it falls or the
+// raid is repelled some other way.
+function attackKingdom(attacker) {
+    const dmg = Math.max(1, Math.round(attacker.attack.power * (1 - KINGDOM_DEFENSE / 100)));
+    kingdomHP = Math.max(0, kingdomHP - dmg);
+}
+
 // Advances combat by deltaMs. Each unit's attack and heal cooldowns tick down
 // independently.
 function combatTick(deltaMs) {
@@ -444,9 +458,15 @@ function combatTick(deltaMs) {
         if (unit.attack) {
             unit.attack.cooldown -= deltaMs;
             if (unit.attack.cooldown <= 0) {
-                const targetSquad = unit.side === 'hero' ? enemySide : heroSquad;
-                const target = pickTarget(unit, targetSquad);
-                if (target) resolveAttack(unit, target);
+                if (unit.side === 'hero') {
+                    const target = pickTarget(unit, enemySide);
+                    if (target) resolveAttack(unit, target);
+                } else if (squadAlive(heroSquad)) {
+                    const target = pickTarget(unit, heroSquad);
+                    if (target) resolveAttack(unit, target);
+                } else {
+                    attackKingdom(unit);
+                }
                 unit.attack.cooldown += BASE_ATTACK_INTERVAL / unit.attack.speed;
             }
         }
@@ -568,6 +588,7 @@ function attachHeroDragHandlers(slot, index) {
         slot.draggable = true;
         slot.addEventListener('dragstart', e => {
             isDraggingHero = true;
+            if (armedHeroSlot === index) armedHeroSlot = null;
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', String(index));
         });
@@ -646,22 +667,27 @@ function endInvasion() {
         raidWinStreak = 0;
     }
 
-    let hpDamage = 0;
-    for (const hero of heroSquad) {
-        if (hero && !hero.alive) hpDamage += hero.maxHp;
+    const kingdomFell = !won && kingdomHP <= 0;
+    if (kingdomFell) {
+        kingdomFallRecord = { name: currentInvasion.name, level: kingdomLevel };
     }
-    kingdomHP = Math.max(0, kingdomHP - hpDamage);
 
-    lastVictory = { name: currentInvasion.name, loot, won };
+    lastVictory = { name: currentInvasion.name, loot, won, kingdomFell };
     gold += loot;
     tierWave++;
     currentInvasion = null;
     invasionTimer = RAID_INTERVAL;
+
+    // Heroes that died this battle are gone for good — auto-fire them so
+    // their slot is immediately free for a new recruit.
+    for (let i = 0; i < heroSquad.length; i++) {
+        if (heroSquad[i] && !heroSquad[i].alive) heroSquad[i] = null;
+    }
 }
 
 function saveGame() {
     const state = {
-        gold, goldEarned, kingdomLevel, raidsStarted, raidTierIndex, tierWave, raidWinStreak, invasionTimer, currentInvasion, lastVictory, autoRecruitRarity,
+        gold, goldEarned, kingdomLevel, raidsStarted, raidTierIndex, tierWave, raidWinStreak, invasionTimer, currentInvasion, lastVictory, kingdomFallRecord, autoRecruitRarity,
         recruitPool, poolTimer, nextRecruitId,
         kingdomHP, heroSquad, heroRecruitPool, heroPoolTimer, nextHeroRecruitId,
         buildings: {}
@@ -693,6 +719,7 @@ function loadGame() {
     invasionTimer = state.invasionTimer ?? 0;
     currentInvasion = (state.currentInvasion && state.currentInvasion.enemies) ? state.currentInvasion : null;
     lastVictory = state.lastVictory ?? null;
+    kingdomFallRecord = state.kingdomFallRecord ?? null;
     autoRecruitRarity = state.autoRecruitRarity ?? null;
     recruitPool = state.recruitPool ?? [];
     poolTimer = state.poolTimer ?? 0;
@@ -784,7 +811,7 @@ function tick() {
     if (raidsStarted) {
         if (currentInvasion) {
             combatTick(1000);
-            if (!squadAlive(heroSquad) || !squadAlive(currentInvasion.enemies)) {
+            if (!squadAlive(currentInvasion.enemies) || kingdomHP <= 0) {
                 endInvasion();
             }
         } else {
@@ -1040,7 +1067,8 @@ function renderKingdomHP() {
     const html = `<div class="panel-label">Kingdom HP</div>
         <div class="hp-bar-track"><div class="hp-bar-fill" style="width:${pct}%"></div></div>
         <div class="hp-bar-caption">${Math.round(kingdomHP).toLocaleString()} / ${KINGDOM_HP_MAX.toLocaleString()}</div>
-        ${kingdomHP <= 0 ? '<div class="kingdom-falling">Kingdom Falling!</div>' : ''}`;
+        ${kingdomHP <= 0 ? '<div class="kingdom-falling">Kingdom Falling!</div>' : ''}
+        ${kingdomFallRecord ? `<div class="kingdom-fall-record">Fell at: ${kingdomFallRecord.name} (Kingdom Lv ${kingdomFallRecord.level})</div>` : ''}`;
     document.getElementById('kingdom-hp').innerHTML = html;
 }
 
@@ -1050,6 +1078,9 @@ function renderRaidStatusBar() {
     if (currentInvasion) {
         html += `<div class="raid-status-name">${currentInvasion.name}</div>
             <div class="raid-status-timer">Battle in progress</div>`;
+        if (!squadAlive(heroSquad)) {
+            html += `<div class="raid-status-siege">The Kingdom is under siege!</div>`;
+        }
     } else if (raidsStarted) {
         const previewTierIndex = getRaidTierIndex(kingdomLevel);
         const previewWave = previewTierIndex === raidTierIndex ? tierWave : 0;
@@ -1061,7 +1092,7 @@ function renderRaidStatusBar() {
     }
 
     if (lastVictory) {
-        const verb = lastVictory.won ? 'Repelled' : 'Survived';
+        const verb = lastVictory.won ? 'Repelled' : (lastVictory.kingdomFell ? 'Overrun' : 'Survived');
         html += `<div class="victory-inline">${verb}: ${lastVictory.name} +${lastVictory.loot.toLocaleString()}g</div>`;
     }
 
@@ -1102,6 +1133,26 @@ function renderSquad(containerId, squad, sideClass, columnOrder, interactive) {
                     <div class="battle-hp-track"><div class="battle-hp-fill ${sideClass}" style="width:${pct}%"></div></div>
                     <div class="battle-hp-text">${Math.max(0, Math.round(unit.hp))} / ${unit.maxHp}</div>
                 `;
+                if (interactive) {
+                    slot.classList.add('dismissable');
+                    const armed = armedHeroSlot === index && Date.now() - armedHeroSlotTime < ARM_TIMEOUT_MS;
+                    if (armed) {
+                        slot.classList.add('armed');
+                        slot.title = 'Click again to dismiss';
+                    } else {
+                        slot.title = 'Click to dismiss';
+                    }
+                    slot.addEventListener('click', () => {
+                        if (armed) {
+                            armedHeroSlot = null;
+                            fireHero(index);
+                        } else {
+                            armedHeroSlot = index;
+                            armedHeroSlotTime = Date.now();
+                            renderBattleSquads();
+                        }
+                    });
+                }
             }
             if (interactive) attachHeroDragHandlers(slot, index);
             colEl.appendChild(slot);

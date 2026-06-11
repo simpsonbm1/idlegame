@@ -143,15 +143,16 @@ Each raid spawns a 2x3 enemy squad (brute + skirmisher front, caster + shaman ba
 
 Per-tier loot values (`baseLoot` / `lootGrowth`): Goblin Raid 200,000 / 1.30, Orc Warband 1,000,000 / 1.30, Bandit Horde 5,000,000 / 1.32, Dark Army 25,000,000 / 1.34, Dragon Siege 120,000,000 / 1.36. Loot does not count toward `goldEarned` (avoids immediately re-triggering the raid-trigger check). Switching raid tiers resets the streak too.
 
-**Result display:** the raid status bar shows "Repelled: <name> +Xg" (win) or "Survived: <name> +Xg" (loss) for the most recent battle (`lastVictory`).
+**Result display:** the raid status bar shows "Repelled: <name> +Xg" (win), "Survived: <name> +Xg" (loss with the Kingdom still standing), or "Overrun: <name> +Xg" (loss where Kingdom HP hit 0) for the most recent battle (`lastVictory`). While the hero squad is wiped but the battle continues, a pulsing "The Kingdom is under siege!" banner appears in the status bar.
 
 ### Kingdom HP
-Kingdom HP (`kingdomHP`, max `KINGDOM_HP_MAX = 1000`) is the persistent consequence of losing heroes in battle:
+Kingdom HP (`kingdomHP`, max `KINGDOM_HP_MAX = 1000`) is the persistent consequence of losing the hero squad in battle:
 
-- **Heroes "respawn" at full HP at the start of every battle** (`startInvasion` resets `hp = maxHp, alive = true` for the whole squad) — the kingdom absorbs the cost, not the hero.
-- At the end of a battle (`endInvasion`), Kingdom HP is reduced by the sum of `maxHp` for every hero that died, **win or lose**: `kingdomHP = max(0, kingdomHP - hpDamage)`.
-- Regenerated continuously by **Builders** (Workshop residents), `kingdomHpRegen` HP/sec, applied once per tick alongside gold income.
-- If `kingdomHP` reaches 0 it clamps there and the Admin panel shows a "Kingdom Falling!" warning. **Nothing else happens yet** — no reset or Legacy Points wiring (planned, see *Prestige system*).
+- **Heroes "respawn" at full HP at the start of every battle** (`startInvasion` resets `hp = maxHp, alive = true` for the whole squad) — survivors start each battle healed up.
+- **The Kingdom is the last line of defense.** While any hero is alive, enemies target the hero squad as normal (`pickTarget`). Once the hero squad is wiped, every surviving enemy attack instead hits `kingdomHP` directly (`attackKingdom`), using the same `dmg = max(1, round(power * (1 - defense/100)))` formula against a flat `KINGDOM_DEFENSE = 15` (placeholder — could later be tied to a "Walls"-type building).
+- A battle now ends when **either** the enemy squad is wiped (win) **or** `kingdomHP` reaches 0 (loss). The old "lump sum of dead heroes' maxHp at battle end" penalty has been removed entirely — all Kingdom HP loss now comes from this real-time siege.
+- Regenerated continuously by **Builders** (Workshop residents), `kingdomHpRegen` HP/sec, applied once per tick alongside gold income (including mid-battle).
+- If `kingdomHP` reaches 0 it clamps there, the raid ends as an "Overrun" loss, and the left panel shows a "Kingdom Falling!" warning plus a persistent "Fell at: <raid name> (Kingdom Lv N)" marker (`kingdomFallRecord`, saved with the rest of the game state) for tracking failure points across a playtest run. **`kingdomHP` reaching 0 is meant to be the forced reset trigger** (see *Difficulty & meta-progression design*) — there's no real "next battle" to recover into at that point. Currently nothing beyond the warning/marker happens yet, so play continues as if it were a normal loss; this is a placeholder until the reset/Legacy Points flow is wired up (see *Prestige system*).
 
 ### Heroes
 Heroes are recruited separately from townspeople and are **not building-gated** — the squad cap is simply the 6 slots on the 2x3 battlefield grid (a future "zoom" upgrade could grow this while keeping the panel's footprint fixed).
@@ -172,6 +173,8 @@ Heroes are recruited separately from townspeople and are **not building-gated** 
 
 **Squad formation:** drag-and-drop a hero portrait onto another slot to swap positions (`swapHeroes`); this works mid-battle. Row 0 = frontline (nearest the gate), row 1 = backline.
 
+**Dismissing heroes:** clicking a hero portrait in the Defenders squad arms it (red highlight, tooltip changes to "Click again to dismiss") for `ARM_TIMEOUT_MS` (3s); a second click within that window fires the hero for free — same free-dismiss pattern as residents, with a misclick guard. **Heroes that die in battle are auto-fired** at the end of the battle (`endInvasion` clears any `!alive` slot to `null`), so the slot is immediately free for a new recruit — no manual dismiss needed. Dead heroes are gone for good; only survivors respawn at full HP for the next battle.
+
 ### Workshop & Builders
 - Unlocks at Village level (one level before the first raid trigger).
 - Residents are **Builders**, rolling 0.3–1.0 Kingdom-HP-regen/sec (×rarity), same hire/fire/reroll mechanic as every other townsperson.
@@ -182,11 +185,19 @@ Heroes are recruited separately from townspeople and are **not building-gated** 
 The hero-squad-vs-enemy-squad autobattle described above replaces the old duration/ratio siege system (`totalDefense` vs. a flat `defenseRequired`, `clamp(60/ratio, 10, 180)`). The 3-column "battle at the gates" layout (Admin / Town / Battle) from `layout-prototype.html` is now the live UI in `index.html`. `autobattler-prototype.html` and `layout-prototype.html` remain as standalone references but are no longer the source of truth.
 
 **Remaining open items:**
-- Hero-rarity scaling vs. raid-tier scaling haven't been tuned against each other through real playtesting — numbers (Builder HP-regen, hero costs/stats, `powerMult`/`defenseGrowth`) are best-guess placeholders.
 - Hero squad cap growth ("zoom" approach for >6 slots) — not yet needed, no upgrade path defined.
-- Kingdom HP reaching 0 doesn't do anything beyond the warning yet — wiring it into the Legacy Points reset (manual or forced) is a future task (see *Prestige system*).
-- **Town Square layout bug:** `#town-square` sizes itself to its content (the recruit pool card list), so it grows/shrinks as recruits are hired or the pool refreshes, shifting `#town-buildings` above it. Needs a fixed height (or `min-height`) so the Town column doesn't jump around during normal play.
-- **Heroes can't be released:** `fireHero(slotIndex)` exists in `game.js` but isn't wired to any UI control — unlike townsperson portraits (click to dismiss), hero portraits in the Defenders squad have no fire/dismiss action. Needs either a click-to-fire affordance (free, like residents) so players can reroll for better hires, and/or a level-up mechanic for heroes that keep winning battles as an alternative to rerolling.
+- Kingdom HP reaching 0 ends the raid as an "Overrun" loss and records `kingdomFallRecord`, but doesn't trigger any reset/Legacy Points logic yet — see *Difficulty & meta-progression design* below and *Prestige system*.
+- See *Difficulty & meta-progression design* for the raid-tier vs. hero-rarity vs. Kingdom-siege balance pass that's now blocked on design decisions, not just numbers.
+
+## Difficulty & meta-progression design — to-do
+
+Playtesting at 100x surfaced a hard difficulty wall: an all-legendary hero squad was wiped and the Kingdom (1000 HP) was drained in ~5 seconds around Dragon Siege Wave 7 (`kingdomFallRecord` tracks the latest failure point for this kind of test). Rather than retune numbers in isolation, these design questions need answers first:
+
+- [ ] **What does the difficulty curve represent?** Should raids always become "eventually unwinnable" at a given kingdom level (a soft cap nudging toward prestige), or should a well-built kingdom be able to plateau indefinitely at some tier?
+- [x] **What triggers the first forced reset?** Decided: `kingdomHP` reaching 0 is the forced "Found a New Age" reset trigger — there is no "next battle" to recover into. Currently `endInvasion` just ends the raid as "Overrun" and play continues normally; once the reset/meta-progression mechanic is designed, a `kingdomHP <= 0` result needs to short-circuit straight into the reset flow instead of looping back to `invasionTimer`/the next raid.
+- [ ] **Re-tune the raid-tier curve** (`powerMult`, `defenseGrowth`) and Kingdom siege values (`KINGDOM_DEFENSE`, `KINGDOM_HP_MAX`, Builder regen) together, now that hero-squad-wipe → real-time Kingdom siege is live. Current numbers are still placeholders, and the spike around Dragon Siege Wave 6-7 (enemy mult ~12.7x exceeds even a legendary hero's 10x rarity bonus) needs smoothing.
+- [ ] **Design meta-progression between resets** beyond the existing Legacy Points (+5% income / +5% hero power per point, from lifetime `goldEarned`). Should a Kingdom-fall specifically grant something extra — e.g. a "lessons learned" bonus distinct from the goldEarned formula — so a failed run still feels like progress?
+- [ ] **Hero permadeath economics:** now that dead heroes are auto-fired (gone for good, see *Heroes & combat*), rebuilding the squad after a rough raid costs real gold/time. Does this need its own balancing lever (cheaper recruits at lower kingdom levels, a "veteran" bonus for long-lived heroes, etc.) so squad wipes don't snowball into unrecoverable spirals?
 
 ## Prestige system (planned — not yet built)
 
