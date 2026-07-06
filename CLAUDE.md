@@ -14,12 +14,13 @@ This project follows the global session-handoff practice (`~/.claude/CLAUDE.md`)
 against a usage-limit cutoff with no warning. Gitignored, not auto-committed to this repo's own
 history — normal ask-first commit policy applies to real commits here.
 
-**Opted in to cross-machine WIP sync** (see `~/.claude/CLAUDE.md` → Session Handoff Continuity →
-"In-progress code sync"). Whenever `SESSION_HANDOFF.md` updates, also snapshot this repo's
-uncommitted changes (tracked + untracked, respecting `.gitignore`) to a disposable `wip/<hostname>`
-branch on `origin`, automatically, no confirmation needed — never to `master`. At session start,
-check for a `wip/<other-hostname>` branch and `git cherry-pick --no-commit` it in if present (stop
-and ask on conflict), then delete it once resumed.
+**Opted in to cross-machine WIP sync** (see `~/.claude/CLAUDE.md` → Session Handoff Continuity —
+this exact phrase is the marker the `handoff-sync.ps1` hook greps for). On every `SESSION_HANDOFF.md`
+update, the PostToolUse hook automatically snapshots this repo's uncommitted changes (tracked +
+untracked, respecting `.gitignore`) to a disposable `wip/<hostname>` branch on `origin` — never to
+`main`. At session start, act on the SessionStart hook's report: `git cherry-pick --no-commit` an
+incoming `wip/<other-hostname>` branch (stop and ask on conflict), then **delete the remote branch
+immediately after the cherry-pick succeeds**.
 
 ## Tech stack
 Plain HTML + CSS + JavaScript. No frameworks, no build step. Open `index.html` in a browser to run.
