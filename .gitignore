@@ -1,2 +1,5 @@
 # Reference documents
 *.docx
+
+# Session continuity (see CLAUDE.md) — not part of this project's real history
+SESSION_HANDOFF.md

@@ -8,6 +8,19 @@ This is the developer's first coding project. Keep explanations clear, define ne
 ## Keeping this file current
 **Before committing or pushing changes, update this file to reflect the current state of the project.** Mechanics, formulas, balance values, and design decisions documented here should match what's actually implemented in `game.js` — this file is the map other sessions (and the developer) use to understand the game without re-reading all the code.
 
+## Session handoff + cross-machine WIP sync
+This project follows the global session-handoff practice (`~/.claude/CLAUDE.md`): maintain a
+`SESSION_HANDOFF.md` at repo root, kept continuously current during a session, as a safety net
+against a usage-limit cutoff with no warning. Gitignored, not auto-committed to this repo's own
+history — normal ask-first commit policy applies to real commits here.
+
+**Opted in to cross-machine WIP sync** (see `~/.claude/CLAUDE.md` → Session Handoff Continuity →
+"In-progress code sync"). Whenever `SESSION_HANDOFF.md` updates, also snapshot this repo's
+uncommitted changes (tracked + untracked, respecting `.gitignore`) to a disposable `wip/<hostname>`
+branch on `origin`, automatically, no confirmation needed — never to `master`. At session start,
+check for a `wip/<other-hostname>` branch and `git cherry-pick --no-commit` it in if present (stop
+and ask on conflict), then delete it once resumed.
+
 ## Tech stack
 Plain HTML + CSS + JavaScript. No frameworks, no build step. Open `index.html` in a browser to run.
 
