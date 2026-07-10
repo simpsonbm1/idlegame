@@ -1,9 +1,13 @@
 # Idle Kingdom — Project Context
 
 ## What this is
-A medieval fantasy idle game. The player builds a town by constructing buildings and hiring residents, who generate passive gold income. No click-to-earn mechanic — everything is fully idle once set up.
+A medieval fantasy **incremental kingdom-defense game**: the passive town-building and gold generation of a Realm Grinder feeds an active Legionbound-style autobattler at the town gates — and the autobattler is the *primary* mechanic. No click-to-earn; the economy is fully idle once set up.
+
+**It is deliberately a finite experience, not an infinite number-go-up idle.** Target shape: a ~5-hour arc (Gnorp Apologue / Wizard Tower scale) of **8–10 death-and-rebuild runs**, each ending when the Kingdom falls, funding permanent upgrades until the player can defeat a scripted **Final Siege** — the victory condition. An optional endless mode unlocks after victory. See *Progression loop redesign*.
 
 This is the developer's first coding project. Keep explanations clear, define new terms, and prefer small working milestones over large upfront designs.
+
+**Design-first, not code-first:** the current `game.js` is a prototype hodgepodge of half-baked concepts mid-transition to something playable. The design sections of this file (especially *Progression loop redesign*) are the source of truth; the code gets redesigned around them. Don't treat what the code currently does as a design constraint or authority — read it to estimate implementation cost or find gaps, not to justify design choices.
 
 ## Keeping this file current
 **Before committing or pushing changes, update this file to reflect the current state of the project.** Mechanics, formulas, balance values, and design decisions documented here should match what's actually implemented in `game.js` — this file is the map other sessions (and the developer) use to understand the game without re-reading all the code.
@@ -69,12 +73,16 @@ The old per-resident lucky-roll system is replaced by the rarity tier system.
 A second, separate pool works the same way for **hero recruiting** — see *Invasion & combat system*.
 
 ## Design decisions locked in
-- Fully idle — no clicking to earn resources
+- Fully idle economy — no clicking to earn resources
 - One-time roll on hire (not per-tick variance)
 - Free eviction (fire and re-hire to reroll)
 - Buildings are slot containers, not direct income sources
 - Cost scaling: per-building growth rates (no single global multiplier) — each building's curve is tuned to its place in the progression
-- Single resource (gold) to start; more added iteratively
+- **Finite game** (~5 hours, 8–10 runs), with the Final Siege as the victory condition and an endless mode after victory — not an infinite idle
+- **The autobattler is the primary mechanic**; the town economy exists to fuel it
+- **Single in-run currency: gold** (buildings, residents, and hero hiring all paid in gold — no separate "Spoils" combat currency). The meta currency (Legacy Points) exists only between runs
+- **A wave repeats until beaten** (losing a raid re-fights the same wave — no skipping ahead), and **meta-currency credit is first-ever-clear** with a small repeat trickle (~10–20%): each wave pays full value once across the whole campaign, so pushing new depth is the way to earn and restart-farming is pointless
+- **Battles are persistent sieges** — no end on squad wipe; hero hiring stays available mid-battle (pool keeps refreshing), and Kingdom HP soaks damage while no hero stands. Raids end only Repelled or Overrun (Kingdom HP 0 → forced restart)
 - RPG/dungeon elements are a possible future addition
 
 ## Current building roster
@@ -121,7 +129,7 @@ All numbers are tunable.
 
 **Trigger:** Town level (2) + 12,000 total gold *earned* (`goldEarned`, a counter that only goes up, separate from current gold — spending down can't delay an invasion). After the first raid, they repeat indefinitely (`RAID_TRIGGER_LEVEL = 2`, `RAID_TRIGGER_GOLD = 12000`).
 
-**Siege effect:** While a battle is in progress (`currentInvasion` is set), gold income drops to 25% of normal.
+**No income penalty during battles.** (Removed 2026-07-10: the old "income drops to 25% during a siege" rule was a soft-cap stakes mechanism from the infinite-idle era. With a real loss condition and mid-battle reinforcement hiring, it's obsolete — and it would throttle income at exactly the moment the player needs gold for reinforcements. The small "(siege)" tag next to gold/sec remains as flavor only.)
 
 **Invasion schedule:** Once triggered, a new raid starts every `RAID_INTERVAL` (20 seconds) of non-battle time. The raid status bar (right column) shows "Next: <raid name> · Arrives in M:SS" while waiting.
 
@@ -205,13 +213,15 @@ The hero-squad-vs-enemy-squad autobattle described above replaces the old durati
 
 ## Progression loop redesign — end-to-end storyboard (planned, not yet implemented)
 
-The original full-idle "always growing" framing (Adventure Capitalist/Realm Grinder style) is replaced by a death-and-rebuild loop closer to Gnorp Apologue / Wizard and Minion / Scritchy Scratchy: each run ends when the Kingdom falls, and that run's combat progress funds permanent upgrades that make the next run faster and stronger. The kingdom's economy now exists to fuel the battle, not as the end goal itself. Numbers below are placeholders pending playtesting.
+The original full-idle "always growing" framing (Adventure Capitalist/Realm Grinder style) is replaced by a death-and-rebuild loop closer to Gnorp Apologue / Wizard and Minion / Scritchy Scratchy: each run ends when the Kingdom falls, and that run's combat progress funds permanent upgrades that make the next run faster and stronger. The kingdom's economy now exists to fuel the battle, not as the end goal itself.
+
+**Target shape: 8–10 runs ("Ages"), ~20–40 minutes each, ~5 hours total**, ending in a winnable Final Siege (see below). Numbers below are placeholders pending playtesting.
 
 ### The run loop
 1. Start at Hamlet with starting gold, full Kingdom HP. **Every run starts here** — there is no persistent tier-ratchet that skips a run ahead in raid tiers.
 2. Build economy, level up the kingdom, reach Town level → Goblin Raid begins.
-3. Clear raid waves; defeating a tier's boss wave advances immediately to the next tier's wave 1 (Goblin Raid → Orc Warband → Bandit Horde → Dark Army → Dragon Siege). Every wave cleared banks currency (see below).
-4. Eventually `kingdomHP` reaches 0 — the run ends ("Found a New Age" reset). Gold, buildings, residents, kingdom level, and raid tier/wave all reset to start-of-run state.
+3. Clear raid waves; defeating a tier's boss wave advances immediately to the next tier's wave 1 (Goblin Raid → Orc Warband → Bandit Horde → Dark Army → Dragon Siege). Every **newly reached** wave cleared banks currency (see below).
+4. Eventually `kingdomHP` reaches 0 — the run ends ("Found a New Age" reset). Gold, buildings, residents, heroes, kingdom level, and raid tier/wave all reset to start-of-run state. (QoL: a manual "Found a New Age" button is also available once raids have begun — for when a run's frontier attempts are spent and waiting out the kingdom's actual fall would just waste time.)
 5. Currency banked this run is spent on the Economy and Military upgrade trees (permanent, persists across resets).
 6. Next run repeats from step 1, but upgrades mean earlier tiers clear much faster, so playtime concentrates near whatever tier is currently the frontier.
 
@@ -221,28 +231,106 @@ The upgrade trees **are** the ratchet — there's no separate "tier unlock" flag
 - Each raid tier has a fixed wave count before its boss: **+3 waves per tier** (placeholder — Goblin Raid 4 waves + boss on wave 5, Orc Warband 7 + boss on wave 8, Bandit Horde 10 + boss on wave 11, Dark Army 13 + boss on wave 14, Dragon Siege 16 + boss on wave 17).
 - A **boss wave** is a unique named unit (Goblin Warmaster, Orc Warlord, etc.) with its own stat block, plus 2-3 minions from that tier's normal roster filling the remaining grid slots.
 - Clearing a tier's boss wave immediately advances to the next tier's wave 1 (the tier's wave counter resets — same "resets on tier advance" behavior as today, just triggered by boss-kill instead of kingdom level).
+- **A wave repeats until beaten** (locked in): on a loss, the same wave attacks again after the raid interval — the ladder only climbs on wins. (Implementation note: `endInvasion` currently does `tierWave++` unconditionally, *including on losses* — this must change to win-only in M8/M9.)
+- Bosses need no special rule — like any wave they repeat until killed, and killing one is what advances the tier. They're still the natural per-run walls because their stat block spikes above the tier's normal waves.
+- Repeated attempts at a wall aren't free: every stretch where no hero is standing drains Kingdom HP (see *Kingdom HP interplay* below), so a wall wave grants a limited number of attempts before the Age ends.
+- **Wave composition varies within a tier**: squads fill more of the grid as waves climb (4 units early → full grid at the boss), with varied mixes (double-brute wave, skirmisher swarm, twin-healer wave). Waves feel distinct, and AoE / target-priority tools have something to answer.
 
 ### Enemy & hero grid expansion
 - The **enemy grid auto-expands** at certain tier transitions (not every tier) — e.g. Goblin Raid and Orc Warband stay 2x3, Bandit Horde jumps to 3x4. Exact placements TBD.
 - The **hero grid does not auto-expand** — squad size growth is a Military-tree purchase only, with multiple expansion milestones (2x3 → 3x4 → 4x4, etc.) timed to land roughly alongside the enemy-grid jumps. This makes "I'm suddenly outnumbered, I need more squad slots" a concrete, must-buy upgrade rather than a passive bonus.
 
+### Kingdom HP interplay — persistent siege & mid-battle reinforcement (locked in)
+The flow: enemies fight the hero squad; only once every hero is dead do they damage `kingdomHP` directly; Kingdom HP reaching 0 forces the loss/restart.
+
+**A battle is a persistent, ongoing siege — it does not end when the hero squad wipes.** The recovery mechanism is **hiring heroes mid-battle**: the hero recruit pool keeps refreshing on its normal timer during combat, so a player whose squad goes down can hire reinforcements into the ongoing fight. New hires join immediately, enemies switch back from the kingdom to targeting them, and the Kingdom HP drained during the undefended gap is the attrition cost of the wipe. Gold, pool RNG, and the refresh timer are what you're scrambling against while the kingdom bleeds.
+
+Consequences of this design:
+- A raid has exactly **two outcomes**: **Repelled** (enemy squad wiped — possibly after several mid-battle squad rebuilds) or **Overrun** (`kingdomHP` hits 0 → the run ends). The old "Survived" outcome is retired.
+- **No stalemate soft-lock**: income keeps flowing mid-battle at the full rate (the old 25% siege cap is removed), so even a broke player can eventually afford another reinforcement; if Builder regen can't hold the line while the player rebuilds, the kingdom falls — working as intended.
+- Gold reserves effectively act as extra lives (feeding replacements into a wall wave). Likely self-balancing — cheap commons die near-instantly to deep-tier enemies and hero costs scale with rarity — but watch it in playtests.
+
+Implementation state (verified in `game.js`): mid-battle hiring mostly works today — `hireHero` isn't gated on battle, `generateHero` initializes action cooldowns so `combatTick` picks new units up immediately, and `heroPoolTimer` runs during combat. **One gap for M8: dead heroes occupy their squad slots until `endInvasion` clears them**, so after a full wipe there's no empty slot to hire into. Fix: free a hero's slot at the moment of death (consistent with the existing "dead heroes are gone for good" rule — it just frees the slot when it matters).
+
+### Difficulty arc across runs — the tuning contract
+When tuning any number, tune *toward this table*, not toward abstract fairness. Each run's tree purchases should buy roughly +50–70% effective squad power, worth ~5–6 waves of extra depth:
+
+| Run | Expected wall (where the Kingdom falls) | Notable new purchases after |
+|---|---|---|
+| 1 | Goblin wave 4–5 (the boss) | Starting gold, hero power I |
+| 2 | Orc wave 3–5 | **Paladin unlock**, cheaper heroes |
+| 3 | Orc boss (w8) / Bandit w1–2 | **Assassin unlock**, first squad expansion |
+| 4 | Bandit wave 6–8 | **Smithy doctrine**, Kingdom HP+ |
+| 5 | Bandit boss (w11) / Dark w1–3 | **Battlemage (AoE)**, start at Village |
+| 6 | Dark wave 7–10 | **Banneret (buffer)**, second squad expansion |
+| 7 | Dark boss (w14) / Dragon w2–4 | **Cathedral doctrine (revive)**, hero power III |
+| 8 | Dragon wave 9–13 | Remaining doctrines, Frost Adept |
+| 9 | Dragon boss (w17) → first Final Siege attempt (expected loss) | Last power ranks |
+| 10 | **Final Siege — victory** | — |
+
+### Scaling & tuning targets
+- Enemy scaling keeps its current structure (`mult = powerMult × defenseGrowth^wave`, HP scaled by `√mult`) but the constants change meaning:
+- **Make the curve continuous across tier transitions**: each tier's `powerMult` ≈ the previous tier's boss-wave multiplier. A new tier is a roster/mechanic/grid change, not a stat cliff (this removes the documented Dragon-wave-7 spike class of problem).
+- **The current `defenseGrowth = 1.15` is too steep for a finite ladder.** The full ladder is ~55 waves; the final boss should land around **80–100× goblin-wave-1 stats** (matching the player's total growth: 10× legendary rarity × ~2.5× tree multipliers × squad growth 6→12+ slots × tactical unlocks). That works out to per-wave growth of roughly **1.08–1.10**, continuous across the whole ladder — the enemy grid expansions add effective power on top of stats. Placeholder pending playtest.
+- Raid pacing: `RAID_INTERVAL = 20` is a dev value. Ship target ~45–60s between raids early (the town needs breathing room), tightening at later tiers.
+
+### Victory condition — the Final Siege (locked in)
+After the Dragon Siege boss (wave 17) falls, a herald announces the **Final Siege** arrives in 3 raids' time — a countdown the player preps through. Then a **3-phase gauntlet**: vanguard squad → elite squad → a phase-changing final boss with guards. Heroes do **not** reset to full HP between phases (menders and the Cathedral revive get their showcase), and Kingdom HP is the buffer that can carry a partial wipe across phases.
+- **Loss**: counts as a Kingdom fall, but grants a large one-time "Lessons of the Last Siege" currency bonus so the failed attempt visibly funds the winning one.
+- **Win**: victory screen with the campaign's stats — Ages founded, total time, where each Age fell (`kingdomFallRecord` already tracks fall points).
+
+### Endless mode (locked in)
+After victory the player may keep playing the current run (or start fresh runs) with raids scaling indefinitely — number-chasing for those who want it, clearly framed as post-game. The completion flag persists.
+
 ### Currency (replaces gold-based Legacy Points; name TBD, "Legacy Points" used for now)
-- Earned continuously during a run: **every wave cleared banks currency**, with the per-wave value scaling roughly **5x per raid tier** (consistent with the existing per-tier `baseLoot` ratios in *Invasion & combat system*). Boss waves pay an extra **3-5x** a normal wave of that tier as a "breakthrough" bonus.
-- Because wave counts grow only linearly (+3/tier) while per-wave value grows ~5x/tier, repeatedly farming early tiers can never out-earn pushing into a new tier — no farming caps or detection needed, the economics self-regulate.
+- **First-ever-clear credit (locked in):** each wave on each tier's ladder pays out full value the first time it is cleared *across the whole campaign* (track a per-tier "deepest wave credited" high-water mark, persisted with meta state). Pushing past the all-time frontier is the primary way to earn meta currency.
+- **Repeat-clear trickle (locked in):** re-clearing an already-credited wave pays a small fraction of its first-clear value (**~10–20%, exact % tunable**) so no run banks literally zero. Restart-farming stays pointless — the trickle on cheap early waves is negligible next to frontier pushes at 5x/tier values.
+- Per-wave value scales roughly **5x per raid tier**. Boss waves pay an extra **3-5x** a normal wave of that tier as a "breakthrough" bonus.
 - Currency persists across resets and is spent on the two upgrade trees below. The old gold-`goldEarned`-based formula (`floor(sqrt(goldEarned/100000))`) and the automatic "+5% income / +5% hero power per point" effect are both superseded by this.
+- Possible future Economy-tree QoL: a "start at wave N" skip upgrade to shorten the retread on later runs (open to it, not yet designed).
+- **Pricing philosophy:** total tree cost ≈ slightly under expected lifetime earnings across the 8–10 run arc, with the Final Siege realistically beatable at ~⅔ of the trees purchased — full completion is for thoroughness, not a requirement.
 
 ### Upgrade trees (Economy / Military)
 Two permanent, currency-funded trees spent into after each reset:
 
-- **Economy tree** — examples: income multipliers (global or per-building), building cost-growth reduction, building cap increases beyond kingdom-level grants, Builder Kingdom-HP-regen multiplier, recruit-pool quality-of-life (refresh speed, rarity weights, pool size).
-- **Military tree** — examples: hero stat multipliers (HP/attack/defense/heal, global or per-archetype), **hero squad-size expansion milestones** (the must-buy nodes tied to enemy-grid jumps), hero recruit-pool quality-of-life, Kingdom HP max / Kingdom defense increases, possibly new hero archetypes as late nodes.
+- **Economy tree** — income multipliers (global or per-building), starting gold, "Old Foundations" (start runs at Village level), building cost-growth reduction, building cap increases beyond kingdom-level grants, Builder Kingdom-HP-regen multiplier, recruit-pool quality-of-life (refresh speed, rarity weights, pool size, reroll button), **Doctrines** (below).
+- **Military tree** — hero stat multipliers (HP/attack/defense/heal, ranked, global or per-archetype), **hero squad-size expansion milestones** (the must-buy nodes tied to enemy-grid jumps), **new hero archetype unlocks** (below), "Veteran's Welcome" (start each run with a free rare Knight), cheaper hero hires, hero recruit-pool quality-of-life, Kingdom HP max / Kingdom defense ("Walls") / base HP regen, a scout report (see the next raid's composition).
+
+### Doctrines — building↔army synergy nodes (Economy tree)
+Each doctrine makes a building type directly feed the army, so town composition stays a battle decision all game and the Economy tree keeps late-game relevance. Keep's existing hero-rarity bias is the template for this family:
+- **Smithy Forgework** — +1.5% hero attack per Smithy owned
+- **Library Tactics** — +1% hero action speed per Library owned
+- **Apothecary Salves** — heroes slowly regenerate HP mid-battle
+- **Cathedral Blessing** — the first hero to fall each battle revives at 30% HP (requires a Cathedral)
+
+### New hero archetypes (Military-tree unlocks, ~one per run for novelty)
+Sequenced so the zero-engine-work heroes arrive first:
+
+| Hero | Role | Engine work needed |
+|---|---|---|
+| Paladin | attack + heal hybrid | **none** — the multi-action system already supports it |
+| Assassin | backlineChance ~0.9, high power, fragile | none — just stats |
+| Battlemage | hits an entire enemy row | AoE action type |
+| Banneret | aura: adjacent allies gain power | buff system |
+| Frost Adept | attacks slow the target's cooldowns | debuff-on-hit |
+
+### Enemy tier mechanics (one tactical lesson per tier)
+Later tiers must be new problems, not just bigger numbers — each reuses an engine feature from the hero list:
+- **Goblins** — vanilla; teaches the basics.
+- **Orcs** — brutes *enrage* below 50% HP (+attack speed); teaches burst-vs-tank priority.
+- **Bandits** — marksmen hunt the backline (high `backlineChance`); medics out-heal unfocused damage. Teaches protecting menders and the Assassin's job.
+- **Dark Army** — necromancers revive a fallen ally once (on-death hook); teaches kill order.
+- **Dragons** — breath attacks hit a whole row (AoE); teaches formation splitting.
+- **Bosses** — unique named unit + minions per tier (`BOSS_ARCHETYPES`-style table extending `generateEnemy`); the Final Siege boss adds phases.
+
+### Gold & loot rebalance (single-currency decision, locked in)
+The in-run economy stays **gold-only** — no separate combat currency for hero hiring. For that to work, **raid gold loot must shrink drastically**: current values (200,000g for a goblin raid vs. a 2,500g Smithy) let one raid win pay for the entire midgame, collapsing the "town fuels the army" loop into "raids fund everything". Target: a raid win pays roughly **1–2 minutes of contemporaneous resident income**. The win-streak multiplier stays, on the much smaller base.
 
 ### Open questions
-- [ ] Exact wave-count progression, per-tier currency multiplier, and boss bonus multiplier — placeholders above, needs playtesting.
+- [ ] Exact numbers throughout — wave counts, per-tier currency multiplier, boss bonus, `defenseGrowth`, loot values — all placeholder until the M9/M14 playtests against the *Difficulty arc across runs* table.
 - [ ] Exact tier transitions where the enemy grid expands, and where the matching hero squad-expansion milestones sit in the Military tree.
-- [ ] What "completing the game" looks like once a run can sustain Dragon Siege indefinitely (or beyond) — is there a final boss/mechanic, or is a long plateau itself the win state?
-- [ ] Boss unit design — stat blocks, any unique abilities beyond "much tougher", and how `ENEMY_ARCHETYPES`/`generateEnemy` need to extend to support a `BOSS_ARCHETYPES`-style table.
-- [ ] UI for the run-end/reset screen and the two upgrade trees.
+- [ ] Boss unit stat blocks and any per-boss unique abilities beyond the tier gimmick.
+- [ ] UI for the run-end/reset summary screen and the two upgrade trees.
 
 ## Difficulty & meta-progression design — to-do
 
@@ -250,16 +338,17 @@ Playtesting at 100x surfaced a hard difficulty wall: an all-legendary hero squad
 
 - [x] **What does the difficulty curve represent?** Decided: within a single run, the curve is *meant* to eventually become unwinnable — that's what triggers the reset (see *Progression loop redesign*). Across runs, the Economy/Military trees push that ceiling further out, so progress is measured run-over-run, not within one run.
 - [x] **What triggers the first forced reset?** `kingdomHP` reaching 0 — see *Kingdom HP* and *Progression loop redesign*. Still needs wiring: `endInvasion` currently just ends the raid as "Overrun" and play continues; a `kingdomHP <= 0` result needs to short-circuit into the reset flow (bank currency, return to Hamlet) instead of looping back to `invasionTimer`.
-- [ ] **Re-tune the raid-tier curve** (`powerMult`, `defenseGrowth`) and Kingdom siege values (`KINGDOM_DEFENSE`, `KINGDOM_HP_MAX`, Builder regen) alongside the new wave-count-per-tier and currency-per-wave numbers from *Progression loop redesign* — these all need tuning together now.
+- [ ] **Re-tune the raid-tier curve** (`powerMult`, `defenseGrowth`) and Kingdom siege values (`KINGDOM_DEFENSE`, `KINGDOM_HP_MAX`, Builder regen) alongside the new wave-count-per-tier and currency-per-wave numbers — concrete targets now live in *Progression loop redesign → Scaling & tuning targets* and the *Difficulty arc across runs* table (continuous ~1.08–1.10/wave growth, no tier cliffs, final boss ≈ 80–100× goblin wave 1).
 - [x] **Design meta-progression between resets** — see *Progression loop redesign*: currency earned from in-run wave/boss progress, spent on Economy and Military trees.
+- [x] **What does completing the game look like?** Decided: the **Final Siege** 3-phase gauntlet after the Dragon Siege boss is the victory condition; endless mode unlocks after victory. See *Progression loop redesign*.
 - [ ] **Hero permadeath economics:** dead heroes are auto-fired (gone for good, see *Heroes & combat*); rebuilding the squad after a rough raid costs real gold/time within a run. Does this need its own lever (cheaper recruits at low kingdom levels, a "veteran" bonus, etc.), or does the run-restart-from-Hamlet structure make this moot since squads rebuild from scratch each run anyway?
 
 ## Prestige system — superseded by Progression loop redesign
 
 The original design here (Legacy Points from lifetime `goldEarned`, manual prestige at Realm level, automatic +5% income/+5% hero power per point) is replaced by *Progression loop redesign* above: the reset is always triggered by `kingdomHP` reaching 0, the prestige currency is earned from in-run combat progress, and it's spent into two upgrade trees rather than applying automatic flat bonuses. The "Found a New Age" theme/naming and the basic "what resets / what persists" shape carry over:
 
-- **What resets:** Gold, buildings, residents, kingdom level, raid tier/wave — back to Hamlet with starting gold.
-- **What persists:** Prestige currency (see *Progression loop redesign*), Economy/Military tree purchases, auto-recruit setting, dev speed setting.
+- **What resets:** Gold, buildings, residents, heroes, kingdom level, raid tier/wave — back to Hamlet with starting gold.
+- **What persists:** Prestige currency (see *Progression loop redesign*), Economy/Military tree purchases, the game-completion flag / endless-mode unlock, `kingdomFallRecord` history, auto-recruit setting, dev speed setting.
 
 ## Milestone tracker
 - [x] Milestone 1: Gold counter ticking automatically
@@ -269,7 +358,13 @@ The original design here (Legacy Points from lifetime `goldEarned`, manual prest
 - [x] Milestone 5: Kingdom level system — building caps + unlock gates unified
 - [x] Milestone 6: Workshop + defense meter + invasion system
 - [x] Milestone 7: Autobattler combat — hero squad vs. enemy squad, Kingdom HP, Keep/Workshop repurposed (hero rarity bias / Builders), 3-column "battle at the gates" layout
-- [ ] Milestone 8: Progression loop redesign — death/reset run loop, per-tier wave/boss structure, enemy/hero grid expansions, currency formula, Economy/Military upgrade trees (see *Progression loop redesign*)
+- [ ] Milestone 8: **The run loop** — `kingdomHP` 0 → run-summary screen → currency banking (first-ever-clear credit via per-tier high-water mark) → upgrade-tree shop → reset to Hamlet; meta-state persistence; manual "Found a New Age" button; battle-end fix (waves repeat on loss — `tierWave++` becomes win-only); free a dead hero's squad slot at the moment of death so mid-battle reinforcement works after a full wipe (see *Kingdom HP interplay*). This changes the *shape* of the game before any content is added — everything below hangs off it.
+- [ ] Milestone 9: **Economy & pacing pass** — loot cut, raid interval, per-tier wave counts + boss waves, tier advance by boss-kill, wall targets for runs 1–3 at real 1× speed
+- [ ] Milestone 10: **First new heroes** — Paladin + Assassin unlocks and the first squad-expansion milestone (no engine work needed)
+- [ ] Milestone 11: **Combat engine features** — AoE actions, buffs/debuffs, on-death hooks; enemy tier mechanics, boss units, wave composition variety, enemy grid expansion
+- [ ] Milestone 12: **Doctrines** — building↔army synergy nodes
+- [ ] Milestone 13: **Final Siege** — 3-phase gauntlet, victory screen, endless mode
+- [ ] Milestone 14: **Full-game balance playtest** against the *Difficulty arc across runs* table
 
 ## Starting state
 - Player begins with 50 gold (enough to buy first Cottage at 10g + hire first Villager at 25g)

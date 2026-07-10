@@ -785,8 +785,7 @@ function doResetGame() {
 }
 
 function tick() {
-    const income = currentInvasion ? goldPerSecond * 0.25 : goldPerSecond;
-    gold += income;
+    gold += goldPerSecond;
     goldEarned += goldPerSecond;
     kingdomHP = Math.min(KINGDOM_HP_MAX, kingdomHP + kingdomHpRegen);
 
@@ -1220,8 +1219,7 @@ function renderHeroRecruitPool() {
 
 function tickRender() {
     document.getElementById('gold-display').textContent = Math.floor(gold).toLocaleString();
-    const actualGps = currentInvasion ? Math.floor(goldPerSecond * 0.25) : goldPerSecond;
-    document.getElementById('gps-display').textContent = actualGps.toLocaleString();
+    document.getElementById('gps-display').textContent = goldPerSecond.toLocaleString();
     document.getElementById('siege-indicator').textContent = currentInvasion ? ' (siege)' : '';
 
     renderKingdomHP();
