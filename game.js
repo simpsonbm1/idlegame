@@ -20,6 +20,11 @@ let heroRecruitPool = [];
 let heroPoolTimer = 0;
 let nextHeroRecruitId = 0;
 let confirmingReset = false;
+let confirmingNewAge = false;
+let runEnded = false;
+let runSummary = null;
+let runLegacyEarned = 0;
+let runWavesCleared = 0;
 let buyQuantity = 1;
 let autoRecruitRarity = null;
 const buildingExpanded = {};
@@ -93,9 +98,122 @@ function getInvasionLoot(tierIndex, streak) {
     return Math.floor(tier.baseLoot * Math.pow(tier.lootGrowth, streak));
 }
 
-function getFailureLoot(tierIndex) {
-    const tier = RAID_TIERS[tierIndex];
-    return Math.floor(tier.baseLoot * 0.5);
+// --- Legacy (meta currency) & permanent upgrades ---
+// Meta state lives in its own localStorage key and survives "Found a New Age"
+// resets. Wiped only by the full dev reset.
+const META_SAVE_KEY = 'idleKingdomMeta';
+
+// Full first-clear value per wave, by raid tier (~5x per tier). Re-clearing an
+// already-credited wave pays only the trickle fraction, so restart-farming
+// early waves is pointless next to pushing the all-time frontier.
+const WAVE_LEGACY_VALUES = [10, 50, 250, 1250, 6250];
+const REPEAT_LEGACY_FRACTION = 0.15;
+
+let meta = defaultMeta();
+
+function defaultMeta() {
+    return {
+        age: 1,
+        legacy: 0,
+        // Per-tier high-water mark: number of waves ever credited at full value.
+        waveCredit: RAID_TIERS.map(() => 0),
+        upgrades: {},
+        fallHistory: []
+    };
+}
+
+function saveMeta() {
+    localStorage.setItem(META_SAVE_KEY, JSON.stringify(meta));
+}
+
+function loadMeta() {
+    const saved = localStorage.getItem(META_SAVE_KEY);
+    if (!saved) return;
+    const state = JSON.parse(saved);
+    meta = {
+        age: state.age ?? 1,
+        legacy: state.legacy ?? 0,
+        waveCredit: RAID_TIERS.map((_, i) => (state.waveCredit || [])[i] ?? 0),
+        upgrades: state.upgrades ?? {},
+        fallHistory: state.fallHistory ?? []
+    };
+}
+
+const UPGRADE_TREES = {
+    economy: {
+        label: 'Economy',
+        nodes: [
+            { id: 'trade',       name: 'Prosperous Trade', desc: '+25% gold income per rank',                                      maxRank: 5, costs: [10, 25, 60, 150, 400] },
+            { id: 'treasury',    name: 'Royal Treasury',   desc: 'Begin each Age with a larger treasury (500 / 2,500 / 12,000 / 60,000 gold)', maxRank: 4, costs: [8, 20, 50, 120] },
+            { id: 'builders',    name: 'Master Builders',  desc: '+50% Builder HP regen per rank',                                 maxRank: 3, costs: [15, 40, 100] },
+            { id: 'foundations', name: 'Old Foundations',  desc: 'New Ages begin at Village level',                                maxRank: 1, costs: [200] }
+        ]
+    },
+    military: {
+        label: 'Military',
+        nodes: [
+            { id: 'drills',  name: 'Weapon Drills',     desc: '+20% hero attack & healing per rank',        maxRank: 5, costs: [10, 25, 60, 150, 400] },
+            { id: 'armor',   name: 'Hardened Armor',    desc: '+20% hero HP per rank',                      maxRank: 5, costs: [10, 25, 60, 150, 400] },
+            { id: 'muster',  name: 'Muster Rolls',      desc: 'Hero hiring 15% cheaper per rank',           maxRank: 3, costs: [12, 30, 80] },
+            { id: 'walls',   name: 'Reinforced Walls',  desc: '+250 max Kingdom HP per rank',               maxRank: 4, costs: [10, 30, 80, 200] },
+            { id: 'veteran', name: "Veteran's Welcome", desc: 'Each new Age begins with a free Rare Knight', maxRank: 1, costs: [60] }
+        ]
+    }
+};
+
+const STARTING_GOLD_BY_TREASURY_RANK = [50, 500, 2500, 12000, 60000];
+
+function upgradeRank(id) {
+    return meta.upgrades[id] || 0;
+}
+
+function findUpgrade(id) {
+    for (const treeId in UPGRADE_TREES) {
+        const node = UPGRADE_TREES[treeId].nodes.find(n => n.id === id);
+        if (node) return node;
+    }
+    return null;
+}
+
+function buyUpgrade(id) {
+    const def = findUpgrade(id);
+    if (!def) return;
+    const rank = upgradeRank(id);
+    if (rank >= def.maxRank) return;
+    const cost = def.costs[rank];
+    if (meta.legacy < cost) return;
+    meta.legacy -= cost;
+    meta.upgrades[id] = rank + 1;
+    saveMeta();
+    renderRunSummary();
+}
+
+// Upgrade effect helpers — all run-state math routes through these so tree
+// purchases apply everywhere without special cases.
+function econIncomeMult()    { return 1 + 0.25 * upgradeRank('trade'); }
+function builderRegenMult()  { return 1 + 0.5 * upgradeRank('builders'); }
+function getStartingGold()   { return STARTING_GOLD_BY_TREASURY_RANK[upgradeRank('treasury')]; }
+function getStartingLevel()  { return upgradeRank('foundations') > 0 ? 1 : 0; }
+function heroPowerMult()     { return 1 + 0.2 * upgradeRank('drills'); }
+function heroHpMult()        { return 1 + 0.2 * upgradeRank('armor'); }
+function heroCostMult()      { return Math.pow(0.85, upgradeRank('muster')); }
+function getKingdomHpMax()   { return KINGDOM_HP_MAX + 250 * upgradeRank('walls'); }
+
+// First-ever-clear pays full value; re-clears pay the trickle. Credit is
+// all-time (the high-water mark persists across Ages).
+function bankWaveLegacy(tierIndex, wave) {
+    const value = WAVE_LEGACY_VALUES[Math.min(tierIndex, WAVE_LEGACY_VALUES.length - 1)];
+    let earned;
+    if (wave >= meta.waveCredit[tierIndex]) {
+        earned = value;
+        meta.waveCredit[tierIndex] = wave + 1;
+    } else {
+        earned = Math.max(1, Math.round(value * REPEAT_LEGACY_FRACTION));
+    }
+    meta.legacy += earned;
+    runLegacyEarned += earned;
+    saveMeta();
+    return earned;
 }
 
 function formatTimer(seconds) {
@@ -166,6 +284,11 @@ const buildings = {
     tower:    { name: "Wizard's Tower",       cost: 600000,   count: 0, slotsPerBuilding: 10, costGrowth: 1.21, type: 'gold',    residents: [] },
     cathedral:{ name: 'Cathedral',            cost: 5000000,  count: 0, slotsPerBuilding: 14, costGrowth: 1.25, type: 'gold',    residents: [] }
 };
+
+// Captured before any save is loaded, so "Found a New Age" can restore
+// original building prices after cost-growth inflation.
+const BUILDING_BASE_COSTS = {};
+for (const id in buildings) BUILDING_BASE_COSTS[id] = buildings[id].cost;
 
 const rarityTiers = {
     common:    { name: 'Common',    color: '#888888', costMult: 1,  incomeMult: 1   },
@@ -484,6 +607,12 @@ function combatTick(deltaMs) {
             }
         }
     }
+
+    // Dead heroes are gone for good — free their slot the moment they fall so
+    // mid-battle reinforcements can be hired even after a full squad wipe.
+    for (let i = 0; i < heroSquad.length; i++) {
+        if (heroSquad[i] && !heroSquad[i].alive) heroSquad[i] = null;
+    }
 }
 
 // --- Enemy & hero generation ---
@@ -506,8 +635,8 @@ function generateHero(archetypeKey, rarity, row, col) {
     const archetype = HERO_ARCHETYPES[archetypeKey];
     const tier = rarityTiers[rarity];
     const rarityIndex = rarityOrder.indexOf(rarity);
-    const scalePower = v => Math.round(v * tier.incomeMult);
-    const scaleHp = v => Math.round(v * Math.sqrt(tier.incomeMult));
+    const scalePower = v => Math.round(v * tier.incomeMult * heroPowerMult());
+    const scaleHp = v => Math.round(v * Math.sqrt(tier.incomeMult) * heroHpMult());
 
     const base = archetype.base;
     const attack = base.attack ? attackAction(scalePower(base.attack.power), base.attack.speed) : null;
@@ -544,7 +673,7 @@ function generateHeroRecruit() {
         archetypeKey,
         name: archetype.names[rarityIndex],
         rarity,
-        cost: Math.floor(archetype.baseCost * tier.costMult)
+        cost: Math.floor(archetype.baseCost * tier.costMult * heroCostMult())
     };
 }
 
@@ -656,38 +785,110 @@ function startInvasion() {
     };
 }
 
-function endInvasion() {
-    const won = !squadAlive(currentInvasion.enemies);
-    let loot;
-    if (won) {
-        loot = getInvasionLoot(raidTierIndex, raidWinStreak);
-        raidWinStreak++;
-    } else {
-        loot = getFailureLoot(raidTierIndex);
-        raidWinStreak = 0;
-    }
-
-    const kingdomFell = !won && kingdomHP <= 0;
-    if (kingdomFell) {
-        kingdomFallRecord = { name: currentInvasion.name, level: kingdomLevel };
-    }
-
-    lastVictory = { name: currentInvasion.name, loot, won, kingdomFell };
+// A raid has exactly two outcomes: Repelled (enemy squad wiped — handled
+// here) or Overrun (kingdomHP hit 0 — handled by endRun). The wave ladder
+// only climbs on wins; a lost wave re-attacks after the raid interval.
+function winInvasion() {
+    const loot = getInvasionLoot(raidTierIndex, raidWinStreak);
+    raidWinStreak++;
+    const legacy = bankWaveLegacy(raidTierIndex, tierWave);
+    runWavesCleared++;
+    lastVictory = { name: currentInvasion.name, loot, legacy, won: true };
     gold += loot;
     tierWave++;
     currentInvasion = null;
     invasionTimer = RAID_INTERVAL;
+}
 
-    // Heroes that died this battle are gone for good — auto-fire them so
-    // their slot is immediately free for a new recruit.
-    for (let i = 0; i < heroSquad.length; i++) {
-        if (heroSquad[i] && !heroSquad[i].alive) heroSquad[i] = null;
+// Ends the current run ("Age") — either the Kingdom fell (reason 'overrun')
+// or the player chose to abandon it (reason 'abandoned'). Banks nothing new
+// (Legacy is banked per-wave at clear time); freezes the game and shows the
+// run-summary overlay with the upgrade shop.
+function endRun(reason) {
+    const fellTo = currentInvasion ? currentInvasion.name : getInvasionName(raidTierIndex, tierWave);
+    kingdomFallRecord = { name: fellTo, level: kingdomLevel };
+    meta.fallHistory.push({ age: meta.age, name: fellTo, level: kingdomLevel, waves: runWavesCleared, legacy: runLegacyEarned });
+    runSummary = {
+        age: meta.age,
+        reason,
+        fellTo,
+        levelName: levels[kingdomLevel].name,
+        waves: runWavesCleared,
+        legacy: runLegacyEarned
+    };
+    runEnded = true;
+    currentInvasion = null;
+    confirmingNewAge = false;
+    saveMeta();
+    saveGame();
+    renderRunSummary();
+}
+
+// The reset itself: back to Hamlet (or Village with Old Foundations) with
+// everything run-scoped wiped. Runs when the player leaves the run-summary
+// screen, so upgrades bought there apply to the new Age from second one.
+function foundNewAge() {
+    meta.age++;
+    saveMeta();
+
+    gold = getStartingGold();
+    goldEarned = 0;
+    goldPerSecond = 0;
+    kingdomHpRegen = 0;
+    kingdomLevel = getStartingLevel();
+    kingdomHP = getKingdomHpMax();
+    raidsStarted = false;
+    raidTierIndex = 0;
+    tierWave = 0;
+    raidWinStreak = 0;
+    invasionTimer = 0;
+    currentInvasion = null;
+    lastVictory = null;
+    runEnded = false;
+    runSummary = null;
+    runLegacyEarned = 0;
+    runWavesCleared = 0;
+    heroSquad = new Array(6).fill(null);
+    heroRecruitPool = [];
+    heroPoolTimer = 0;
+    recruitPool = [];
+    poolTimer = 0;
+    // autoRecruitRarity deliberately survives the reset (persists per design).
+
+    for (const id in buildings) {
+        buildings[id].cost = BUILDING_BASE_COSTS[id];
+        buildings[id].count = 0;
+        buildings[id].residents = [];
     }
+
+    if (upgradeRank('veteran') > 0) {
+        heroSquad[0] = generateHero('guardian', 'rare', 0, 0);
+    }
+
+    refreshPool();
+    renderRunSummary();
+    saveGame();
+    updateUI();
+}
+
+function showNewAgeConfirm() {
+    confirmingNewAge = true;
+    updateUI();
+}
+
+function cancelNewAge() {
+    confirmingNewAge = false;
+    updateUI();
+}
+
+function confirmNewAge() {
+    endRun('abandoned');
 }
 
 function saveGame() {
     const state = {
         gold, goldEarned, kingdomLevel, raidsStarted, raidTierIndex, tierWave, raidWinStreak, invasionTimer, currentInvasion, lastVictory, kingdomFallRecord, autoRecruitRarity,
+        runEnded, runSummary, runLegacyEarned, runWavesCleared, gameSpeed,
         recruitPool, poolTimer, nextRecruitId,
         kingdomHP, heroSquad, heroRecruitPool, heroPoolTimer, nextHeroRecruitId,
         buildings: {}
@@ -721,11 +922,16 @@ function loadGame() {
     lastVictory = state.lastVictory ?? null;
     kingdomFallRecord = state.kingdomFallRecord ?? null;
     autoRecruitRarity = state.autoRecruitRarity ?? null;
+    runEnded = state.runEnded ?? false;
+    runSummary = state.runSummary ?? null;
+    runLegacyEarned = state.runLegacyEarned ?? 0;
+    runWavesCleared = state.runWavesCleared ?? 0;
+    gameSpeed = [1, 10, 50, 100].includes(state.gameSpeed) ? state.gameSpeed : 1;
     recruitPool = state.recruitPool ?? [];
     poolTimer = state.poolTimer ?? 0;
     nextRecruitId = state.nextRecruitId ?? 0;
 
-    kingdomHP = state.kingdomHP ?? KINGDOM_HP_MAX;
+    kingdomHP = state.kingdomHP ?? getKingdomHpMax();
     heroSquad = state.heroSquad ?? new Array(6).fill(null);
     heroRecruitPool = state.heroRecruitPool ?? [];
     heroPoolTimer = state.heroPoolTimer ?? 0;
@@ -781,13 +987,19 @@ function cancelReset() {
 
 function doResetGame() {
     localStorage.removeItem('idleKingdomSave');
+    localStorage.removeItem(META_SAVE_KEY);
     location.reload();
 }
 
 function tick() {
-    gold += goldPerSecond;
-    goldEarned += goldPerSecond;
-    kingdomHP = Math.min(KINGDOM_HP_MAX, kingdomHP + kingdomHpRegen);
+    // The world is frozen while the run-summary screen is up — the next Age
+    // starts when the player founds it.
+    if (runEnded) return;
+
+    const income = goldPerSecond * econIncomeMult();
+    gold += income;
+    goldEarned += income;
+    kingdomHP = Math.min(getKingdomHpMax(), kingdomHP + kingdomHpRegen * builderRegenMult());
 
     poolTimer++;
     if (poolTimer >= POOL_REFRESH_INTERVAL) {
@@ -810,9 +1022,11 @@ function tick() {
     if (raidsStarted) {
         if (currentInvasion) {
             combatTick(1000);
-            if (!squadAlive(currentInvasion.enemies) || kingdomHP <= 0) {
-                endInvasion();
+            if (kingdomHP <= 0) {
+                endRun('overrun');
+                return;
             }
+            if (!squadAlive(currentInvasion.enemies)) winInvasion();
         } else {
             invasionTimer--;
             if (invasionTimer <= 0) startInvasion();
@@ -1025,7 +1239,7 @@ function renderLeftPanel() {
     const next = levels[kingdomLevel + 1];
 
     html += `<div class="panel-section">
-        <div class="panel-label">Kingdom</div>
+        <div class="panel-label">Kingdom &middot; Age ${meta.age}</div>
         <div class="kingdom-name">${current.name}</div>`;
 
     if (next) {
@@ -1043,6 +1257,24 @@ function renderLeftPanel() {
     }
 
     html += `</div>`;
+
+    // Manual run-ender: for when a run's frontier attempts are spent and
+    // waiting out the kingdom's actual fall would just waste time.
+    if (raidsStarted && !runEnded) {
+        if (confirmingNewAge) {
+            html += `<div class="panel-section">
+                <div class="panel-label" style="color:#8a4040">End this Age?</div>
+                <div class="reset-confirm-buttons">
+                    <button class="btn-reset btn-reset--confirm" onclick="confirmNewAge()">Yes, end it</button>
+                    <button class="btn-reset" onclick="cancelNewAge()">Cancel</button>
+                </div>
+            </div>`;
+        } else {
+            html += `<div class="panel-section">
+                <button class="btn-new-age-side" onclick="showNewAgeConfirm()">Found a New Age</button>
+            </div>`;
+        }
+    }
 
     if (confirmingReset) {
         html += `<div class="panel-section">
@@ -1062,10 +1294,11 @@ function renderLeftPanel() {
 }
 
 function renderKingdomHP() {
-    const pct = Math.max(0, Math.min(100, (kingdomHP / KINGDOM_HP_MAX) * 100));
+    const hpMax = getKingdomHpMax();
+    const pct = Math.max(0, Math.min(100, (kingdomHP / hpMax) * 100));
     const html = `<div class="panel-label">Kingdom HP</div>
         <div class="hp-bar-track"><div class="hp-bar-fill" style="width:${pct}%"></div></div>
-        <div class="hp-bar-caption">${Math.round(kingdomHP).toLocaleString()} / ${KINGDOM_HP_MAX.toLocaleString()}</div>
+        <div class="hp-bar-caption">${Math.round(kingdomHP).toLocaleString()} / ${hpMax.toLocaleString()}</div>
         ${kingdomHP <= 0 ? '<div class="kingdom-falling">Kingdom Falling!</div>' : ''}
         ${kingdomFallRecord ? `<div class="kingdom-fall-record">Fell at: ${kingdomFallRecord.name} (Kingdom Lv ${kingdomFallRecord.level})</div>` : ''}`;
     document.getElementById('kingdom-hp').innerHTML = html;
@@ -1091,8 +1324,8 @@ function renderRaidStatusBar() {
     }
 
     if (lastVictory) {
-        const verb = lastVictory.won ? 'Repelled' : (lastVictory.kingdomFell ? 'Overrun' : 'Survived');
-        html += `<div class="victory-inline">${verb}: ${lastVictory.name} +${lastVictory.loot.toLocaleString()}g</div>`;
+        const legacyPart = lastVictory.legacy ? ` &middot; +${lastVictory.legacy.toLocaleString()} Legacy` : '';
+        html += `<div class="victory-inline">Repelled: ${lastVictory.name} +${lastVictory.loot.toLocaleString()}g${legacyPart}</div>`;
     }
 
     document.getElementById('raid-status-bar').innerHTML = html;
@@ -1185,8 +1418,8 @@ function renderHeroRecruitPool() {
             const tier = rarityTiers[recruit.rarity];
             const base = archetype.base;
             const statParts = [];
-            if (base.attack) statParts.push(`ATK ${Math.round(base.attack.power * tier.incomeMult)}`);
-            if (base.heal) statParts.push(`HLR ${Math.round(base.heal.power * tier.incomeMult)}`);
+            if (base.attack) statParts.push(`ATK ${Math.round(base.attack.power * tier.incomeMult * heroPowerMult())}`);
+            if (base.heal) statParts.push(`HLR ${Math.round(base.heal.power * tier.incomeMult * heroPowerMult())}`);
             statParts.push(`DEF ${base.defense}%`);
 
             const canAfford = gold >= recruit.cost;
@@ -1217,9 +1450,64 @@ function renderHeroRecruitPool() {
     document.getElementById('hero-recruit-pool').innerHTML = html;
 }
 
+// --- Run summary & upgrade shop overlay ---
+function renderUpgradeTree(treeId) {
+    const tree = UPGRADE_TREES[treeId];
+    let html = `<div class="upgrade-tree">
+        <div class="upgrade-tree-title">${tree.label}</div>`;
+
+    for (const node of tree.nodes) {
+        const rank = upgradeRank(node.id);
+        const maxed = rank >= node.maxRank;
+        const cost = maxed ? null : node.costs[rank];
+        const canAfford = !maxed && meta.legacy >= cost;
+
+        html += `<div class="upgrade-node ${maxed ? 'upgrade-node--maxed' : ''}">
+            <div class="upgrade-info">
+                <div class="upgrade-name">${node.name}</div>
+                <div class="upgrade-desc">${node.desc}</div>
+                <div class="upgrade-rank">Rank ${rank} / ${node.maxRank}</div>
+            </div>
+            <div class="upgrade-action">
+                ${maxed
+                    ? `<div class="upgrade-maxed-label">Maxed</div>`
+                    : `<div class="upgrade-cost">${cost.toLocaleString()} Legacy</div>
+                       <button class="btn-upgrade" onclick="buyUpgrade('${node.id}')" ${canAfford ? '' : 'disabled'}>Buy</button>`}
+            </div>
+        </div>`;
+    }
+
+    html += `</div>`;
+    return html;
+}
+
+function renderRunSummary() {
+    const overlay = document.getElementById('run-summary-overlay');
+    if (!runEnded || !runSummary) {
+        overlay.classList.add('hidden');
+        return;
+    }
+    const s = runSummary;
+
+    let html = `<div class="summary-title">${s.reason === 'abandoned' ? `Age ${s.age} Concluded` : 'The Kingdom Has Fallen'}</div>
+        <div class="summary-sub">${s.reason === 'abandoned' ? 'Abandoned during' : 'Fell to'} ${s.fellTo} at ${s.levelName} level</div>
+        <div class="summary-stats">
+            <div class="summary-stat"><span class="summary-stat-value">${s.waves}</span> wave${s.waves === 1 ? '' : 's'} repelled this Age</div>
+            <div class="summary-stat"><span class="summary-stat-value">+${s.legacy.toLocaleString()}</span> Legacy earned this Age</div>
+            <div class="summary-stat"><span class="summary-stat-value">${meta.legacy.toLocaleString()}</span> Legacy available</div>
+        </div>
+        <div class="summary-shop-heading">Spend Legacy on permanent upgrades — they carry into every future Age.</div>
+        <div class="summary-trees">${renderUpgradeTree('economy')}${renderUpgradeTree('military')}</div>
+        <button class="btn-new-age" onclick="foundNewAge()">Found a New Age &mdash; Age ${meta.age + 1}</button>`;
+
+    document.getElementById('run-summary-content').innerHTML = html;
+    overlay.classList.remove('hidden');
+}
+
 function tickRender() {
     document.getElementById('gold-display').textContent = Math.floor(gold).toLocaleString();
-    document.getElementById('gps-display').textContent = goldPerSecond.toLocaleString();
+    document.getElementById('gps-display').textContent = Math.round(goldPerSecond * econIncomeMult()).toLocaleString();
+    document.getElementById('legacy-display').textContent = meta.legacy.toLocaleString();
     document.getElementById('siege-indicator').textContent = currentInvasion ? ' (siege)' : '';
 
     renderKingdomHP();
@@ -1238,8 +1526,10 @@ function updateUI() {
     renderBuildings();
 }
 
+loadMeta();
 loadGame();
 if (recruitPool.length === 0) refreshPool();
 if (kingdomLevel >= RAID_TRIGGER_LEVEL && heroRecruitPool.length === 0) refreshHeroPool();
 updateUI();
-tickInterval = setInterval(tick, 1000);
+renderRunSummary(); // reshow the run-summary screen if the game was closed mid-summary
+setGameSpeed(gameSpeed); // also starts the tick interval

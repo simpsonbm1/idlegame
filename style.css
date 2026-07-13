@@ -888,3 +888,232 @@ h1 {
     gap: 6px;
     padding: 10px 4px 4px;
 }
+
+/* --- Run summary overlay & upgrade shop --- */
+
+#legacy-display {
+    font-size: 1.3rem;
+    color: #b08cd4;
+}
+
+.btn-new-age-side {
+    background: #241c30;
+    border: 1px solid #5a4a7a;
+    border-radius: 4px;
+    padding: 8px 12px;
+    color: #b08cd4;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.btn-new-age-side:hover {
+    background: #2e2440;
+    border-color: #8a6ab0;
+    color: #d0b0f0;
+}
+
+#run-summary-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 8, 4, 0.88);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 24px;
+}
+
+#run-summary-overlay.hidden {
+    display: none;
+}
+
+#run-summary-panel {
+    background: #221f10;
+    border: 1px solid #5a4a1e;
+    border-radius: 6px;
+    padding: 28px 32px;
+    max-width: 860px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.summary-title {
+    font-size: 1.8rem;
+    color: #e8c96d;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+}
+
+.summary-sub {
+    font-size: 0.95rem;
+    color: #8a7240;
+    text-align: center;
+    font-style: italic;
+    margin-top: 6px;
+}
+
+.summary-stats {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    margin: 20px 0;
+    padding: 14px 0;
+    border-top: 1px solid #3a3010;
+    border-bottom: 1px solid #3a3010;
+}
+
+.summary-stat {
+    font-size: 0.85rem;
+    color: #8a7240;
+    text-align: center;
+}
+
+.summary-stat-value {
+    display: block;
+    font-size: 1.4rem;
+    color: #b08cd4;
+}
+
+.summary-shop-heading {
+    font-size: 0.85rem;
+    color: #c9a84c;
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+.summary-trees {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.upgrade-tree {
+    flex: 1;
+    min-width: 0;
+}
+
+.upgrade-tree-title {
+    font-size: 0.9rem;
+    color: #8a7240;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.upgrade-node {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #242010;
+    border: 1px solid #4a3a18;
+    border-radius: 4px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+}
+
+.upgrade-node--maxed {
+    border-color: #5a4a7a;
+    opacity: 0.75;
+}
+
+.upgrade-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.upgrade-name {
+    font-size: 0.85rem;
+    color: #e8c96d;
+}
+
+.upgrade-desc {
+    font-size: 0.72rem;
+    color: #8a7240;
+    margin-top: 2px;
+}
+
+.upgrade-rank {
+    font-size: 0.68rem;
+    color: #6a5a30;
+    margin-top: 3px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.upgrade-action {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.upgrade-cost {
+    font-size: 0.72rem;
+    color: #b08cd4;
+}
+
+.upgrade-maxed-label {
+    font-size: 0.75rem;
+    color: #8a6ab0;
+    font-style: italic;
+}
+
+.btn-upgrade {
+    background: #241c30;
+    border: 1px solid #5a4a7a;
+    border-radius: 3px;
+    padding: 3px 12px;
+    color: #b08cd4;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-upgrade:hover:not(:disabled) {
+    background: #2e2440;
+    border-color: #8a6ab0;
+}
+
+.btn-upgrade:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn-new-age {
+    display: block;
+    margin: 22px auto 0;
+    background: #2a2410;
+    border: 1px solid #8a7240;
+    border-radius: 4px;
+    padding: 12px 28px;
+    color: #e8c96d;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 1rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-new-age:hover {
+    background: #352e14;
+    border-color: #e8c96d;
+}
+
+@media (max-width: 700px) {
+    .summary-trees {
+        flex-direction: column;
+    }
+    .summary-stats {
+        flex-direction: column;
+        gap: 10px;
+    }
+}
