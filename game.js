@@ -55,7 +55,7 @@ const FIRST_RAID_GRACE = 75;
 
 // Bump when a rebalance makes old saves meaningless; mismatched saves are
 // discarded on load (fresh start).
-const SAVE_VERSION = 2;
+const SAVE_VERSION = 3;
 
 const BASE_ATTACK_INTERVAL = 2500;
 const DEFAULT_BACKLINE_CHANCE = 0.15;
@@ -172,6 +172,7 @@ const UPGRADE_TREES = {
     military: {
         label: 'Military',
         nodes: [
+            { id: 'renown',  name: 'Hall of Legends',   desc: 'Greater heroes join the recruit pool (Rare / Epic / Legendary)', maxRank: 3, costs: [50, 750, 5000] },
             { id: 'drills',  name: 'Weapon Drills',     desc: '+20% hero attack & healing per rank',        maxRank: 5, costs: [15, 60, 250, 1000, 4000] },
             { id: 'armor',   name: 'Hardened Armor',    desc: '+20% hero HP per rank',                      maxRank: 5, costs: [15, 60, 250, 1000, 4000] },
             { id: 'muster',  name: 'Muster Rolls',      desc: 'Hero hiring 15% cheaper per rank',           maxRank: 3, costs: [20, 80, 300] },
@@ -217,6 +218,11 @@ function getStartingLevel()  { return upgradeRank('foundations') > 0 ? 1 : 0; }
 function heroPowerMult()     { return 1 + 0.2 * upgradeRank('drills'); }
 function heroHpMult()        { return 1 + 0.2 * upgradeRank('armor'); }
 function heroCostMult()      { return Math.pow(0.85, upgradeRank('muster')); }
+// Hero rarity ceiling (index into rarityOrder): heroes above this rarity never
+// appear in the pool. THE run-depth pacing gate — one rarity step is worth
+// ~1.5 raid tiers of squad power, so this is what the Legacy trees meter out
+// (kingdom level + Keeps only shift weights *under* the unlocked ceiling).
+function heroRarityCap()     { return upgradeRank('renown'); }
 function getKingdomHpMax()   { return KINGDOM_HP_MAX + 250 * upgradeRank('walls'); }
 
 // First-ever-clear pays full value; re-clears pay the trickle. Credit is
@@ -380,8 +386,10 @@ function maxAffordableBuildings(id) {
 
 // Deliberately stingy at low levels: one rarity step is worth ~1.5 raid tiers
 // of squad power (sim-verified), so rarity availability is the main knob that
-// paces how deep a run can push. Kingdom level (plus Keeps, for heroes) is
-// what loosens it.
+// paces how deep a run can push. Kingdom level loosens it for townspeople;
+// for HEROES the weights are additionally clamped by the Hall of Legends
+// ceiling (heroRarityCap) — in-run gold alone must never buy hero rarity,
+// or a patient run 1 clears the whole ladder (2026-07-13 playtest).
 const RARITY_WEIGHT_TABLE = [
     [{ r: 'common', w: 92 }, { r: 'rare', w: 8 }],
     [{ r: 'common', w: 88 }, { r: 'rare', w: 12 }],
@@ -408,7 +416,10 @@ function getRarityWeights() {
 }
 
 function getHeroRarityWeights() {
-    return RARITY_WEIGHT_TABLE[Math.min(kingdomLevel + buildings.keep.count, RARITY_WEIGHT_TABLE.length - 1)];
+    const weights = RARITY_WEIGHT_TABLE[Math.min(kingdomLevel + buildings.keep.count, RARITY_WEIGHT_TABLE.length - 1)];
+    // Clamp to the Hall of Legends ceiling; weightedRarityRoll renormalizes
+    // over whatever remains (common is index 0, so this is never empty).
+    return weights.filter(w => rarityOrder.indexOf(w.r) <= heroRarityCap());
 }
 
 function rollRarity() {

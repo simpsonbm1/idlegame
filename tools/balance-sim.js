@@ -43,6 +43,11 @@ const HERO_ARCHETYPES = {
     mender:   { baseCost: 850, defense: 5,  hp: 55,  heal:   { power: 20, speed: 0.7 } },
 };
 
+// Hall of Legends (Military tree, costs 50/750/5000 Legacy): hero rarity is
+// CAPPED at common/rare/epic/legendary by rank 0-3 — in-run gold cannot buy
+// past it. This is the run-depth gate; the ceiling-mapped win-rate table at
+// the bottom is what verifies each cap's wall lands on the difficulty arc.
+
 // Proposed economy (buildings: cost, growth, slots; residents: cost, avg g/s)
 // Resident ROI stretched to ~60-190s so income ramps over minutes, not seconds.
 const BUILDINGS = {
@@ -306,7 +311,7 @@ const r1 = simulateRun({});
 for (const line of r1.log) console.log(line);
 console.log(`Result: ${fmt(r1.t)} | wall ${RAID_TIERS[r1.tierIdx].name} w${r1.wave + 1} | ${r1.waves} waves | ${r1.legacy} LP\n`);
 
-console.log('=== RUN ~3 (income x1.5, hero x1.2/x1.2, start 1000g, rare heroes) ===');
+console.log('=== RUN 2-3 (Rare ceiling; income x1.5, hero x1.2/x1.2, start 1000g) ===');
 const r3 = simulateRun({ treeIncome: 1.5, treePower: 1.2, treeHp: 1.2, startGold: 1000, rarityMult: 2.5 });
 for (const line of r3.log.slice(-12)) console.log(line);
 console.log(`Result: ${fmt(r3.t)} | wall ${RAID_TIERS[r3.tierIdx].name} w${r3.wave + 1} | ${r3.waves} waves | ${r3.legacy} LP\n`);
@@ -321,6 +326,13 @@ const specs = [
     ['run4: 2R+4E, tree x1.4',  [['guardian', 5, 1.4, 1.4], ['guardian', 2.5, 1.4, 1.4], ['ranged', 5, 1.4, 1.4], ['ranged', 5, 1.4, 1.4], ['mender', 5, 1.4, 1.4], ['mender', 2.5, 1.4, 1.4]]],
     ['6 epics, tree x1.6',      six(5, 1.6, 1.6)],
     ['6 legendaries x2.0',      six(10, 2, 2)],
+    // Hall of Legends ceiling-mapped rows: the BEST squad money can buy at each
+    // cap (min/maxer), with tree ranks plausible for the runs that cap spans.
+    // Each row's wall should land ~where the difficulty-arc table expects.
+    ['capC r1: 6 com, no tree', six(1, 1, 1)],
+    ['capR r2-3: 6 rare x1.2',  six(2.5, 1.2, 1.2)],
+    ['capE r4-5: 6 epic x1.5',  six(5, 1.5, 1.5)],
+    ['capL r6+: 6 leg x1.8',    six(10, 1.8, 1.8)],
 ];
 for (const [label, spec] of specs) {
     const cells = [];

@@ -200,6 +200,8 @@ A hero costs a meaningful slice of early income (~30–60s of gold at raid-trigg
 
 **Hero rarity bias — Keep's new role:** each Keep owned shifts the hero rarity roll up the `RARITY_WEIGHT_TABLE` as if the kingdom were that many levels higher: `getHeroRarityWeights() = RARITY_WEIGHT_TABLE[kingdomLevel + buildings.keep.count]`. Keep has no residents or slots — owning more of them is purely a hero-rarity investment.
 
+**Hero rarity ceiling — Hall of Legends (added 2026-07-13):** the hero weights are then **clamped to the Hall of Legends rank** (Military tree, 3 ranks, 50/750/5,000 Legacy): rank 0 = Common only, then Rare / Epic / Legendary per rank (`heroRarityCap()`, filtered in `getHeroRarityWeights` — `weightedRarityRoll` renormalizes over what remains). In-run gold can never buy hero rarity past the ceiling; kingdom level and Keeps only improve the odds *under* it. This is the fix for the run-1 min/max break (see *Open questions*): sim-verified walls per ceiling — Common: Orc boss; Rare: Bandit boss/early Dark; Epic: Dark boss; Legendary: deep Dragon, final boss still closed until M10–12 content. Townsperson rarity is deliberately NOT capped (income rarity is harmless once hero power is gated). Veteran's Welcome still grants its free Rare Knight regardless of ceiling (it's Legacy-bought, which is the point).
+
 **Hero recruit pool:** unlocks at `RAID_TRIGGER_LEVEL` (Town, level 2) — the Battle column shows "Unlocks at Town" until then. A pool of `HERO_POOL_SIZE = 3` recruits refreshes every `HERO_POOL_REFRESH_INTERVAL` (15) seconds. Hiring is manual only (no auto-recruit for heroes — placement matters) and requires gold plus an empty squad slot. Firing a hero is free.
 
 **Squad formation:** drag-and-drop a hero portrait onto another slot to swap positions (`swapHeroes`); this works mid-battle. Row 0 = frontline (nearest the gate), row 1 = backline.
@@ -301,13 +303,14 @@ After victory the player may keep playing the current run (or start fresh runs) 
 ### Upgrade trees (Economy / Military)
 Two permanent, currency-funded trees spent into after each reset. Full planned scope:
 
-- **Economy tree** — income multipliers (global or per-building), starting gold, "Old Foundations" (start runs at Village level), building cost-growth reduction, building cap increases beyond kingdom-level grants, Builder Kingdom-HP-regen multiplier, recruit-pool quality-of-life (refresh speed, rarity weights, pool size, reroll button), **Doctrines** (below).
-- **Military tree** — hero stat multipliers (HP/attack/defense/heal, ranked, global or per-archetype), **hero squad-size expansion milestones** (the must-buy nodes tied to enemy-grid jumps), **new hero archetype unlocks** (below), "Veteran's Welcome" (start each run with a free rare Knight), cheaper hero hires, hero recruit-pool quality-of-life, Kingdom HP max / Kingdom defense ("Walls") / base HP regen, a scout report (see the next raid's composition).
+- **Economy tree** — income multipliers (global or per-building), starting gold, "Old Foundations" (start runs at Village level), building cost-growth reduction, building cap increases beyond kingdom-level grants, Builder Kingdom-HP-regen multiplier, recruit-pool quality-of-life (refresh speed, rarity weights, pool size, reroll button), **townsperson auto-buy** (decided 2026-07-13: the current auto-recruit toggle becomes a purchasable Economy node — "QoL as upgrades", the incremental-genre pattern of an interactive mechanic earning its own automation; it stays always-available in the dev build for testing), **Doctrines** (below).
+- **Military tree** — **Hall of Legends** (the hero rarity ceiling — implemented, see *Hero rarity ceiling* under *Heroes*), hero stat multipliers (HP/attack/defense/heal, ranked, global or per-archetype), **hero squad-size expansion milestones** (the must-buy nodes tied to enemy-grid jumps), **new hero archetype unlocks** (below), "Veteran's Welcome" (start each run with a free rare Knight), cheaper hero hires, hero recruit-pool quality-of-life, Kingdom HP max / Kingdom defense ("Walls") / base HP regen, a scout report (see the next raid's composition).
 
 **M8 starter set (implemented, `UPGRADE_TREES` in `game.js` — all numbers placeholder pending M9):**
 
 | Tree | Node | Effect per rank | Ranks | Costs (Legacy, rescaled in M9) |
 |---|---|---|---|---|
+| Military | Hall of Legends | unlocks Rare / Epic / Legendary heroes in the pool (the run-depth gate — see *Hero rarity ceiling*) | 3 | 50 / 750 / 5,000 |
 | Economy | Prosperous Trade | +25% gold income | 5 | 15 / 60 / 250 / 1,000 / 4,000 |
 | Economy | Royal Treasury | starting gold 50 → 250 / 1,000 / 4,000 / 15,000 | 4 | 10 / 40 / 150 / 500 |
 | Economy | Master Builders | +50% Builder HP regen | 3 | 25 / 100 / 400 |
@@ -351,10 +354,36 @@ Later tiers must be new problems, not just bigger numbers — each reuses an eng
 The in-run economy stays **gold-only** — no separate combat currency for hero hiring. For that to work, **raid gold loot must shrink drastically**: current values (200,000g for a goblin raid vs. a 2,500g Smithy) let one raid win pay for the entire midgame, collapsing the "town fuels the army" loop into "raids fund everything". Target: a raid win pays roughly **1–2 minutes of contemporaneous resident income**. The win-streak multiplier stays, on the much smaller base.
 
 ### Open questions
+- [x] **Run-1 min/max break (found in the 2026-07-13 playtest — FIXED same day):** a player who
+  min/maxed in-run resources cleared the entire 38-wave ladder in Age 1 with **zero Legacy upgrades**
+  (fell only at Dragon Siege, Realm level; conditions: mostly 10× dev speed, dev auto-buy at
+  rare+/epic+). Root cause: hero rarity — worth ~1.5 raid tiers per step, ~4.5 tiers
+  common→legendary — was gated only by kingdom level + Keeps, i.e. by gold, and **stalling is free**
+  (waves repeat until beaten, income never throttles, Builders out-regen wall-attempt attrition), so
+  patient play bought Empire + Keeps and fielded 6 legendaries within run 1 (sim: 6 no-tree
+  legendaries beat the Dark boss ~45%/attempt). The trees (×1.2–2.0) were dwarfed by in-run rarity
+  (×10). **Fix implemented: the Hall of Legends hero rarity ceiling** (see *Heroes*) — epic/legendary
+  hero access is now a Military-tree meta-unlock. The complementary idea — make stalling itself cost
+  something via raids that chip the kingdom (sapper-type enemies) — remains open, a natural fit for
+  the M11 enemy-mechanics pass (see *Ideas under consideration* below).
 - [ ] Exact numbers throughout — wave counts, per-tier currency multiplier, boss bonus, `defenseGrowth`, loot values, Legacy wave values, upgrade costs — all placeholder until the M9/M14 playtests against the *Difficulty arc across runs* table.
 - [ ] Exact tier transitions where the enemy grid expands, and where the matching hero squad-expansion milestones sit in the Military tree.
 - [ ] Boss unit stat blocks and any per-boss unique abilities beyond the tier gimmick.
 - [x] UI for the run-end/reset summary screen and the two upgrade trees — implemented in M8 as a full-screen overlay (see *Run loop implementation (M8)*).
+
+### Ideas under consideration (raised 2026-07-13, not yet scheduled)
+- **The kingdom & villagers as rare combat targets:** some enemies occasionally target the Kingdom
+  (or even individual residents) *during* a battle, even while heroes stand — e.g. a "sapper"-style
+  enemy archetype, or a small chance per attack. Gives Builders a live role every fight, makes town
+  management ongoing rather than "staff it and forget it", and doubles as the anti-stalling lever in
+  the min/max fix above (fix b). Needs care: killing residents is harsh — maybe they're "injured"
+  (income paused) rather than lost.
+- **Per-building interactive minigames that automate later:** the classic incremental arc — each
+  building has a small active mechanic (e.g. assemble horseshoes at the Smithy for a productivity
+  boost) that an upgrade later automates at equal-or-better efficiency. (The auto-buy Economy node
+  above is the first, already-decided instance of this "QoL as upgrades" pattern.) Risk: splits focus from the
+  battle at the gates, and is a large content lift (one designed minigame per building) — if pursued,
+  likely post-M14 scope, possibly starting with a single building as a pilot.
 
 ## Difficulty & meta-progression design — to-do
 
@@ -391,6 +420,7 @@ How the death-and-rebuild loop from *Progression loop redesign* is wired in `gam
 - [x] Milestone 7: Autobattler combat — hero squad vs. enemy squad, Kingdom HP, Keep/Workshop repurposed (hero rarity bias / Builders), 3-column "battle at the gates" layout
 - [x] Milestone 8: **The run loop** — `kingdomHP` 0 → run-summary screen → currency banking (first-ever-clear credit via per-tier high-water mark) → upgrade-tree shop → reset to Hamlet; meta-state persistence; manual "Found a New Age" button; battle-end fix (waves repeat on loss — `tierWave++` is win-only); dead heroes free their squad slot at the moment of death so mid-battle reinforcement works after a full wipe. See *Run loop implementation (M8)*.
 - [x] Milestone 9: **Economy & pacing pass** — loot cut (~170×), per-tier raid intervals + first-raid grace, per-tier wave counts + boss waves, tier advance by boss-kill, continuous 1.088/wave enemy curve, economy shrink (caps/slots/costs/incomes way down), rarity-weight gating, Legacy boss bonus + upgrade-cost rescale, save versioning; wall targets sim-verified via `tools/balance-sim.js` (real-1× confirmation happens in play)
+- [x] Milestone 9.5: **Hero rarity ceiling (Hall of Legends)** — fix for the run-1 min/max break found in the first M9 playtest (full ladder cleared with zero upgrades): hero rarity above Common is now a 3-rank Military-tree unlock (50/750/5,000 Legacy); sim-verified per-ceiling walls land on the difficulty arc; SAVE_VERSION → 3 (old saves discarded); browser smoke-tested (pool filtering, node purchase)
 - [ ] Milestone 10: **First new heroes** — Paladin + Assassin unlocks and the first squad-expansion milestone (no engine work needed)
 - [ ] Milestone 11: **Combat engine features** — AoE actions, buffs/debuffs, on-death hooks; enemy tier mechanics, boss units, wave composition variety, enemy grid expansion
 - [ ] Milestone 12: **Doctrines** — building↔army synergy nodes
