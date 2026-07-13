@@ -47,49 +47,67 @@ const KINGDOM_DEFENSE = 15;
 
 const ARM_TIMEOUT_MS = 3000;
 
-const RAID_INTERVAL = 20;
 const RAID_TRIGGER_LEVEL = 2;
-const RAID_TRIGGER_GOLD = 12000;
+const RAID_TRIGGER_GOLD = 4000;
+// Extra breathing room before the very first raid ever arrives — the player
+// needs time to hire their first heroes. Later raids use the tier's interval.
+const FIRST_RAID_GRACE = 75;
+
+// Bump when a rebalance makes old saves meaningless; mismatched saves are
+// discarded on load (fresh start).
+const SAVE_VERSION = 2;
 
 const BASE_ATTACK_INTERVAL = 2500;
 const DEFAULT_BACKLINE_CHANCE = 0.15;
 
+// Tiers form one continuous 55-wave ladder: each tier's powerMult picks up
+// where the previous tier's boss left off (defenseGrowth 1.088/wave, so the
+// final boss lands ~95x goblin wave 1 — no stat cliffs at tier transitions).
+// waveCount includes the boss wave (the tier's last wave); killing the boss
+// advances to the next tier. Tiers are climbed by boss-kill only — kingdom
+// level no longer selects the raid tier.
 const RAID_TIERS = [
-    { minLevel: 2, name: 'Goblin Raid',  powerMult: 1,   defenseGrowth: 1.15, baseLoot: 200000,    lootGrowth: 1.30,
+    { name: 'Goblin Raid',  powerMult: 1.0,  defenseGrowth: 1.088, waveCount: 5,  raidInterval: 45, baseLoot: 1200,   lootGrowth: 1.10,
+        boss: { name: 'Goblin Warmaster', powerMult: 1.8, hpMult: 4.0 },
         roster: { brute: 'Goblin Brute',    skirmisher: 'Goblin Skulker',   caster: 'Goblin Slinger',  shaman: 'Goblin Shaman' } },
-    { minLevel: 3, name: 'Orc Warband',  powerMult: 1.6, defenseGrowth: 1.15, baseLoot: 1000000,   lootGrowth: 1.30,
+    { name: 'Orc Warband',  powerMult: 1.52, defenseGrowth: 1.088, waveCount: 8,  raidInterval: 45, baseLoot: 5000,   lootGrowth: 1.10,
+        boss: { name: 'Orc Warlord', powerMult: 1.8, hpMult: 4.0 },
         roster: { brute: 'Orc Brute',       skirmisher: 'Orc Berserker',    caster: 'Orc Warcaster',   shaman: 'Orc Witch Doctor' } },
-    { minLevel: 4, name: 'Bandit Horde', powerMult: 2.4, defenseGrowth: 1.15, baseLoot: 5000000,   lootGrowth: 1.32,
+    { name: 'Bandit Horde', powerMult: 3.0,  defenseGrowth: 1.088, waveCount: 11, raidInterval: 40, baseLoot: 30000,  lootGrowth: 1.10,
+        boss: { name: 'Bandit King', powerMult: 1.8, hpMult: 4.0 },
         roster: { brute: 'Bandit Enforcer', skirmisher: 'Bandit Cutthroat', caster: 'Bandit Marksman', shaman: 'Bandit Medic' } },
-    { minLevel: 5, name: 'Dark Army',    powerMult: 3.6, defenseGrowth: 1.15, baseLoot: 25000000,  lootGrowth: 1.34,
+    { name: 'Dark Army',    powerMult: 7.6,  defenseGrowth: 1.088, waveCount: 14, raidInterval: 35, baseLoot: 120000, lootGrowth: 1.10,
+        boss: { name: 'Lich Commander', powerMult: 1.8, hpMult: 4.0 },
         roster: { brute: 'Death Knight',    skirmisher: 'Shadow Reaver',    caster: 'Necromancer',     shaman: 'Bone Priest' } },
-    { minLevel: 6, name: 'Dragon Siege', powerMult: 5.5, defenseGrowth: 1.15, baseLoot: 120000000, lootGrowth: 1.36,
+    { name: 'Dragon Siege', powerMult: 24.7, defenseGrowth: 1.088, waveCount: 17, raidInterval: 30, baseLoot: 500000, lootGrowth: 1.10,
+        boss: { name: 'Dragon Empress', powerMult: 1.8, hpMult: 4.0 },
         roster: { brute: 'Dragon Guard',    skirmisher: 'Wyrmling',         caster: 'Dragon Mage',     shaman: 'Dragonpriest' } }
 ];
 
 const ENEMY_ARCHETYPES = {
-    brute:      { base: { defense: 20, hp: 120, attack: { power: 14, speed: 0.7 } } },
-    skirmisher: { base: { defense: 8,  hp: 70,  attack: { power: 18, speed: 1.1 }, backlineChance: 0.4 } },
-    caster:     { base: { defense: 5,  hp: 55,  attack: { power: 20, speed: 0.9 } } },
-    shaman:     { base: { defense: 8,  hp: 60,  heal: { power: 15, speed: 0.7 } } }
+    brute:      { base: { defense: 20, hp: 90, attack: { power: 10, speed: 0.7 } } },
+    skirmisher: { base: { defense: 8,  hp: 55, attack: { power: 13, speed: 1.1 }, backlineChance: 0.4 } },
+    caster:     { base: { defense: 5,  hp: 45, attack: { power: 14, speed: 0.9 } } },
+    shaman:     { base: { defense: 8,  hp: 50, heal: { power: 10, speed: 0.7 } } }
 };
 
 const HERO_ARCHETYPES = {
     guardian: { names: ['Knight', 'Sentinel', 'Vanguard', 'Paragon'],   baseCost: 1000, base: { defense: 35, hp: 140, attack: { power: 8,  speed: 0.7 } } },
-    ranged:   { names: ['Archer', 'Sharpshooter', 'Hunter', 'Marksman'], baseCost: 800,  base: { defense: 5,  hp: 60,  attack: { power: 18, speed: 1.3 } } },
-    mender:   { names: ['Acolyte', 'Cleric', 'Druid', 'Saint'],          baseCost: 900,  base: { defense: 5,  hp: 55,  heal:   { power: 20, speed: 0.7 } } }
+    ranged:   { names: ['Archer', 'Sharpshooter', 'Hunter', 'Marksman'], baseCost: 750,  base: { defense: 5,  hp: 60,  attack: { power: 18, speed: 1.3 } } },
+    mender:   { names: ['Acolyte', 'Cleric', 'Druid', 'Saint'],          baseCost: 850,  base: { defense: 5,  hp: 55,  heal:   { power: 20, speed: 0.7 } } }
 };
 
-function getRaidTierIndex(level) {
-    let idx = 0;
-    for (let i = 0; i < RAID_TIERS.length; i++) {
-        if (level >= RAID_TIERS[i].minLevel) idx = i;
-    }
-    return idx;
+function isBossWave(tierIndex, wave) {
+    return wave === RAID_TIERS[tierIndex].waveCount - 1;
+}
+
+function getRaidInterval() {
+    return RAID_TIERS[raidTierIndex].raidInterval;
 }
 
 function getInvasionName(tierIndex, wave) {
     const tier = RAID_TIERS[tierIndex];
+    if (isBossWave(tierIndex, wave)) return `${tier.name} — ${tier.boss.name}`;
     return wave === 0 ? tier.name : `${tier.name} (Wave ${wave + 1})`;
 }
 
@@ -108,6 +126,7 @@ const META_SAVE_KEY = 'idleKingdomMeta';
 // early waves is pointless next to pushing the all-time frontier.
 const WAVE_LEGACY_VALUES = [10, 50, 250, 1250, 6250];
 const REPEAT_LEGACY_FRACTION = 0.15;
+const BOSS_LEGACY_MULT = 4; // "breakthrough" bonus for boss waves
 
 let meta = defaultMeta();
 
@@ -123,13 +142,14 @@ function defaultMeta() {
 }
 
 function saveMeta() {
-    localStorage.setItem(META_SAVE_KEY, JSON.stringify(meta));
+    localStorage.setItem(META_SAVE_KEY, JSON.stringify({ version: SAVE_VERSION, ...meta }));
 }
 
 function loadMeta() {
     const saved = localStorage.getItem(META_SAVE_KEY);
     if (!saved) return;
     const state = JSON.parse(saved);
+    if ((state.version ?? 1) !== SAVE_VERSION) return;
     meta = {
         age: state.age ?? 1,
         legacy: state.legacy ?? 0,
@@ -143,25 +163,25 @@ const UPGRADE_TREES = {
     economy: {
         label: 'Economy',
         nodes: [
-            { id: 'trade',       name: 'Prosperous Trade', desc: '+25% gold income per rank',                                      maxRank: 5, costs: [10, 25, 60, 150, 400] },
-            { id: 'treasury',    name: 'Royal Treasury',   desc: 'Begin each Age with a larger treasury (500 / 2,500 / 12,000 / 60,000 gold)', maxRank: 4, costs: [8, 20, 50, 120] },
-            { id: 'builders',    name: 'Master Builders',  desc: '+50% Builder HP regen per rank',                                 maxRank: 3, costs: [15, 40, 100] },
-            { id: 'foundations', name: 'Old Foundations',  desc: 'New Ages begin at Village level',                                maxRank: 1, costs: [200] }
+            { id: 'trade',       name: 'Prosperous Trade', desc: '+25% gold income per rank',                                    maxRank: 5, costs: [15, 60, 250, 1000, 4000] },
+            { id: 'treasury',    name: 'Royal Treasury',   desc: 'Begin each Age with a larger treasury (250 / 1,000 / 4,000 / 15,000 gold)', maxRank: 4, costs: [10, 40, 150, 500] },
+            { id: 'builders',    name: 'Master Builders',  desc: '+50% Builder HP regen per rank',                               maxRank: 3, costs: [25, 100, 400] },
+            { id: 'foundations', name: 'Old Foundations',  desc: 'New Ages begin at Village level',                              maxRank: 1, costs: [400] }
         ]
     },
     military: {
         label: 'Military',
         nodes: [
-            { id: 'drills',  name: 'Weapon Drills',     desc: '+20% hero attack & healing per rank',        maxRank: 5, costs: [10, 25, 60, 150, 400] },
-            { id: 'armor',   name: 'Hardened Armor',    desc: '+20% hero HP per rank',                      maxRank: 5, costs: [10, 25, 60, 150, 400] },
-            { id: 'muster',  name: 'Muster Rolls',      desc: 'Hero hiring 15% cheaper per rank',           maxRank: 3, costs: [12, 30, 80] },
-            { id: 'walls',   name: 'Reinforced Walls',  desc: '+250 max Kingdom HP per rank',               maxRank: 4, costs: [10, 30, 80, 200] },
-            { id: 'veteran', name: "Veteran's Welcome", desc: 'Each new Age begins with a free Rare Knight', maxRank: 1, costs: [60] }
+            { id: 'drills',  name: 'Weapon Drills',     desc: '+20% hero attack & healing per rank',        maxRank: 5, costs: [15, 60, 250, 1000, 4000] },
+            { id: 'armor',   name: 'Hardened Armor',    desc: '+20% hero HP per rank',                      maxRank: 5, costs: [15, 60, 250, 1000, 4000] },
+            { id: 'muster',  name: 'Muster Rolls',      desc: 'Hero hiring 15% cheaper per rank',           maxRank: 3, costs: [20, 80, 300] },
+            { id: 'walls',   name: 'Reinforced Walls',  desc: '+250 max Kingdom HP per rank',               maxRank: 4, costs: [15, 60, 250, 1000] },
+            { id: 'veteran', name: "Veteran's Welcome", desc: 'Each new Age begins with a free Rare Knight', maxRank: 1, costs: [100] }
         ]
     }
 };
 
-const STARTING_GOLD_BY_TREASURY_RANK = [50, 500, 2500, 12000, 60000];
+const STARTING_GOLD_BY_TREASURY_RANK = [50, 250, 1000, 4000, 15000];
 
 function upgradeRank(id) {
     return meta.upgrades[id] || 0;
@@ -202,7 +222,8 @@ function getKingdomHpMax()   { return KINGDOM_HP_MAX + 250 * upgradeRank('walls'
 // First-ever-clear pays full value; re-clears pay the trickle. Credit is
 // all-time (the high-water mark persists across Ages).
 function bankWaveLegacy(tierIndex, wave) {
-    const value = WAVE_LEGACY_VALUES[Math.min(tierIndex, WAVE_LEGACY_VALUES.length - 1)];
+    let value = WAVE_LEGACY_VALUES[Math.min(tierIndex, WAVE_LEGACY_VALUES.length - 1)];
+    if (isBossWave(tierIndex, wave)) value *= BOSS_LEGACY_MULT;
     let earned;
     if (wave >= meta.waveCredit[tierIndex]) {
         earned = value;
@@ -222,67 +243,69 @@ function formatTimer(seconds) {
     return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+// Deliberately scarce: a handful of each building, 2-3 slots each, so every
+// building purchase and every staffing choice matters (M9 shrink).
 const levels = [
     {
         name: 'Hamlet',
         cost: 0,
         unlocks: ['cottage'],
-        caps: { cottage: 10, tavern: 0, smithy: 0, library: 0, workshop: 0, apothecary: 0, tower: 0, cathedral: 0, keep: 0 }
+        caps: { cottage: 3, tavern: 0, smithy: 0, library: 0, workshop: 0, apothecary: 0, tower: 0, cathedral: 0, keep: 0 }
     },
     {
         name: 'Village',
-        cost: 500,
+        cost: 400,
         unlocks: ['tavern', 'workshop'],
-        caps: { cottage: 25, tavern: 8, smithy: 0, library: 0, workshop: 1, apothecary: 0, tower: 0, cathedral: 0, keep: 0 }
+        caps: { cottage: 5, tavern: 2, smithy: 0, library: 0, workshop: 1, apothecary: 0, tower: 0, cathedral: 0, keep: 0 }
     },
     {
         name: 'Town',
-        cost: 5000,
+        cost: 3000,
         unlocks: ['smithy'],
-        caps: { cottage: 50, tavern: 20, smithy: 8, library: 0, workshop: 5, apothecary: 0, tower: 0, cathedral: 0, keep: 0 }
+        caps: { cottage: 7, tavern: 3, smithy: 2, library: 0, workshop: 2, apothecary: 0, tower: 0, cathedral: 0, keep: 0 }
     },
     {
         name: 'City',
-        cost: 35000,
+        cost: 20000,
         unlocks: ['library'],
-        caps: { cottage: 75, tavern: 35, smithy: 20, library: 8, workshop: 8, apothecary: 0, tower: 0, cathedral: 0, keep: 0 }
+        caps: { cottage: 9, tavern: 4, smithy: 3, library: 2, workshop: 2, apothecary: 0, tower: 0, cathedral: 0, keep: 0 }
     },
     {
         name: 'Kingdom',
-        cost: 200000,
+        cost: 80000,
         unlocks: [],
-        caps: { cottage: 100, tavern: 60, smithy: 35, library: 20, workshop: 12, apothecary: 0, tower: 0, cathedral: 0, keep: 0 }
+        caps: { cottage: 11, tavern: 5, smithy: 4, library: 3, workshop: 3, apothecary: 0, tower: 0, cathedral: 0, keep: 0 }
     },
     {
         name: 'Empire',
-        cost: 1000000,
+        cost: 300000,
         unlocks: ['apothecary', 'keep'],
-        caps: { cottage: 150, tavern: 90, smithy: 55, library: 30, workshop: 18, apothecary: 8, tower: 0, cathedral: 0, keep: 3 }
+        caps: { cottage: 13, tavern: 6, smithy: 5, library: 4, workshop: 3, apothecary: 2, tower: 0, cathedral: 0, keep: 1 }
     },
     {
         name: 'Dynasty',
-        cost: 8000000,
+        cost: 1000000,
         unlocks: ['tower'],
-        caps: { cottage: 200, tavern: 120, smithy: 75, library: 50, workshop: 25, apothecary: 15, tower: 6, cathedral: 0, keep: 6 }
+        caps: { cottage: 15, tavern: 7, smithy: 6, library: 5, workshop: 4, apothecary: 3, tower: 2, cathedral: 0, keep: 2 }
     },
     {
         name: 'Realm',
-        cost: 60000000,
+        cost: 3000000,
         unlocks: ['cathedral'],
-        caps: { cottage: 250, tavern: 160, smithy: 100, library: 70, workshop: 35, apothecary: 25, tower: 12, cathedral: 5, keep: 10 }
+        caps: { cottage: 16, tavern: 8, smithy: 7, library: 6, workshop: 4, apothecary: 4, tower: 3, cathedral: 2, keep: 3 }
     }
 ];
 
 const buildings = {
-    cottage:  { name: 'Cottage',  cost: 10,    count: 0, slotsPerBuilding: 3, costGrowth: 1.10, type: 'gold',    residents: [] },
-    tavern:   { name: 'Tavern',   cost: 300,   count: 0, slotsPerBuilding: 4, costGrowth: 1.09, type: 'gold',    residents: [] },
-    smithy:   { name: 'Smithy',   cost: 2500,  count: 0, slotsPerBuilding: 3, costGrowth: 1.10, type: 'gold',    residents: [] },
-    library:  { name: 'Library',  cost: 15000, count: 0, slotsPerBuilding: 5, costGrowth: 1.11, type: 'gold',    residents: [] },
-    workshop: { name: 'Workshop', cost: 400,    count: 0, slotsPerBuilding: 4, costGrowth: 1.12, type: 'hpregen', residents: [] },
-    keep:     { name: 'Keep',     cost: 500000, count: 0, slotsPerBuilding: 0, costGrowth: 1.16, residents: [] },
-    apothecary: { name: 'Apothecary',           cost: 80000,    count: 0, slotsPerBuilding: 8, costGrowth: 1.18, type: 'gold',    residents: [] },
-    tower:    { name: "Wizard's Tower",       cost: 600000,   count: 0, slotsPerBuilding: 10, costGrowth: 1.21, type: 'gold',    residents: [] },
-    cathedral:{ name: 'Cathedral',            cost: 5000000,  count: 0, slotsPerBuilding: 14, costGrowth: 1.25, type: 'gold',    residents: [] }
+    cottage:  { name: 'Cottage',  cost: 10,   count: 0, slotsPerBuilding: 2, costGrowth: 1.30, type: 'gold',    residents: [] },
+    tavern:   { name: 'Tavern',   cost: 250,  count: 0, slotsPerBuilding: 2, costGrowth: 1.30, type: 'gold',    residents: [] },
+    smithy:   { name: 'Smithy',   cost: 1500, count: 0, slotsPerBuilding: 2, costGrowth: 1.35, type: 'gold',    residents: [] },
+    library:  { name: 'Library',  cost: 6000, count: 0, slotsPerBuilding: 2, costGrowth: 1.35, type: 'gold',    residents: [] },
+    workshop: { name: 'Workshop', cost: 400,   count: 0, slotsPerBuilding: 2, costGrowth: 1.35, type: 'hpregen', residents: [] },
+    keep:     { name: 'Keep',     cost: 40000, count: 0, slotsPerBuilding: 0, costGrowth: 1.50, residents: [] },
+    apothecary: { name: 'Apothecary',      cost: 25000,  count: 0, slotsPerBuilding: 3, costGrowth: 1.40, type: 'gold',    residents: [] },
+    tower:    { name: "Wizard's Tower",  cost: 100000, count: 0, slotsPerBuilding: 3, costGrowth: 1.45, type: 'gold',    residents: [] },
+    cathedral:{ name: 'Cathedral',       cost: 400000, count: 0, slotsPerBuilding: 3, costGrowth: 1.50, type: 'gold',    residents: [] }
 };
 
 // Captured before any save is loaded, so "Found a New Age" can restore
@@ -297,15 +320,17 @@ const rarityTiers = {
     legendary: { name: 'Legendary', color: '#ffaa00', costMult: 20, incomeMult: 10  }
 };
 
+// Hire costs sized for ~60-190s payback at the average roll, so income ramps
+// over minutes, not seconds (M9 pacing).
 const recruitTypes = {
-    villager:     { name: 'Villager',     buildingId: 'cottage',  baseCost: 25,   incomeMin: 1,  incomeMax: 5   },
-    tavernkeeper: { name: 'Tavernkeeper', buildingId: 'tavern',   baseCost: 120,  incomeMin: 5,  incomeMax: 12  },
-    blacksmith:   { name: 'Blacksmith',   buildingId: 'smithy',   baseCost: 700,  incomeMin: 15, incomeMax: 40  },
-    scholar:      { name: 'Scholar',      buildingId: 'library',  baseCost: 3500, incomeMin: 50, incomeMax: 130 },
-    builder:      { name: 'Builder',      buildingId: 'workshop',  baseCost: 200,     incomeMin: 0.3,  incomeMax: 1.0  },
-    alchemist:    { name: 'Alchemist',    buildingId: 'apothecary',  baseCost: 25000,   incomeMin: 190,  incomeMax: 440  },
-    mage:         { name: 'Mage',         buildingId: 'tower',     baseCost: 150000,  incomeMin: 650,  incomeMax: 1450 },
-    priest:       { name: 'High Priest',  buildingId: 'cathedral', baseCost: 1000000, incomeMin: 2050, incomeMax: 5150 }
+    villager:     { name: 'Villager',     buildingId: 'cottage',  baseCost: 25,   incomeMin: 1,  incomeMax: 3  },
+    tavernkeeper: { name: 'Tavernkeeper', buildingId: 'tavern',   baseCost: 300,  incomeMin: 4,  incomeMax: 8  },
+    blacksmith:   { name: 'Blacksmith',   buildingId: 'smithy',   baseCost: 1200, incomeMin: 10, incomeMax: 20 },
+    scholar:      { name: 'Scholar',      buildingId: 'library',  baseCost: 4500, incomeMin: 30, incomeMax: 60 },
+    builder:      { name: 'Builder',      buildingId: 'workshop',  baseCost: 250,    incomeMin: 0.3, incomeMax: 0.8 },
+    alchemist:    { name: 'Alchemist',    buildingId: 'apothecary', baseCost: 15000,  incomeMin: 80,  incomeMax: 160 },
+    mage:         { name: 'Mage',         buildingId: 'tower',     baseCost: 60000,  incomeMin: 250, incomeMax: 500 },
+    priest:       { name: 'High Priest',  buildingId: 'cathedral', baseCost: 200000, incomeMin: 700, incomeMax: 1400 }
 };
 
 const buildingToTypeId = {
@@ -353,15 +378,19 @@ function maxAffordableBuildings(id) {
     return Math.min(maxByGold, remaining);
 }
 
+// Deliberately stingy at low levels: one rarity step is worth ~1.5 raid tiers
+// of squad power (sim-verified), so rarity availability is the main knob that
+// paces how deep a run can push. Kingdom level (plus Keeps, for heroes) is
+// what loosens it.
 const RARITY_WEIGHT_TABLE = [
+    [{ r: 'common', w: 92 }, { r: 'rare', w: 8 }],
+    [{ r: 'common', w: 88 }, { r: 'rare', w: 12 }],
     [{ r: 'common', w: 85 }, { r: 'rare', w: 15 }],
-    [{ r: 'common', w: 75 }, { r: 'rare', w: 25 }],
-    [{ r: 'common', w: 60 }, { r: 'rare', w: 30 }, { r: 'epic', w: 10 }],
-    [{ r: 'common', w: 45 }, { r: 'rare', w: 35 }, { r: 'epic', w: 15 }, { r: 'legendary', w: 5 }],
-    [{ r: 'common', w: 30 }, { r: 'rare', w: 35 }, { r: 'epic', w: 25 }, { r: 'legendary', w: 10 }],
-    [{ r: 'common', w: 20 }, { r: 'rare', w: 30 }, { r: 'epic', w: 35 }, { r: 'legendary', w: 15 }],
-    [{ r: 'common', w: 15 }, { r: 'rare', w: 25 }, { r: 'epic', w: 40 }, { r: 'legendary', w: 20 }],
-    [{ r: 'common', w: 10 }, { r: 'rare', w: 20 }, { r: 'epic', w: 40 }, { r: 'legendary', w: 30 }]
+    [{ r: 'common', w: 78 }, { r: 'rare', w: 20 }, { r: 'epic', w: 2 }],
+    [{ r: 'common', w: 65 }, { r: 'rare', w: 28 }, { r: 'epic', w: 6 }, { r: 'legendary', w: 1 }],
+    [{ r: 'common', w: 50 }, { r: 'rare', w: 32 }, { r: 'epic', w: 15 }, { r: 'legendary', w: 3 }],
+    [{ r: 'common', w: 35 }, { r: 'rare', w: 33 }, { r: 'epic', w: 25 }, { r: 'legendary', w: 7 }],
+    [{ r: 'common', w: 25 }, { r: 'rare', w: 30 }, { r: 'epic', w: 30 }, { r: 'legendary', w: 15 }]
 ];
 
 function weightedRarityRoll(weights) {
@@ -502,7 +531,7 @@ function checkRaidTrigger() {
     if (raidsStarted) return;
     if (kingdomLevel >= RAID_TRIGGER_LEVEL && goldEarned >= RAID_TRIGGER_GOLD) {
         raidsStarted = true;
-        invasionTimer = RAID_INTERVAL;
+        invasionTimer = FIRST_RAID_GRACE;
     }
 }
 
@@ -616,19 +645,22 @@ function combatTick(deltaMs) {
 }
 
 // --- Enemy & hero generation ---
-function generateEnemy(tierIndex, archetypeKey, row, col, wave) {
+function generateEnemy(tierIndex, archetypeKey, row, col, wave, bossPart = null) {
     const tier = RAID_TIERS[tierIndex];
     const archetype = ENEMY_ARCHETYPES[archetypeKey];
     const base = archetype.base;
     const mult = tier.powerMult * Math.pow(tier.defenseGrowth, wave);
-    const scalePower = v => Math.round(v * mult);
-    const scaleHp = v => Math.round(v * Math.sqrt(mult));
+    const powerMult = mult * (bossPart ? tier.boss.powerMult : 1);
+    const hpMult = Math.sqrt(mult) * (bossPart ? tier.boss.hpMult : 1);
+    const scalePower = v => Math.round(v * powerMult);
+    const scaleHp = v => Math.round(v * hpMult);
 
     const attack = base.attack ? attackAction(scalePower(base.attack.power), base.attack.speed) : null;
     const heal = base.heal ? healAction(scalePower(base.heal.power), base.heal.speed) : null;
     const backlineChance = base.backlineChance !== undefined ? base.backlineChance : DEFAULT_BACKLINE_CHANCE;
 
-    return makeUnit(tier.roster[archetypeKey], base.defense, scaleHp(base.hp), row, col, 'enemy', attack, heal, backlineChance);
+    const name = bossPart ? tier.boss.name : tier.roster[archetypeKey];
+    return makeUnit(name, base.defense, scaleHp(base.hp), row, col, 'enemy', attack, heal, backlineChance);
 }
 
 function generateHero(archetypeKey, rarity, row, col) {
@@ -649,6 +681,18 @@ function generateHero(archetypeKey, rarity, row, col) {
 }
 
 function generateEnemySquad(tierIndex, wave) {
+    // Boss wave: the tier's named boss (a heavily scaled-up brute) leads a
+    // small honor guard. Unique boss abilities arrive with M11.
+    if (isBossWave(tierIndex, wave)) {
+        return [
+            generateEnemy(tierIndex, 'brute', 0, 0, wave, true),
+            generateEnemy(tierIndex, 'brute', 0, 1, wave),
+            generateEnemy(tierIndex, 'skirmisher', 0, 2, wave),
+            null,
+            generateEnemy(tierIndex, 'shaman', 1, 1, wave),
+            null
+        ];
+    }
     return [
         generateEnemy(tierIndex, 'brute', 0, 0, wave),
         generateEnemy(tierIndex, 'skirmisher', 0, 1, wave),
@@ -762,13 +806,6 @@ function swapHeroes(sourceIndex, targetIndex) {
 
 // --- Invasions ---
 function startInvasion() {
-    const newTierIndex = getRaidTierIndex(kingdomLevel);
-    if (newTierIndex !== raidTierIndex) {
-        raidTierIndex = newTierIndex;
-        tierWave = 0;
-        raidWinStreak = 0;
-    }
-
     // Heroes "respawn" at full HP each battle — the kingdom absorbs losses
     // via Kingdom HP, not permanent hero death.
     for (const hero of heroSquad) {
@@ -795,9 +832,20 @@ function winInvasion() {
     runWavesCleared++;
     lastVictory = { name: currentInvasion.name, loot, legacy, won: true };
     gold += loot;
-    tierWave++;
+
+    // Killing a tier's boss advances to the next tier's wave 1 (streak and
+    // wave counter reset). Past the last tier's boss, waves just keep
+    // climbing — placeholder until the Final Siege lands in M13.
+    if (isBossWave(raidTierIndex, tierWave) && raidTierIndex < RAID_TIERS.length - 1) {
+        raidTierIndex++;
+        tierWave = 0;
+        raidWinStreak = 0;
+    } else {
+        tierWave++;
+    }
+
     currentInvasion = null;
-    invasionTimer = RAID_INTERVAL;
+    invasionTimer = getRaidInterval();
 }
 
 // Ends the current run ("Age") — either the Kingdom fell (reason 'overrun')
@@ -887,6 +935,7 @@ function confirmNewAge() {
 
 function saveGame() {
     const state = {
+        version: SAVE_VERSION,
         gold, goldEarned, kingdomLevel, raidsStarted, raidTierIndex, tierWave, raidWinStreak, invasionTimer, currentInvasion, lastVictory, kingdomFallRecord, autoRecruitRarity,
         runEnded, runSummary, runLegacyEarned, runWavesCleared, gameSpeed,
         recruitPool, poolTimer, nextRecruitId,
@@ -903,20 +952,16 @@ function loadGame() {
     const saved = localStorage.getItem('idleKingdomSave');
     if (!saved) return;
     const state = JSON.parse(saved);
+    // Pre-rebalance saves are meaningless after a version bump — discard.
+    if ((state.version ?? 1) !== SAVE_VERSION) return;
 
     gold = state.gold ?? 50;
     goldEarned = state.goldEarned ?? 0;
     kingdomLevel = state.kingdomLevel ?? 0;
     raidsStarted = state.raidsStarted ?? false;
-    if (state.raidTierIndex !== undefined) {
-        raidTierIndex = state.raidTierIndex;
-        tierWave = state.tierWave ?? 0;
-        raidWinStreak = state.raidWinStreak ?? 0;
-    } else {
-        raidTierIndex = getRaidTierIndex(kingdomLevel);
-        tierWave = 0;
-        raidWinStreak = 0;
-    }
+    raidTierIndex = state.raidTierIndex ?? 0;
+    tierWave = state.tierWave ?? 0;
+    raidWinStreak = state.raidWinStreak ?? 0;
     invasionTimer = state.invasionTimer ?? 0;
     currentInvasion = (state.currentInvasion && state.currentInvasion.enemies) ? state.currentInvasion : null;
     lastVictory = state.lastVictory ?? null;
@@ -1314,9 +1359,7 @@ function renderRaidStatusBar() {
             html += `<div class="raid-status-siege">The Kingdom is under siege!</div>`;
         }
     } else if (raidsStarted) {
-        const previewTierIndex = getRaidTierIndex(kingdomLevel);
-        const previewWave = previewTierIndex === raidTierIndex ? tierWave : 0;
-        const nextName = getInvasionName(previewTierIndex, previewWave);
+        const nextName = getInvasionName(raidTierIndex, tierWave);
         html += `<div class="raid-status-name">Next: ${nextName}</div>
             <div class="raid-status-timer">Arrives in ${formatTimer(invasionTimer)}</div>`;
     } else {
