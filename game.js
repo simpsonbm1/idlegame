@@ -184,7 +184,7 @@ const TIER_WAVES = [
         ['brute 0 0', 'brute 0 1', 'brute 0 2', 'brute 0 3', 'skirmisher 1 3', 'caster 1 1', 'caster 1 2', 'shaman 2 0', 'shaman 2 3', 'sapper 2 2'],
         ['brute 0 0', 'brute 0 1', 'brute 0 2', 'skirmisher 0 3', 'caster 1 0', 'caster 1 3', 'shaman 1 1', 'shaman 1 2', 'sapper 2 0', 'sapper 2 3'],
         ['brute 0 0', 'brute 0 1', 'brute 0 2', 'brute 0 3', 'caster 1 0', 'caster 1 2', 'shaman 1 1', 'shaman 1 3', 'sapper 2 1', 'sapper 2 2'],
-        ['BOSS 0 1', 'brute 0 0', 'brute 0 2', 'brute 0 3', 'caster 1 0', 'caster 1 2', 'shaman 1 1', 'shaman 1 3', 'sapper 2 1', 'sapper 2 2']
+        ['BOSS 0 1', 'brute 0 0', 'brute 0 2', 'brute 0 3', 'caster 1 0', 'shaman 1 1', 'shaman 1 3', 'sapper 2 1', 'sapper 2 2']
     ]
 ];
 
@@ -288,7 +288,13 @@ const UPGRADE_TREES = {
             { id: 'treasury',    name: 'Royal Treasury',   desc: 'Begin each Age with a larger treasury (250 / 1,000 / 4,000 / 15,000 gold)', maxRank: 4, costs: [10, 40, 150, 500] },
             { id: 'builders',    name: 'Master Builders',  desc: '+50% Builder HP regen per rank',                               maxRank: 3, costs: [25, 100, 400] },
             { id: 'steward',     name: "Steward's Ledger", desc: 'Unlocks auto-hiring for townsfolk',                            maxRank: 1, costs: [150] },
-            { id: 'foundations', name: 'Old Foundations',  desc: 'New Ages begin at Village level',                              maxRank: 1, costs: [400] }
+            { id: 'foundations', name: 'Old Foundations',  desc: 'New Ages begin at Village level',                              maxRank: 1, costs: [400] },
+            // Doctrines (M12): buildings feed the army, so town composition
+            // stays a battle decision all game.
+            { id: 'forgework', name: 'Smithy Forgework',    desc: '+1.5% hero attack per Smithy owned',                           maxRank: 1, costs: [2000] },
+            { id: 'tactics',   name: 'Library Tactics',     desc: '+1% hero action speed per Library owned',                      maxRank: 1, costs: [3000] },
+            { id: 'salves',    name: 'Apothecary Salves',   desc: 'Heroes regenerate 0.3% HP/s per Apothecary during battle',     maxRank: 1, costs: [5000] },
+            { id: 'blessing',  name: 'Cathedral Blessing',  desc: 'The first hero to fall each battle revives at 30% HP (requires a Cathedral)', maxRank: 1, costs: [8000] }
         ]
     },
     military: {
@@ -356,6 +362,14 @@ function heroCostMult()      { return Math.pow(0.85, upgradeRank('muster')); }
 // (kingdom level + Keeps only shift weights *under* the unlocked ceiling).
 function heroRarityCap()     { return upgradeRank('renown'); }
 function getKingdomHpMax()   { return KINGDOM_HP_MAX + 250 * upgradeRank('walls'); }
+
+// Doctrines (M12): live multipliers from buildings owned — computed at use
+// time via the M11 modifier layer, so they apply to already-hired heroes and
+// track building purchases mid-run.
+function doctrineAttackMult()  { return upgradeRank('forgework') ? 1 + 0.015 * buildings.smithy.count : 1; }
+function doctrineSpeedMult()   { return upgradeRank('tactics')   ? 1 + 0.01  * buildings.library.count : 1; }
+function doctrineSalvesRegen() { return upgradeRank('salves')    ? 0.003 * buildings.apothecary.count : 0; } // fraction of maxHp/s
+function blessingAvailable()   { return upgradeRank('blessing') > 0 && buildings.cathedral.count > 0; }
 
 // Hero grid dimensions by War Banners rank: 2x3 -> 3x4 -> 4x4 (rows x cols).
 // Row 0 is the frontline; rows only ever grow, so no unit can be orphaned.
@@ -799,6 +813,7 @@ function effectiveAttackPower(unit) {
     let power = unit.attack.power;
     if (isEnraged(unit)) power *= unit.enrage.power || 1;
     power *= 1 + auraBonus(unit);
+    if (unit.side === 'hero') power *= doctrineAttackMult();
     return power;
 }
 
@@ -812,14 +827,28 @@ function effectiveActionInterval(unit, action) {
     let interval = BASE_ATTACK_INTERVAL / action.speed;
     if (isEnraged(unit)) interval /= unit.enrage.speed || 1;
     if (chilled(unit)) interval *= unit.chillMult || 1;
+    if (unit.side === 'hero') interval /= doctrineSpeedMult();
     return interval;
 }
 
 // On-death hook (M11): enemies with reviveCharges (necromancers, the Lich
 // Commander) raise a fallen ally at 50% HP — once per charge, and only while
 // the reviver itself stands. Kill order is the counter.
+// M12: the hero side gets Cathedral Blessing — the first hero to fall each
+// battle revives at 30% HP (blessingUsed lives on currentInvasion, so it
+// resets naturally with each new battle).
 function onUnitDeath(unit) {
-    if (unit.side !== 'enemy' || !currentInvasion) return;
+    if (!currentInvasion) return;
+    if (unit.side === 'hero') {
+        if (blessingAvailable() && !currentInvasion.blessingUsed) {
+            currentInvasion.blessingUsed = true;
+            unit.alive = true;
+            unit.hp = Math.max(1, Math.round(unit.maxHp * 0.3));
+            if (unit.attack) unit.attack.cooldown = effectiveActionInterval(unit, unit.attack);
+            if (unit.heal) unit.heal.cooldown = effectiveActionInterval(unit, unit.heal);
+        }
+        return;
+    }
     for (const ally of currentInvasion.enemies) {
         if (!ally || !ally.alive || !(ally.reviveCharges > 0)) continue;
         ally.reviveCharges--;
@@ -940,6 +969,16 @@ function combatTick(deltaMs) {
                     unit.heal.cooldown += effectiveActionInterval(unit, unit.heal);
                 }
                 // Nobody wounded yet — hold the heal ready and check again next tick.
+            }
+        }
+    }
+
+    // Apothecary Salves (M12): heroes slowly regenerate during battle.
+    const salves = doctrineSalvesRegen();
+    if (salves > 0) {
+        for (const hero of heroSquad) {
+            if (hero && hero.alive && hero.hp < hero.maxHp) {
+                hero.hp = Math.min(hero.maxHp, hero.hp + hero.maxHp * salves * (deltaMs / 1000));
             }
         }
     }

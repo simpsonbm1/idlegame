@@ -326,6 +326,10 @@ Two permanent, currency-funded trees spent into after each reset. Full planned s
 | Military | Rimecraft (M11) | unlocks the Frost Adept archetype | 1 | 1,200 |
 | Military | Standard Bearers (M11) | unlocks the Banneret archetype | 1 | 1,500 |
 | Economy | Steward's Ledger (M10) | unlocks townsfolk auto-hire (always-on in dev builds via `DEV_MODE`) | 1 | 150 |
+| Economy | Smithy Forgework (M12) | +1.5% hero attack per Smithy owned | 1 | 2,000 |
+| Economy | Library Tactics (M12) | +1% hero action speed per Library owned | 1 | 3,000 |
+| Economy | Apothecary Salves (M12) | heroes regen 0.3% HP/s per Apothecary in battle | 1 | 5,000 |
+| Economy | Cathedral Blessing (M12) | first fallen hero each battle revives at 30% (needs a Cathedral) | 1 | 8,000 |
 | Economy | Prosperous Trade | +25% gold income | 5 | 15 / 60 / 250 / 1,000 / 4,000 |
 | Economy | Royal Treasury | starting gold 50 → 250 / 1,000 / 4,000 / 15,000 | 4 | 10 / 40 / 150 / 500 |
 | Economy | Master Builders | +50% Builder HP regen | 3 | 25 / 100 / 400 |
@@ -338,12 +342,14 @@ Two permanent, currency-funded trees spent into after each reset. Full planned s
 
 Effects route through helper functions (`econIncomeMult`, `heroPowerMult`, `getKingdomHpMax`, etc.) so later nodes slot in without special-casing. Squad expansion, archetype unlocks, doctrines, and pool QoL arrive in M10–M12.
 
-### Doctrines — building↔army synergy nodes (Economy tree)
-Each doctrine makes a building type directly feed the army, so town composition stays a battle decision all game and the Economy tree keeps late-game relevance. Keep's existing hero-rarity bias is the template for this family:
-- **Smithy Forgework** — +1.5% hero attack per Smithy owned
-- **Library Tactics** — +1% hero action speed per Library owned
-- **Apothecary Salves** — heroes slowly regenerate HP mid-battle
-- **Cathedral Blessing** — the first hero to fall each battle revives at 30% HP (requires a Cathedral)
+### Doctrines — building↔army synergy nodes (Economy tree) — implemented in M12
+Each doctrine makes a building type directly feed the army, so town composition stays a battle decision all game and the Economy tree keeps late-game relevance. Keep's hero-rarity bias is the template. All are **live multipliers computed at use time** through the M11 modifier layer — they apply to already-hired heroes and track building purchases mid-run:
+- **Smithy Forgework** (2,000 Legacy) — +1.5% hero attack per Smithy owned (`doctrineAttackMult` in `effectiveAttackPower`)
+- **Library Tactics** (3,000 Legacy) — +1% hero action speed per Library owned (`doctrineSpeedMult` in `effectiveActionInterval`; speeds attacks *and* heals)
+- **Apothecary Salves** (5,000 Legacy) — heroes regenerate 0.3% max HP/s per Apothecary during battle (`doctrineSalvesRegen` in `combatTick`)
+- **Cathedral Blessing** (8,000 Legacy) — the first hero to fall each battle revives at 30% HP; requires owning a Cathedral (`blessingAvailable` via the `onUnitDeath` hook; `blessingUsed` flag lives on `currentInvasion` so it resets each battle)
+
+Sim-verified endgame role: 16 legendaries ×2.0 tree score **2%** on the Dragon Empress without doctrines, **25%** with Realm-level doctrines — the doctrine family is what opens the final boss (the Final Siege then lands in M13 as the true finale).
 
 ### New hero archetypes (Military-tree unlocks, ~one per run for novelty)
 Sequenced so the zero-engine-work heroes arrive first:
@@ -480,7 +486,7 @@ a 100× battle must not fire 100× the particles and sounds).
 - [x] Milestone 9.6: **Siege escalation** — anti-stalemate fix from the 2026-07-17 1× playtest (run 1 hit a true soft-lock at Bandit w3: enemy Medic out-healed reinforcement chip damage while rehires + Builder regen kept the Kingdom maxed — one endless battle, ~2 runs deeper than the arc target, 1,130 Legacy banked): past a 60s per-battle grace, enemy attack ramps +1%/s until the siege resolves; healer top-off on win (survivors leave the field at full HP); sim gained escalation, win-duration stats, and the reinforcement-grind model; SAVE_VERSION → 4 (old saves + broken-run Legacy discarded); browser smoke-tested (banner, overrun path, top-off, win path)
 - [x] Milestone 10: **First new heroes** (wild/m10-m14 branch) — Paladin + Assassin archetypes behind Paladin's Oath / Shadow Guild Military nodes (pool filters by `unlockedHeroArchetypes()`); War Banners squad expansion (2x3 → 3x4 → 4x4, `resizeHeroSquad`, compact battle-grid UI, targeting generalized to N rows); Steward's Ledger Economy node makes townsfolk auto-hire a purchase (`DEV_MODE` keeps it free in dev builds). Sim finding: 12/16-slot squads overshoot the arc against *current* 4-5 unit enemy waves — M11's enemy-grid expansion is the designed counterweight; War Banners pricing finalized in M14. Browser-smoked (resize, unlock filtering, hybrid/backline behavior, 16-slot render)
 - [x] Milestone 11: **Combat engine features** (wild/m10-m14 branch) — computed modifier layer (enrage / auras / chill / row-AoE at 0.65 discount / on-death revive); per-tier tactical lessons + boss signature traits (raid-tier table); hand-authored deterministic wave compositions (`TIER_WAVES`) with variety mixes; enemy grid expansion 2x3 → 3x4 (Bandit) → 4x4 (Dragon); sappers + resident injury (25%/hit, 90s, never killed, `recomputeIncome` authoritative per tick); Battlemage/Banneret/Frost Adept unlocks (War Magics 800 / Standard Bearers 1,500 / Rimecraft 1,200). Sim ported 1:1; arc re-verified (capC walls Orc w5–boss, capR Bandit w6–boss, 12-epic walls Dark w9–14, 16-epic Dragon w2–9, 16-leg reaches Dragon w9 at 90% with the **final boss still closed at 0% — M12 doctrines must open it, verify then**). Browser-smoked (sapper kingdom bypass + injury, necro revive, breath data, battlemage AoE, chill, 3x4/4x4 grids)
-- [ ] Milestone 12: **Doctrines** — building↔army synergy nodes
+- [x] Milestone 12: **Doctrines** (wild/m10-m14 branch) — the four building↔army synergy nodes (Forgework / Tactics / Salves / Blessing, 2k/3k/5k/8k Legacy) as live use-time multipliers through the M11 modifier layer; Dragon boss comp trimmed one breath-mage; sim-verified that doctrines open the final boss (2% → 25% for the endgame squad); browser-smoked (multiplier values, blessing one-revive-per-battle)
 - [ ] Milestone 13: **Final Siege** — 3-phase gauntlet, victory screen, endless mode
 - [ ] Milestone 14: **Full-game balance playtest** against the *Difficulty arc across runs* table
 - [ ] Milestone 15: **Game feel — visuals & sound** — the juice pass that turns the mechanically-complete game (M14) into one that feels good to play: combat/UI feedback animations, floating numbers, kingdom-damage and run-transition drama, portrait/sprite art pass; Web Audio SFX (hits, hires, raid horn, escalation heartbeat, stingers) with mute/volume; reduced-motion toggle. Scope sketch in *Game feel pass — visuals & sound (M15)*

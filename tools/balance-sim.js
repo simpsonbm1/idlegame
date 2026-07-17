@@ -121,7 +121,7 @@ const TIER_WAVES = [
         ['brute 0 0', 'brute 0 1', 'brute 0 2', 'brute 0 3', 'skirmisher 1 3', 'caster 1 1', 'caster 1 2', 'shaman 2 0', 'shaman 2 3', 'sapper 2 2'],
         ['brute 0 0', 'brute 0 1', 'brute 0 2', 'skirmisher 0 3', 'caster 1 0', 'caster 1 3', 'shaman 1 1', 'shaman 1 2', 'sapper 2 0', 'sapper 2 3'],
         ['brute 0 0', 'brute 0 1', 'brute 0 2', 'brute 0 3', 'caster 1 0', 'caster 1 2', 'shaman 1 1', 'shaman 1 3', 'sapper 2 1', 'sapper 2 2'],
-        ['BOSS 0 1', 'brute 0 0', 'brute 0 2', 'brute 0 3', 'caster 1 0', 'caster 1 2', 'shaman 1 1', 'shaman 1 3', 'sapper 2 1', 'sapper 2 2']
+        ['BOSS 0 1', 'brute 0 0', 'brute 0 2', 'brute 0 3', 'caster 1 0', 'shaman 1 1', 'shaman 1 3', 'sapper 2 1', 'sapper 2 2']
     ]
 ];
 
@@ -259,6 +259,12 @@ function dmg(power, defense) {
     return Math.max(1, Math.round(power * (1 - defense / 100)));
 }
 
+// --- M12 doctrines (mirror of game.js; set per scenario, applied to heroes) ---
+// attack: Smithy Forgework mult; speed: Library Tactics mult; salves: fraction
+// of maxHp regen/s (Apothecary); blessing: first hero death revives at 30%.
+let DOCTRINES = { attack: 1, speed: 1, salves: 0, blessing: false };
+let blessingUsed = false; // reset at each battle start
+
 // --- M11 modifier layer (mirror of game.js) ---
 function isEnraged(u) { return u.enrage && u.alive && u.hp / u.maxHp < 0.5; }
 
@@ -276,18 +282,30 @@ function auraBonus(unit, squad) {
 function effPower(unit, squad) {
     let p = unit.attack.power;
     if (isEnraged(unit)) p *= unit.enrage.power || 1;
-    return p * (1 + auraBonus(unit, squad));
+    p *= 1 + auraBonus(unit, squad);
+    if (unit.side === 'hero') p *= DOCTRINES.attack;
+    return p;
 }
 
 function effInterval(unit, action, battleT) {
     let interval = CFG.BASE_ATTACK_INTERVAL / action.speed;
     if (isEnraged(unit)) interval /= unit.enrage.speed || 1;
     if (unit.chilledUntil !== undefined && battleT < unit.chilledUntil) interval *= unit.chillMult || 1;
+    if (unit.side === 'hero') interval /= DOCTRINES.speed;
     return interval;
 }
 
 function onUnitDeath(unit, enemies) {
-    if (unit.side !== 'enemy') return;
+    if (unit.side === 'hero') {
+        if (DOCTRINES.blessing && !blessingUsed) {
+            blessingUsed = true;
+            unit.alive = true;
+            unit.hp = Math.max(1, Math.round(unit.maxHp * 0.3));
+            if (unit.attack) unit.attack.cooldown = CFG.BASE_ATTACK_INTERVAL / unit.attack.speed;
+            if (unit.heal) unit.heal.cooldown = CFG.BASE_ATTACK_INTERVAL / unit.heal.speed;
+        }
+        return;
+    }
     for (const ally of enemies) {
         if (!ally || !ally.alive || !(ally.reviveCharges > 0)) continue;
         ally.reviveCharges--;
@@ -347,6 +365,12 @@ function combatTick(heroes, enemies, kingdomAlive, escMult = 1, battleT = 0) {
         }
         // dead heroes free their slot at moment of death (M8 rule) -- modeled
         // by the alive flag; slot reuse handled by the hire logic outside.
+    }
+    // Apothecary Salves (M12): heroes regenerate during battle.
+    if (DOCTRINES.salves > 0) {
+        for (const h of heroes) {
+            if (h && h.alive && h.hp < h.maxHp) h.hp = Math.min(h.maxHp, h.hp + h.maxHp * DOCTRINES.salves);
+        }
     }
     return kingdomDmg;
 }
@@ -456,6 +480,7 @@ function simulateRun({ treeIncome = 1, treePower = 1, treeHp = 1, startGold = 50
                 if (timer <= 0) {
                     battle = generateEnemySquad(tierIdx, wave);
                     battleT = 0;
+                    blessingUsed = false;
                     for (const h of heroes) { h.hp = h.maxHp; h.alive = true; delete h.chilledUntil; if (h.attack) h.attack.cooldown = CFG.BASE_ATTACK_INTERVAL / h.attack.speed; if (h.heal) h.heal.cooldown = CFG.BASE_ATTACK_INTERVAL / h.heal.speed; }
                 }
             }
@@ -467,10 +492,13 @@ function simulateRun({ treeIncome = 1, treePower = 1, treeHp = 1, startGold = 50
 function fmt(s) { return `${String(Math.floor(s / 60)).padStart(3)}m${String(s % 60).padStart(2, '0')}`; }
 
 // ---------- Squad-vs-wave win-rate table (deeper-run sanity check) ----------
-function winRate(squadSpec, tierIdx, wave, trials = 40) {
+function winRate(squadSpec, tierIdx, wave, trials = 40, doctrines = null) {
     let wins = 0;
     const winTimes = [];
+    const saved = DOCTRINES;
+    if (doctrines) DOCTRINES = { ...saved, ...doctrines };
     for (let i = 0; i < trials; i++) {
+        blessingUsed = false;
         const heroes = squadSpec.map(([k, r, tp, th]) => makeHero(k, r, tp, th));
         assignHeroCols(heroes);
         const enemies = generateEnemySquad(tierIdx, wave);
@@ -481,6 +509,7 @@ function winRate(squadSpec, tierIdx, wave, trials = 40) {
             if (!enemies.some(e => e.alive)) { wins++; winTimes.push(ticks); break; }
         }
     }
+    DOCTRINES = saved;
     winTimes.sort((a, b) => a - b);
     return { rate: wins / trials, medWin: winTimes.length ? winTimes[Math.floor(winTimes.length / 2)] : null };
 }
@@ -496,6 +525,7 @@ function grindBattle({ tierIdx, wave, rarityMult = 1, income = 400, regen = 6, h
     // Real walls are hit with a full squad standing and a deep wallet — the
     // previous wave was just won. Rehires then drip in against attrition.
     let gold = 20000, khp = CFG.KINGDOM_HP_MAX, cd = 0, hired = 0;
+    blessingUsed = false;
     let heroes = [0, 1, 2, 3, 4, 5].map(i => makeHero(want[i % want.length], rarityMult));
     assignHeroCols(heroes);
     const enemies = generateEnemySquad(tierIdx, wave);
@@ -582,6 +612,22 @@ for (const [label, spec] of specs) {
         }
     }
     console.log(label.padEnd(20) + cells.join(' '));
+}
+
+// M12 verification: doctrines must open the final boss for the endgame squad.
+// Realm-level doctrine values: 7 Smithies x1.5% = x1.105 attack, 6 Libraries
+// x1% = x1.06 speed, 4 Apothecaries x0.3% = 1.2%/s salves, blessing on.
+console.log('\n=== M12 doctrine check (16-slot squads + Realm doctrines) ===');
+const REALM_DOCTRINES = { attack: 1.105, speed: 1.06, salves: 0.012, blessing: true };
+for (const [label, spec, ti, w] of [
+    ['16 epic x1.7 vs Dark boss',   sixteen(5, 1.7, 1.7), 3, 13],
+    ['16 epic x1.7 vs Drag w9',     sixteen(5, 1.7, 1.7), 4, 8],
+    ['16 leg x2.0 vs Drag w9',      sixteen(10, 2, 2), 4, 8],
+    ['16 leg x2.0 vs Drag w17 BOSS', sixteen(10, 2, 2), 4, 16],
+]) {
+    const bare = winRate(spec, ti, w, 60);
+    const doc = winRate(spec, ti, w, 60, REALM_DOCTRINES);
+    console.log(`${label.padEnd(28)} no doctrines: ${String(Math.round(bare.rate * 100)).padStart(3)}%   with doctrines: ${String(Math.round(doc.rate * 100)).padStart(3)}%`);
 }
 
 console.log('\n=== Fair-fight win durations (median s; must sit under the ' + CFG.SIEGE_ESCALATION_GRACE + 's escalation grace) ===');
