@@ -519,10 +519,30 @@ a 100× battle must not fire 100× the particles and sounds).
 ### Feel-adjacent QoL
 - Reduced-motion / no-shake toggle alongside the volume controls.
 
-### Known performance debt (found in the M14 soak, 2026-07-17)
-`tickRender()` rebuilds large chunks of the DOM (innerHTML) every tick; at 100× dev speed the game
-runs at only ~5-8× effective. M15's "smooth at 100×" constraint requires render throttling
-(render at most ~10-20fps regardless of tick rate) and/or incremental DOM updates.
+### Render architecture (M15 Phase 0 — implemented 2026-07-17; the old perf debt is PAID)
+`tick()` is pure simulation; nothing in the tick path touches the DOM. (Saves are wall-clock
+throttled to 1/sec inside tick; endRun/purchases/level-ups still save explicitly.) All painting
+happens in a `requestAnimationFrame` loop (`renderFrame` → `renderAll`, capped at
+`RENDER_INTERVAL_MS` 66ms ≈ 15fps), so render cost is independent of dev speed — measured in
+the Phase 0 verification: **100× dev speed runs at a true 100× effective** (was 5–8×; a sim
+tick costs ~0.02ms). The mechanisms:
+- **Memoized panels** (`setPanelHtml`): innerHTML only touches the DOM when the freshly built
+  string differs from the last one; panels with embedded timers naturally refresh once per
+  game-second at 1×, at frame cadence at dev speeds.
+- **Persistent battle slots**: `renderSquad` = `squadSignature` (grid shape + per-slot unit
+  identity via `unit._domKey`) → `buildSquad` rebuilds structure only when the signature
+  changes → `updateSquad` updates HP widths/text/classes in place every frame. Persistent
+  elements are what let CSS animations survive across frames — the prerequisite for all M15
+  juice. Slot click handlers read armed-state at click time (they outlive the render pass
+  that created them); drag handlers attach once per structure build.
+- **FX bus** (`emitFx`/`drainFx`): combat emits typed events (`hit`/`heal`/`kingdomHit` — from
+  `resolveAttack`/`resolveHeal`/`attackKingdom`); the queue drains once per rendered frame,
+  coalescing damage/heal per unit and capping concurrent floats (`FX_MAX_FLOATS_PER_SLOT`),
+  so 100× speed produces 1× on-screen effect density. First consumers are live: floating
+  damage/heal numbers, hit/heal slot flashes, kingdom-hit flash (`.fx-*` rules at the end of
+  `style.css`, with a `prefers-reduced-motion` guard). Death/revive events are Phase 1 scope.
+- `updateUI()` survives as the universal "repaint now" entry point for event handlers — an
+  immediate full pass is cheap now that everything is memoized.
 
 ## Milestone tracker
 - [x] Milestone 1: Gold counter ticking automatically
@@ -542,7 +562,7 @@ runs at only ~5-8× effective. M15's "smooth at 100×" constraint requires rende
 - [x] Milestone 13: **Final Siege** (wild/m10-m14 branch) — herald + 3-raid countdown after the first Demon Empress kill; 3-phase gauntlet as one invasion (HP carries, escalation resets per phase, Blessing once per gauntlet; phase waves 14/16/18 sim-tuned to ~38% for the endgame squad with doctrines, 0% without); Lessons of the Last Siege (25,000 Legacy, once) on a lost attempt; victory screen with campaign stats; endless mode (post-boss comp clamp, no second siege); browser-smoked end-to-end (herald, phases, victory overlay, endless resume, lessons once-only)
 - [x] Milestone 14: **Full-game balance calibration** (wild/m10-m14 branch; sim + accelerated-engine version — the user's real 1× playthrough is the acceptance gate) — campaign-arc wall-finder in the sim (per-run arc squads vs targets: on-target at both ends, ~half a tier deep mid-campaign; gauntlet 27–38% with the full kit, 0% without doctrines); tree-cost rescale to the pricing philosophy (totals ≈90k, winning kit ≈⅔; top power ranks 6,000, War Banners 4,000/30,000, Blessing 10,000); SAVE_VERSION → 5; browser soak test: a greedy driver played run 1 end-to-end at accelerated speed and fell to Orc w6 with 10 waves / 330 Legacy — matching the sim's prediction (Orc w5–7, ~380 LP) with zero console errors; known perf debt recorded for M15 (per-tick DOM rebuild caps 100× at ~5–8× effective)
 - [x] Milestone 14.1: **Acceptance-playtest feedback round 1** (uncommitted on wild/m10-m14) — stale-affordability UI fix (per-tick `refreshAffordability`); new-save softlock fix (starting gold 75); battle-grid column-stagger fix + hero-pool timer; **combat rebalance from the 5-reset playtest**: the **guard spectrum** (guardian 3 / paladin·banneret 2 / fighter 1.5 / assassin 0.5 weighted targeting, "GRD ×N" on unit cards), Fighter base-roster archetype (Footman/Sellsword/Blademaster/Warlord — frontline DPS), mender buff (22/65/8), paladin heal trim (11→9), hero costs ×1.4/raid tier, Reinforced Walls +3 Kingdom defense/rank, doctrine shop copy rewritten for impact. Sim re-verified: arc lands on the M14 baseline run-for-run (run-1 model reproduces the user's actual run 1 exactly: Orc w7, 11 waves, 380 LP), frontline composition is tier-dependent, paladin-stacks are a specialist choice, rear-row bodyguarding is a real matchup call, slippery assassins non-degenerate. Browser-smoked (weighted distributions exact, cost scaling ×1.96 at tier 2, walls def 27, GRD display, live battle repelled clean)
-- [ ] Milestone 15: **Game feel — visuals & sound** — the juice pass that turns the mechanically-complete game (M14) into one that feels good to play: combat/UI feedback animations, floating numbers, kingdom-damage and run-transition drama, portrait/sprite art pass; Web Audio SFX (hits, hires, raid horn, escalation heartbeat, stingers) with mute/volume; reduced-motion toggle. Scope sketch in *Game feel pass — visuals & sound (M15)*. **In progress:** full scope in `M15_SCOPE.md`; Gemini art workflow proven (`M15_ART_PILOT.md` — anchor knight, goblin, backdrop, frame all passed; pipeline tools in `tools/`); tier re-theme (Undead Legion / Infernal Siege) landed ahead of the asset run
+- [ ] Milestone 15: **Game feel — visuals & sound** — the juice pass that turns the mechanically-complete game (M14) into one that feels good to play: combat/UI feedback animations, floating numbers, kingdom-damage and run-transition drama, portrait/sprite art pass; Web Audio SFX (hits, hires, raid horn, escalation heartbeat, stingers) with mute/volume; reduced-motion toggle. Scope sketch in *Game feel pass — visuals & sound (M15)*. **In progress:** full scope in `M15_SCOPE.md`; Gemini art workflow proven (`M15_ART_PILOT.md` — anchor knight, goblin, backdrop, frame all passed; pipeline tools in `tools/`); tier re-theme (Undead Legion / Infernal Siege) landed ahead of the asset run; **Phase 0 render refactor DONE 2026-07-17** (sim/render decoupled, memoized panels, persistent battle slots, FX bus with first consumers; 100× measured at true 100× effective, browser-verified across three organic run-ends with zero console errors — see *Render architecture* above)
 
 ## Starting state
 - Player begins with 75 gold — enough that even buying all 3 Hamlet Cottages (39g) still leaves the first 25g Villager hire affordable (softlock guard, 2026-07-17; was 50); Royal Treasury ranks raise this for later Ages

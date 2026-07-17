@@ -14,7 +14,17 @@
 - The developer authors no visuals; audio uses prefab (CC0) assets until/unless they decide to
   compose their own — the architecture must make that swap trivial (see the sound manifest).
 
-## Phase 0 — Render-layer refactor (prerequisite; pays off the M14 perf debt)
+## Phase 0 — Render-layer refactor — ✅ DONE 2026-07-17 (all exit criteria met)
+Verified: 100× dev speed measured at a **true 100× effective** (500 game-seconds in 5.0 wall
+seconds; sim tick ~0.02ms — was 5–8× effective before); CSS animations survive across ticks
+(persistent battle slots — hit flashes and floating numbers confirmed live in battle); zero
+console errors across fresh boot, three organic run-ends (repelled waves, squad wipe → siege →
+overrun → summary → new Age), hires, level-ups, and the dismiss-arming flow. First FX
+consumers shipped with the bus: damage/heal floats, hit/heal flashes, kingdom-hit flash, with
+per-frame coalescing and a `prefers-reduced-motion` guard. Death/revive FX deferred to
+Phase 1 as planned. Architecture documented in CLAUDE.md (*Render architecture*).
+
+Original scope (for the record):
 
 **Why this must come first:** `tickRender()` rebuilds panels with `innerHTML` every tick.
 Two consequences:

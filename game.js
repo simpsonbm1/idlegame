@@ -33,6 +33,7 @@ let victoryPending = false;   // campaign won, victory screen up, world frozen u
 const buildingExpanded = {};
 let gameSpeed = 1;
 let tickInterval = null;
+let lastSaveTime = 0; // wall-clock save throttle (M15 Phase 0)
 let isDraggingHero = false;
 let armedHeroSlot = null;
 let armedHeroSlotTime = 0;
@@ -845,7 +846,9 @@ function pickHealTarget(friendlySquad) {
 
 function resolveHeal(healer, target) {
     const power = healer.heal.power * (1 + auraBonus(healer));
+    const before = target.hp;
     target.hp = Math.min(target.maxHp, target.hp + power);
+    if (target.hp > before) emitFx('heal', target, target.hp - before);
 }
 
 // Enemy attacks (and only enemy attacks — never heals, or the stalemate would
@@ -935,6 +938,7 @@ function resolveAttack(attacker, defender, powerScale = 1) {
     if (attacker.side === 'enemy') power *= escalationMult(currentInvasion);
     const dmg = Math.max(1, Math.round(power * (1 - defender.defense / 100)));
     defender.hp -= dmg;
+    emitFx('hit', defender, dmg);
     if (attacker.attack.chill && defender.hp > 0) {
         defender.chilledUntil = (currentInvasion ? currentInvasion.duration || 0 : 0) + attacker.attack.chill.duration;
         defender.chillMult = attacker.attack.chill.mult;
@@ -957,6 +961,7 @@ function attackKingdom(attacker) {
     const power = effectiveAttackPower(attacker) * escalationMult(currentInvasion);
     const dmg = Math.max(1, Math.round(power * (1 - getKingdomDefense() / 100)));
     kingdomHP = Math.max(0, kingdomHP - dmg);
+    emitFx('kingdomHit', null, dmg);
 }
 
 // A sapper hit on the Kingdom can put a random staffed resident out of action
@@ -973,7 +978,6 @@ function maybeInjureResident() {
     if (staffed.length === 0) return;
     randomFrom(staffed).injuredUntil = runTime + INJURY_DURATION;
     recomputeIncome();
-    renderBuildings();
 }
 
 function isInjured(resident) {
@@ -1585,9 +1589,7 @@ function tick() {
     poolTimer++;
     if (poolTimer >= POOL_REFRESH_INTERVAL) {
         poolTimer = 0;
-        const hired = refreshPool();
-        renderRecruitPool();
-        if (hired) renderBuildings();
+        refreshPool();
     }
 
     if (kingdomLevel >= RAID_TRIGGER_LEVEL) {
@@ -1595,7 +1597,6 @@ function tick() {
         if (heroPoolTimer >= HERO_POOL_REFRESH_INTERVAL) {
             heroPoolTimer = 0;
             refreshHeroPool();
-            renderHeroRecruitPool();
         }
     }
 
@@ -1625,8 +1626,13 @@ function tick() {
         }
     }
 
-    saveGame();
-    tickRender();
+    // Saves are wall-clock throttled (M15 Phase 0): at 100x dev speed a
+    // per-tick localStorage write is real overhead. Critical moments
+    // (endRun, purchases, upgrade buys) still save explicitly themselves.
+    if (Date.now() - lastSaveTime >= 1000) {
+        lastSaveTime = Date.now();
+        saveGame();
+    }
 }
 
 function levelUpKingdom() {
@@ -1736,7 +1742,7 @@ function renderRecruitPool() {
     }
 
     html += `</div>`;
-    document.getElementById('recruit-pool').innerHTML = html;
+    setPanelHtml('recruit-pool', html);
 }
 
 // Buy-button state for the current buy-quantity mode. Shared by the full
@@ -1841,7 +1847,7 @@ function renderBuildings() {
 
         html += `</div>`;
     }
-    document.getElementById('building-list').innerHTML = html;
+    setPanelHtml('building-list', html);
 }
 
 function renderLeftPanel() {
@@ -1902,7 +1908,7 @@ function renderLeftPanel() {
         </div>`;
     }
 
-    document.getElementById('left-panel-dynamic').innerHTML = html;
+    setPanelHtml('left-panel-dynamic', html);
 }
 
 function renderKingdomHP() {
@@ -1913,7 +1919,7 @@ function renderKingdomHP() {
         <div class="hp-bar-caption">${Math.round(kingdomHP).toLocaleString()} / ${hpMax.toLocaleString()}</div>
         ${kingdomHP <= 0 ? '<div class="kingdom-falling">Kingdom Falling!</div>' : ''}
         ${kingdomFallRecord ? `<div class="kingdom-fall-record">Fell at: ${kingdomFallRecord.name} (Kingdom Lv ${kingdomFallRecord.level})</div>` : ''}`;
-    document.getElementById('kingdom-hp').innerHTML = html;
+    setPanelHtml('kingdom-hp', html);
 }
 
 function renderRaidStatusBar() {
@@ -1945,14 +1951,105 @@ function renderRaidStatusBar() {
         html += `<div class="victory-inline">Repelled: ${lastVictory.name} +${lastVictory.loot.toLocaleString()}g${legacyPart}</div>`;
     }
 
-    document.getElementById('raid-status-bar').innerHTML = html;
+    setPanelHtml('raid-status-bar', html);
 }
 
 // Heroes: backline column first, frontline second (frontline sits nearest the
 // Enemies area). Enemies: frontline first, backline second (frontline sits
 // nearest the Defenders area). This keeps both frontlines next to each other.
-function renderSquad(containerId, squad, sideClass, columnOrder, interactive, cols = 3) {
-    const el = document.getElementById(containerId);
+// --- M15 Phase 0: persistent battle-slot DOM + FX bus ---
+// Slots are BUILT once per structural change (grid shape or unit identity,
+// tracked by a signature) and UPDATED in place every render frame. Persistent
+// elements are what lets CSS animations (hit flashes, floating numbers)
+// survive across frames — innerHTML rebuilds killed them every tick before.
+
+let domKeyCounter = 0;
+const slotElByKey = new Map(); // unit._domKey -> live slot element
+
+function unitDomKey(unit) {
+    if (unit._domKey === undefined) unit._domKey = ++domKeyCounter;
+    return unit._domKey;
+}
+
+// FX bus: combat emits typed events; drainFx runs once per RENDERED frame and
+// coalesces per unit (one number per unit per frame, float count capped), so
+// 100x dev speed produces the same on-screen effect density as 1x.
+const fxQueue = [];
+const FX_MAX_FLOATS_PER_SLOT = 2;
+
+function emitFx(type, unit, amount) {
+    // Hidden tabs don't render (rAF pauses), so a long-running battle could
+    // pool events without bound — stale visuals aren't worth keeping.
+    if (fxQueue.length > 2000) fxQueue.length = 0;
+    fxQueue.push({ type, key: unit ? unitDomKey(unit) : null, amount: amount || 0 });
+}
+
+function flashClass(el, cls) {
+    el.classList.remove(cls);
+    void el.offsetWidth; // reflow so re-adding the class restarts the animation
+    el.classList.add(cls);
+}
+
+function spawnFloat(slot, text, cls) {
+    if (slot.querySelectorAll('.fx-float').length >= FX_MAX_FLOATS_PER_SLOT) return;
+    const f = document.createElement('div');
+    f.className = 'fx-float ' + cls;
+    f.textContent = text;
+    f.addEventListener('animationend', () => f.remove());
+    slot.appendChild(f);
+}
+
+function drainFx() {
+    if (fxQueue.length === 0) return;
+    const dmg = new Map(), heal = new Map();
+    let kingdomHit = 0;
+    for (const fx of fxQueue) {
+        if (fx.type === 'hit') dmg.set(fx.key, (dmg.get(fx.key) || 0) + fx.amount);
+        else if (fx.type === 'heal') heal.set(fx.key, (heal.get(fx.key) || 0) + fx.amount);
+        else if (fx.type === 'kingdomHit') kingdomHit += fx.amount;
+    }
+    fxQueue.length = 0;
+    for (const [key, amount] of dmg) {
+        const slot = slotElByKey.get(key);
+        if (!slot || !slot.isConnected) continue;
+        flashClass(slot, 'fx-hit');
+        spawnFloat(slot, '-' + Math.round(amount).toLocaleString(), 'fx-float--dmg');
+    }
+    for (const [key, amount] of heal) {
+        const slot = slotElByKey.get(key);
+        if (!slot || !slot.isConnected) continue;
+        flashClass(slot, 'fx-heal-glow');
+        spawnFloat(slot, '+' + Math.round(amount).toLocaleString(), 'fx-float--heal');
+    }
+    if (kingdomHit > 0) flashClass(document.getElementById('kingdom-hp'), 'fx-kingdom-hit');
+}
+
+// Memoized innerHTML: only touch the DOM when the panel's content actually
+// changed. Panels with embedded timers naturally refresh once per game-second.
+function setPanelHtml(id, html) {
+    const el = document.getElementById(id);
+    if (el._memoHtml !== html) {
+        el._memoHtml = html;
+        el.innerHTML = html;
+    }
+}
+
+function squadSignature(squad, columnOrder, cols) {
+    let sig = cols + '|';
+    for (const colDef of columnOrder) {
+        sig += colDef.label + ':';
+        for (let i = 0; i < cols; i++) {
+            const unit = squad[colDef.row * cols + i];
+            sig += (unit ? unitDomKey(unit) : 'e') + ',';
+        }
+        sig += '/';
+    }
+    return sig;
+}
+
+function buildSquad(el, squad, sideClass, columnOrder, interactive, cols) {
+    if (el._slotKeys) for (const k of el._slotKeys) slotElByKey.delete(k);
+    el._slotKeys = [];
     el.innerHTML = '';
     // Expanded grids shrink their slots so the battle panel keeps its footprint.
     el.classList.toggle('grid-compact', squad.length > 6);
@@ -1973,7 +2070,6 @@ function renderSquad(containerId, squad, sideClass, columnOrder, interactive, co
                 slot.className = 'battle-slot empty';
             } else {
                 slot.className = 'battle-slot' + (unit.alive ? '' : ' dead');
-                const pct = Math.max(0, (unit.hp / unit.maxHp) * 100);
                 const statParts = [];
                 if (unit.attack) statParts.push(`ATK ${unit.attack.power}`);
                 if (unit.heal) statParts.push(`HLR ${unit.heal.power}`);
@@ -1982,26 +2078,26 @@ function renderSquad(containerId, squad, sideClass, columnOrder, interactive, co
                 slot.innerHTML = `
                     <div class="battle-unit-name">${unit.name}</div>
                     <div class="battle-unit-stats">${statParts.join(' &middot; ')}</div>
-                    <div class="battle-hp-track"><div class="battle-hp-fill ${sideClass}" style="width:${pct}%"></div></div>
-                    <div class="battle-hp-text">${Math.max(0, Math.round(unit.hp))} / ${unit.maxHp}</div>
+                    <div class="battle-hp-track"><div class="battle-hp-fill ${sideClass}"></div></div>
+                    <div class="battle-hp-text"></div>
                 `;
+                slot._hpFill = slot.querySelector('.battle-hp-fill');
+                slot._hpText = slot.querySelector('.battle-hp-text');
+                const key = unitDomKey(unit);
+                slotElByKey.set(key, slot);
+                el._slotKeys.push(key);
                 if (interactive) {
                     slot.classList.add('dismissable');
-                    const armed = armedHeroSlot === index && Date.now() - armedHeroSlotTime < ARM_TIMEOUT_MS;
-                    if (armed) {
-                        slot.classList.add('armed');
-                        slot.title = 'Click again to dismiss';
-                    } else {
-                        slot.title = 'Click to dismiss';
-                    }
+                    // Armed state is read at CLICK time (persistent handlers
+                    // outlive the render pass that created them).
                     slot.addEventListener('click', () => {
+                        const armed = armedHeroSlot === index && Date.now() - armedHeroSlotTime < ARM_TIMEOUT_MS;
                         if (armed) {
                             armedHeroSlot = null;
                             fireHero(index);
                         } else {
                             armedHeroSlot = index;
                             armedHeroSlotTime = Date.now();
-                            renderBattleSquads();
                         }
                     });
                 }
@@ -2011,6 +2107,40 @@ function renderSquad(containerId, squad, sideClass, columnOrder, interactive, co
         }
         el.appendChild(colEl);
     }
+}
+
+function updateSquad(el, squad, columnOrder, interactive, cols) {
+    let colEl = el.firstElementChild;
+    for (const colDef of columnOrder) {
+        let slot = colEl.firstElementChild.nextElementSibling; // skip the row label
+        for (let i = 0; i < cols; i++) {
+            const index = colDef.row * cols + i;
+            const unit = squad[index];
+            if (unit) {
+                const pct = Math.max(0, (unit.hp / unit.maxHp) * 100);
+                slot._hpFill.style.width = pct + '%';
+                slot._hpText.textContent = `${Math.max(0, Math.round(unit.hp))} / ${unit.maxHp}`;
+                slot.classList.toggle('dead', !unit.alive);
+                if (interactive) {
+                    const armed = armedHeroSlot === index && Date.now() - armedHeroSlotTime < ARM_TIMEOUT_MS;
+                    slot.classList.toggle('armed', armed);
+                    slot.title = armed ? 'Click again to dismiss' : 'Click to dismiss';
+                }
+            }
+            slot = slot.nextElementSibling;
+        }
+        colEl = colEl.nextElementSibling;
+    }
+}
+
+function renderSquad(containerId, squad, sideClass, columnOrder, interactive, cols = 3) {
+    const el = document.getElementById(containerId);
+    const sig = squadSignature(squad, columnOrder, cols);
+    if (el._squadSig !== sig) {
+        el._squadSig = sig;
+        buildSquad(el, squad, sideClass, columnOrder, interactive, cols);
+    }
+    updateSquad(el, squad, columnOrder, interactive, cols);
 }
 
 function renderBattleSquads() {
@@ -2033,8 +2163,8 @@ function renderBattleSquads() {
 
 function renderHeroRecruitPool() {
     if (kingdomLevel < RAID_TRIGGER_LEVEL) {
-        document.getElementById('hero-recruit-pool').innerHTML =
-            `<div class="pool-empty">Unlocks at ${levels[RAID_TRIGGER_LEVEL].name}</div>`;
+        setPanelHtml('hero-recruit-pool',
+            `<div class="pool-empty">Unlocks at ${levels[RAID_TRIGGER_LEVEL].name}</div>`);
         return;
     }
 
@@ -2075,13 +2205,13 @@ function renderHeroRecruitPool() {
                 </div>
                 <div class="recruit-action">
                     <div class="recruit-cost">${recruit.cost.toLocaleString()}g</div>
-                    <button class="btn-hire-recruit" onclick="hireHero(${recruit.id})" ${canHire ? '' : 'disabled'}>Hire</button>
+                    <button class="btn-hire-recruit" data-hero-id="${recruit.id}" onclick="hireHero(${recruit.id})" ${canHire ? '' : 'disabled'}>Hire</button>
                 </div>
             </div>`;
         });
     }
 
-    document.getElementById('hero-recruit-pool').innerHTML = html;
+    setPanelHtml('hero-recruit-pool', html);
 }
 
 // --- Run summary & upgrade shop overlay ---
@@ -2178,9 +2308,20 @@ function refreshAffordability() {
         const costEl = btn.querySelector('.building-cost');
         if (costEl) costEl.textContent = `Cost: ${info.costLabel}`;
     });
+    const heroHasSlot = heroSquad.some(h => h === null);
+    document.querySelectorAll('#hero-recruit-pool .btn-hire-recruit[data-hero-id]').forEach(btn => {
+        const recruit = heroRecruitPool.find(r => r.id === Number(btn.dataset.heroId));
+        if (recruit) btn.disabled = !(gold >= recruit.cost && heroHasSlot);
+    });
 }
 
-function tickRender() {
+// --- M15 Phase 0: the render loop ---
+// tick() is pure simulation; THIS is the only place the DOM gets painted.
+// A requestAnimationFrame loop capped at RENDER_INTERVAL_MS repaints
+// everything: memoized panels only touch the DOM when content changed,
+// battle slots update in place, and the FX queue drains under its budget.
+// Render cost is now independent of dev speed — 100x sim, ~15fps paint.
+function renderAll() {
     document.getElementById('gold-display').textContent = Math.floor(gold).toLocaleString();
     document.getElementById('gps-display').textContent = Math.round(goldPerSecond * econIncomeMult()).toLocaleString();
     document.getElementById('legacy-display').textContent = meta.legacy.toLocaleString();
@@ -2190,18 +2331,27 @@ function tickRender() {
     renderLeftPanel();
     renderRaidStatusBar();
     renderBattleSquads();
-    renderHeroRecruitPool();
-
-    const poolTimerEl = document.getElementById('pool-timer-text');
-    if (poolTimerEl) poolTimerEl.textContent = `New arrivals in ${POOL_REFRESH_INTERVAL - poolTimer}s`;
-
-    refreshAffordability();
-}
-
-function updateUI() {
-    tickRender();
     renderRecruitPool();
     renderBuildings();
+    renderHeroRecruitPool();
+
+    refreshAffordability();
+    drainFx();
+}
+
+// Kept as the universal "something changed, repaint" entry point for event
+// handlers — an immediate full pass is cheap now that panels are memoized.
+function updateUI() {
+    renderAll();
+}
+
+const RENDER_INTERVAL_MS = 66; // ~15fps paint cadence
+let lastRenderTs = 0;
+function renderFrame(ts) {
+    requestAnimationFrame(renderFrame);
+    if (ts - lastRenderTs < RENDER_INTERVAL_MS) return;
+    lastRenderTs = ts;
+    renderAll();
 }
 
 loadMeta();
@@ -2213,3 +2363,4 @@ updateUI();
 renderRunSummary(); // reshow the run-summary screen if the game was closed mid-summary
 renderVictory();    // likewise the victory screen (closed mid-celebration)
 setGameSpeed(gameSpeed); // also starts the tick interval
+requestAnimationFrame(renderFrame); // M15 Phase 0: the render loop (sim renders nothing itself)

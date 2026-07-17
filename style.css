@@ -1191,3 +1191,49 @@ h1 {
         gap: 10px;
     }
 }
+
+/* --- M15 Phase 0: FX layer (floating numbers, hit/heal flashes) --- */
+.battle-slot { position: relative; }
+
+.fx-float {
+    position: absolute;
+    left: 50%;
+    top: -4px;
+    transform: translateX(-50%);
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    font-size: 0.8rem;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 5;
+    animation: fx-float-up 0.9s ease-out forwards;
+}
+.fx-float--dmg  { color: #ff7a5c; text-shadow: 1px 1px 0 #14110c; }
+.fx-float--heal { color: #7dc95e; text-shadow: 1px 1px 0 #14110c; }
+@keyframes fx-float-up {
+    from { opacity: 1; transform: translate(-50%, 0); }
+    to   { opacity: 0; transform: translate(-50%, -26px); }
+}
+
+.fx-hit { animation: fx-hit-flash 0.25s ease-out; }
+@keyframes fx-hit-flash {
+    0%   { background-color: rgba(255, 90, 60, 0.45); }
+    100% { background-color: transparent; }
+}
+
+.fx-heal-glow { animation: fx-heal-flash 0.4s ease-out; }
+@keyframes fx-heal-flash {
+    0%   { background-color: rgba(90, 200, 90, 0.35); }
+    100% { background-color: transparent; }
+}
+
+.fx-kingdom-hit { animation: fx-kingdom-flash 0.35s ease-out; }
+@keyframes fx-kingdom-flash {
+    0%   { box-shadow: inset 0 0 18px rgba(200, 40, 20, 0.7); }
+    100% { box-shadow: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fx-float { display: none; }
+    .fx-hit, .fx-heal-glow, .fx-kingdom-hit { animation: none; }
+}
