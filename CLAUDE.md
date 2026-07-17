@@ -143,13 +143,17 @@ The five tiers form a single ~55-wave ladder. **Kingdom level no longer selects 
 
 Each tier's `powerMult` picks up where the previous tier's boss left off (`defenseGrowth = 1.088`/wave, continuous across the whole ladder — a new tier is a roster change, not a stat cliff). The final boss lands at ~95× goblin wave 1 stats, inside the 80–100× design target.
 
-| Tier | `powerMult` | Waves (boss on last) | Interval | Boss | Base loot | Roster (brute / skirmisher / caster / shaman) |
-|---|---|---|---|---|---|---|
-| Goblin Raid | 1.0 | 5 | 45s | Goblin Warmaster | 1,200g | Goblin Brute / Skulker / Slinger / Shaman |
-| Orc Warband | 1.52 | 8 | 45s | Orc Warlord | 5,000g | Orc Brute / Berserker / Warcaster / Witch Doctor |
-| Bandit Horde | 3.0 | 11 | 40s | Bandit King | 30,000g | Bandit Enforcer / Cutthroat / Marksman / Medic |
-| Dark Army | 7.6 | 14 | 35s | Lich Commander | 120,000g | Death Knight / Shadow Reaver / Necromancer / Bone Priest |
-| Dragon Siege | 24.7 | 17 | 30s | Dragon Empress | 500,000g | Dragon Guard / Wyrmling / Dragon Mage / Dragonpriest |
+| Tier | `powerMult` | Waves (boss on last) | Interval | Grid | Tier lesson (traits) | Boss (signature) | Base loot |
+|---|---|---|---|---|---|---|---|
+| Goblin Raid | 1.0 | 5 | 45s | 2x3 | vanilla — teaches the basics | Goblin Warmaster (war-cry aura: all allies +15% power) | 1,200g |
+| Orc Warband | 1.52 | 8 | 45s | 2x3 | brutes **enrage** <50% HP (×1.5 attack speed) | Orc Warlord (enrage ×1.75 speed +25% power) | 5,000g |
+| Bandit Horde | 3.0 | 11 | 40s | 3x4 | marksmen hunt the backline (`backlineChance` 0.7); **sappers debut** | Bandit King (backlineChance 0.85) | 30,000g |
+| Dark Army | 7.6 | 14 | 35s | 3x4 | necromancers **revive** a fallen ally once (50% HP) | Lich Commander (2 revive charges) | 120,000g |
+| Dragon Siege | 24.7 | 17 | 30s | 4x4 | mages **breathe on whole rows** (AoE) | Dragon Empress (row breath + enrage +25% power) | 500,000g |
+
+Rosters (brute / skirmisher / caster / shaman / sapper): Goblin Brute / Skulker / Slinger / Shaman / Tunneler · Orc Brute / Berserker / Warcaster / Witch Doctor / Saboteur · Bandit Enforcer / Cutthroat / Marksman / Medic / Torchman · Death Knight / Shadow Reaver / Necromancer / Bone Priest / Grave Digger · Dragon Guard / Wyrmling / Dragon Mage / Dragonpriest / Cinder Imp.
+
+**Wave compositions (M11):** hand-authored per tier per wave in `TIER_WAVES` ("archetype row col" strings; `BOSS r c` places the boss). Deterministic — a repeated wave is the identical fight. Waves fill more of the grid as they climb, with variety mixes (double-brute, skirmisher swarm, twin-healer, sapper raids); boss waves lead bigger honor guards on the larger grids.
 
 **Boss waves:** the tier's named boss is a heavily scaled-up brute (×1.8 power, ×4 HP on top of the wave multiplier) leading an honor guard (brute + skirmisher front, shaman back). Unique boss abilities arrive with M11. Past the Dragon Empress the waves just keep climbing — placeholder until the Final Siege (M13).
 
@@ -162,6 +166,7 @@ Each raid spawns a 2x3 enemy squad (brute + skirmisher front, caster + shaman ba
 - **Targeting** is weighted, not absolute: an attacker rolls its own `backlineChance` (`DEFAULT_BACKLINE_CHANCE = 0.15`, skirmishers are 0.4) to decide whether it goes after the front row or back row, then picks randomly within that row.
 - **Healers** (shamans, menders) always target the lowest-HP% wounded ally on their side; if nobody's wounded the heal is held for next tick.
 - Damage: `dmg = max(1, round(attackPower * (1 - defense / 100)))`.
+- **M11 modifier layer** — computed from unit state at each use (never stacked effect objects): **enrage** (`unit.enrage`, active below 50% HP: ×speed on cooldown refill, ×power), **auras** (`unit.aura` — Banneret: adjacent allies ±1 row/col; boss war-cries: whole squad; boosts attack *and* heal power), **chill** (`attack.chill` sets `chilledUntil`/`chillMult` on the target — cooldowns refill ×1.35 slower for 6s; heroes shed chill between battles), **row AoE** (`attack.aoe = 'row'` hits every living unit in the target's row at `AOE_POWER_FACTOR` 0.65 — the discount keeps the deep ladder winnable), **on-death revive** (`reviveCharges`: when an enemy dies, a living ally with charges raises it at 50% HP — killing revivers first is the counter), and **sappers** (`targetsKingdom`: always attack Kingdom HP even while heroes stand; each hit has `SAPPER_INJURY_CHANCE` 25% to injure a random staffed resident for `INJURY_DURATION` 90s — income/regen paused, portrait marked ✚, auto-recovers, never killed; `recomputeIncome()` runs each tick and skips injured residents).
 - **Siege escalation (added 2026-07-17):** after `SIEGE_ESCALATION_GRACE` (60) game-seconds of a single battle, enemy **attack** power grows linearly by `SIEGE_ESCALATION_RATE` (+1%) per second — attacks only, never heals (boosting the enemy healer would deepen stalemates, not break them). Applies to hero damage and Kingdom damage alike (`escalationMult` in `resolveAttack`/`attackKingdom`, driven by `currentInvasion.duration`). The raid status bar shows "The siege escalates! Enemy attack +X%" once active. Fair fights never notice it (sim: median win 8–43s across the whole ladder); a battle the squad can't win now ends in an Overrun instead of stalemating forever.
 - A battle ends when the enemy squad is wiped (**Repelled** — `winInvasion`) or `kingdomHP` reaches 0 (**Overrun** — the run ends). A hero-squad wipe does *not* end the battle; the siege continues against Kingdom HP while the player can hire reinforcements mid-battle. On a win, surviving heroes are topped off to full HP (menders don't tick between battles and heroes respawn at full HP anyway — wounded bars after a win were a display lie).
 
@@ -250,8 +255,8 @@ The upgrade trees **are** the ratchet — there's no separate "tier unlock" flag
 - **Wave composition varies within a tier**: squads fill more of the grid as waves climb (4 units early → full grid at the boss), with varied mixes (double-brute wave, skirmisher swarm, twin-healer wave). Waves feel distinct, and AoE / target-priority tools have something to answer.
 
 ### Enemy & hero grid expansion
-- The **enemy grid auto-expands** at certain tier transitions (not every tier) — e.g. Goblin Raid and Orc Warband stay 2x3, Bandit Horde jumps to 3x4. Exact placements TBD.
-- The **hero grid does not auto-expand** — squad size growth is a Military-tree purchase only, with multiple expansion milestones (2x3 → 3x4 → 4x4, etc.) timed to land roughly alongside the enemy-grid jumps. This makes "I'm suddenly outnumbered, I need more squad slots" a concrete, must-buy upgrade rather than a passive bonus.
+- The **enemy grid auto-expands** at tier transitions (implemented M11): Goblin/Orc 2x3, Bandit/Dark 3x4, Dragon 4x4 (`tier.grid`).
+- The **hero grid does not auto-expand** — squad size growth is the War Banners Military node (implemented M10: 2x3 → 3x4 → 4x4), timed to land roughly alongside the enemy-grid jumps. This makes "I'm suddenly outnumbered, I need more squad slots" a concrete, must-buy upgrade rather than a passive bonus.
 
 ### Kingdom HP interplay — persistent siege & mid-battle reinforcement (locked in)
 The flow: enemies fight the hero squad; only once every hero is dead do they damage `kingdomHP` directly; Kingdom HP reaching 0 forces the loss/restart.
@@ -316,7 +321,10 @@ Two permanent, currency-funded trees spent into after each reset. Full planned s
 | Military | Hall of Legends | unlocks Rare / Epic / Legendary heroes in the pool (the run-depth gate — see *Hero rarity ceiling*) | 3 | 50 / 750 / 5,000 |
 | Military | Paladin's Oath (M10) | unlocks the Paladin archetype | 1 | 250 |
 | Military | Shadow Guild (M10) | unlocks the Assassin archetype | 1 | 400 |
-| Military | War Banners (M10) | hero squad 2x3 → 3x4 → 4x4 (costs provisional until M11's enemy-grid expansion counterweight lands; final pricing M14) | 2 | 2,500 / 20,000 |
+| Military | War Banners (M10) | hero squad 2x3 → 3x4 → 4x4 (final pricing M14) | 2 | 2,500 / 20,000 |
+| Military | War Magics (M11) | unlocks the Battlemage archetype | 1 | 800 |
+| Military | Rimecraft (M11) | unlocks the Frost Adept archetype | 1 | 1,200 |
+| Military | Standard Bearers (M11) | unlocks the Banneret archetype | 1 | 1,500 |
 | Economy | Steward's Ledger (M10) | unlocks townsfolk auto-hire (always-on in dev builds via `DEV_MODE`) | 1 | 150 |
 | Economy | Prosperous Trade | +25% gold income | 5 | 15 / 60 / 250 / 1,000 / 4,000 |
 | Economy | Royal Treasury | starting gold 50 → 250 / 1,000 / 4,000 / 15,000 | 4 | 10 / 40 / 150 / 500 |
@@ -344,19 +352,21 @@ Sequenced so the zero-engine-work heroes arrive first:
 |---|---|---|---|
 | Paladin | attack + heal hybrid | **none** — the multi-action system already supports it | **implemented (M10)** |
 | Assassin | backlineChance ~0.9, high power, fragile | none — just stats | **implemented (M10)** |
-| Battlemage | hits an entire enemy row | AoE action type | M11 |
-| Banneret | aura: adjacent allies gain power | buff system | M11 |
-| Frost Adept | attacks slow the target's cooldowns | debuff-on-hit | M11 |
+| Battlemage | hits an entire enemy row (at the 0.65 AoE discount) | AoE action type | **implemented (M11)** — unlock: War Magics, 800 Legacy |
+| Banneret | aura: adjacent allies +15% attack/heal power | buff system | **implemented (M11)** — unlock: Standard Bearers, 1,500 Legacy |
+| Frost Adept | attacks chill the target (cooldowns ×1.35 for 6s) | debuff-on-hit | **implemented (M11)** — unlock: Rimecraft, 1,200 Legacy |
 
-### Enemy tier mechanics (one tactical lesson per tier)
-Later tiers must be new problems, not just bigger numbers — each reuses an engine feature from the hero list:
+M11 hero stat blocks: Battlemage (Adept/Battlemage/Warmage/Archmage, 1,600g, 8 def / 70 hp / 12 atk row-AoE @0.8), Banneret (Herald/Banneret/Marshal/High Marshal, 1,500g, 25 def / 110 hp / 6 atk @0.6 + adjacency aura), Frost Adept (Frost Apprentice/Frost Adept/Rimecaller/Winter's Voice, 1,400g, 6 def / 65 hp / 10 atk @1.0 + chill). Auras and chill are fixed effects — rarity scales the unit's own stats only.
+
+### Enemy tier mechanics (one tactical lesson per tier) — implemented in M11
+Later tiers are new problems, not just bigger numbers — each reuses an engine feature from the hero list (see the raid-tier table for the trait wiring):
 - **Goblins** — vanilla; teaches the basics.
-- **Orcs** — brutes *enrage* below 50% HP (+attack speed); teaches burst-vs-tank priority.
-- **Bandits** — marksmen hunt the backline (high `backlineChance`); medics out-heal unfocused damage. Teaches protecting menders and the Assassin's job.
-- **Dark Army** — necromancers revive a fallen ally once (on-death hook); teaches kill order.
-- **Dragons** — breath attacks hit a whole row (AoE); teaches formation splitting.
-- **Bosses** — unique named unit + minions per tier (`BOSS_ARCHETYPES`-style table extending `generateEnemy`); the Final Siege boss adds phases.
-- **Sappers — kingdom/villager targeting (folded into M11 on 2026-07-17):** a sapper-style enemy unit that attacks the Kingdom (and possibly residents) *while heroes still stand*, instead of fighting the squad. Purpose: gives Builders a live role in every fight and keeps town management ongoing rather than "staff it and forget it" (no longer needed for anti-stall — siege escalation covers that). Working assumptions, final call at implementation: residents are **injured** (income paused until they recover), never killed — losing a legendary roll permanently would be brutal; sappers likely debut with the **Bandit Horde** (pillaging fits the fiction, and it stacks with their protect-the-backline lesson) and recur in later tiers' compositions. Engine cost is small: `attackKingdom` already exists — a sapper is an archetype whose attack routes there (plus the resident-injury system if residents are targetable).
+- **Orcs** — brutes *enrage* below 50% HP (×1.5 attack speed); teaches burst-vs-tank priority.
+- **Bandits** — marksmen hunt the backline (`backlineChance` 0.7); medics out-heal unfocused damage. Teaches protecting menders and the Assassin's job.
+- **Dark Army** — necromancers revive a fallen ally once at 50% HP (on-death hook, consumes a charge, only while the necromancer stands); teaches kill order.
+- **Dragons** — mage breath hits a whole row (AoE at the 0.65 discount); teaches formation splitting.
+- **Bosses** — each tier's boss carries a signature trait (war-cry aura / hard enrage / backline mark / double revive / breath+enrage — see the raid-tier table); the Final Siege boss adds phases (M13).
+- **Sappers (implemented M11):** the `sapper` archetype (`targetsKingdom`) attacks the Kingdom while heroes stand — each hit has a 25% chance to **injure** a random staffed resident for 90 game-seconds (income/regen paused, ✚ portrait, auto-recovers; never killed). Debuts with the Bandit Horde (w4) and recurs through Dark/Dragon compositions. Gives Builders a live role in every fight; anti-stall is escalation's job.
 
 ### Gold & loot rebalance (single-currency decision, locked in)
 The in-run economy stays **gold-only** — no separate combat currency for hero hiring. For that to work, **raid gold loot must shrink drastically**: current values (200,000g for a goblin raid vs. a 2,500g Smithy) let one raid win pay for the entire midgame, collapsing the "town fuels the army" loop into "raids fund everything". Target: a raid win pays roughly **1–2 minutes of contemporaneous resident income**. The win-streak multiplier stays, on the much smaller base.
@@ -381,10 +391,8 @@ The in-run economy stays **gold-only** — no separate combat currency for hero 
 - [x] UI for the run-end/reset summary screen and the two upgrade trees — implemented in M8 as a full-screen overlay (see *Run loop implementation (M8)*).
 
 ### Ideas under consideration (raised 2026-07-13)
-- **The kingdom & villagers as rare combat targets — SCHEDULED into M11 (2026-07-17):** now a
-  planned sapper enemy mechanic; details and working assumptions live under *Enemy tier mechanics*.
-  (Its original anti-stalling role is obsolete — siege escalation covers that; it survives on the
-  town-engagement rationale alone.)
+- **The kingdom & villagers as rare combat targets — IMPLEMENTED in M11** as the sapper enemy
+  mechanic; see *Enemy tier mechanics*.
 - **Per-building interactive minigames that automate later:** the classic incremental arc — each
   building has a small active mechanic (e.g. assemble horseshoes at the Smithy for a productivity
   boost) that an upgrade later automates at equal-or-better efficiency. (The auto-buy Economy node
@@ -471,7 +479,7 @@ a 100× battle must not fire 100× the particles and sounds).
 - [x] Milestone 9.5: **Hero rarity ceiling (Hall of Legends)** — fix for the run-1 min/max break found in the first M9 playtest (full ladder cleared with zero upgrades): hero rarity above Common is now a 3-rank Military-tree unlock (50/750/5,000 Legacy); sim-verified per-ceiling walls land on the difficulty arc; SAVE_VERSION → 3 (old saves discarded); browser smoke-tested (pool filtering, node purchase)
 - [x] Milestone 9.6: **Siege escalation** — anti-stalemate fix from the 2026-07-17 1× playtest (run 1 hit a true soft-lock at Bandit w3: enemy Medic out-healed reinforcement chip damage while rehires + Builder regen kept the Kingdom maxed — one endless battle, ~2 runs deeper than the arc target, 1,130 Legacy banked): past a 60s per-battle grace, enemy attack ramps +1%/s until the siege resolves; healer top-off on win (survivors leave the field at full HP); sim gained escalation, win-duration stats, and the reinforcement-grind model; SAVE_VERSION → 4 (old saves + broken-run Legacy discarded); browser smoke-tested (banner, overrun path, top-off, win path)
 - [x] Milestone 10: **First new heroes** (wild/m10-m14 branch) — Paladin + Assassin archetypes behind Paladin's Oath / Shadow Guild Military nodes (pool filters by `unlockedHeroArchetypes()`); War Banners squad expansion (2x3 → 3x4 → 4x4, `resizeHeroSquad`, compact battle-grid UI, targeting generalized to N rows); Steward's Ledger Economy node makes townsfolk auto-hire a purchase (`DEV_MODE` keeps it free in dev builds). Sim finding: 12/16-slot squads overshoot the arc against *current* 4-5 unit enemy waves — M11's enemy-grid expansion is the designed counterweight; War Banners pricing finalized in M14. Browser-smoked (resize, unlock filtering, hybrid/backline behavior, 16-slot render)
-- [ ] Milestone 11: **Combat engine features** — AoE actions, buffs/debuffs, on-death hooks; enemy tier mechanics, boss units, wave composition variety, enemy grid expansion; **kingdom/villager targeting** (scheduled 2026-07-17: sapper-style enemies that hit the Kingdom — and possibly injure residents — while heroes still stand; see *Enemy tier mechanics*)
+- [x] Milestone 11: **Combat engine features** (wild/m10-m14 branch) — computed modifier layer (enrage / auras / chill / row-AoE at 0.65 discount / on-death revive); per-tier tactical lessons + boss signature traits (raid-tier table); hand-authored deterministic wave compositions (`TIER_WAVES`) with variety mixes; enemy grid expansion 2x3 → 3x4 (Bandit) → 4x4 (Dragon); sappers + resident injury (25%/hit, 90s, never killed, `recomputeIncome` authoritative per tick); Battlemage/Banneret/Frost Adept unlocks (War Magics 800 / Standard Bearers 1,500 / Rimecraft 1,200). Sim ported 1:1; arc re-verified (capC walls Orc w5–boss, capR Bandit w6–boss, 12-epic walls Dark w9–14, 16-epic Dragon w2–9, 16-leg reaches Dragon w9 at 90% with the **final boss still closed at 0% — M12 doctrines must open it, verify then**). Browser-smoked (sapper kingdom bypass + injury, necro revive, breath data, battlemage AoE, chill, 3x4/4x4 grids)
 - [ ] Milestone 12: **Doctrines** — building↔army synergy nodes
 - [ ] Milestone 13: **Final Siege** — 3-phase gauntlet, victory screen, endless mode
 - [ ] Milestone 14: **Full-game balance playtest** against the *Difficulty arc across runs* table

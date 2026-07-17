@@ -13,6 +13,7 @@ const CFG = {
     DEFAULT_BACKLINE_CHANCE: 0.15,
     SIEGE_ESCALATION_GRACE: 60,  // game-seconds of battle before escalation begins
     SIEGE_ESCALATION_RATE: 0.01, // +1% enemy attack power per second past the grace
+    AOE_POWER_FACTOR: 0.65,      // row-AoE hits everyone in the row at a discount
 };
 
 // Enemy attack multiplier after s seconds of one battle (mirror of game.js
@@ -24,17 +25,23 @@ function escMultAt(s) {
 
 // waveCount includes the boss wave (last index). powerMult chains from the
 // previous tier's boss multiplier; growth 1.088/wave, continuous ladder.
+// M11: grid + traits + boss signature traits mirror game.js exactly.
 const RAID_TIERS = [
     { name: 'Goblin Raid',  powerMult: 1.0,  growth: 1.088, waveCount: 5,  raidInterval: 45, baseLoot: 1200,    lootGrowth: 1.10,
-      boss: { name: 'Goblin Warmaster', powerMult: 1.8, hpMult: 4.0 } },
+      grid: { rows: 2, cols: 3 }, traits: {},
+      boss: { name: 'Goblin Warmaster', powerMult: 1.8, hpMult: 4.0, traits: { aura: { power: 0.15, range: 'all' } } } },
     { name: 'Orc Warband',  powerMult: 1.52, growth: 1.088, waveCount: 8,  raidInterval: 45, baseLoot: 5000,   lootGrowth: 1.10,
-      boss: { name: 'Orc Warlord', powerMult: 1.8, hpMult: 4.0 } },
+      grid: { rows: 2, cols: 3 }, traits: { brute: { enrage: { speed: 1.5, power: 1 } } },
+      boss: { name: 'Orc Warlord', powerMult: 1.8, hpMult: 4.0, traits: { enrage: { speed: 1.75, power: 1.25 } } } },
     { name: 'Bandit Horde', powerMult: 3.0,  growth: 1.088, waveCount: 11, raidInterval: 40, baseLoot: 30000,  lootGrowth: 1.10,
-      boss: { name: 'Bandit King', powerMult: 1.8, hpMult: 4.0 } },
+      grid: { rows: 3, cols: 4 }, traits: { caster: { backlineChance: 0.7 } },
+      boss: { name: 'Bandit King', powerMult: 1.8, hpMult: 4.0, traits: { backlineChance: 0.85 } } },
     { name: 'Dark Army',    powerMult: 7.6,  growth: 1.088, waveCount: 14, raidInterval: 35, baseLoot: 120000, lootGrowth: 1.10,
-      boss: { name: 'Lich Commander', powerMult: 1.8, hpMult: 4.0 } },
+      grid: { rows: 3, cols: 4 }, traits: { caster: { reviveCharges: 1 } },
+      boss: { name: 'Lich Commander', powerMult: 1.8, hpMult: 4.0, traits: { reviveCharges: 2 } } },
     { name: 'Dragon Siege', powerMult: 24.7, growth: 1.088, waveCount: 17, raidInterval: 30, baseLoot: 500000, lootGrowth: 1.10,
-      boss: { name: 'Dragon Empress', powerMult: 1.8, hpMult: 4.0 } },
+      grid: { rows: 4, cols: 4 }, traits: { caster: { aoe: 'row' } },
+      boss: { name: 'Dragon Empress', powerMult: 1.8, hpMult: 4.0, traits: { aoe: 'row', enrage: { speed: 1, power: 1.25 } } } },
 ];
 
 // ~30% softer than live values: the tutorial wave must be winnable by a few
@@ -44,7 +51,79 @@ const ENEMY_ARCHETYPES = {
     skirmisher: { defense: 8,  hp: 55, attack: { power: 13, speed: 1.1 }, backlineChance: 0.4 },
     caster:     { defense: 5,  hp: 45, attack: { power: 14, speed: 0.9 } },
     shaman:     { defense: 8,  hp: 50, heal: { power: 10, speed: 0.7 } },
+    sapper:     { defense: 10, hp: 65, attack: { power: 8, speed: 0.8 }, targetsKingdom: true },
 };
+
+// KEEP IN SYNC with game.js TIER_WAVES (hand-authored compositions).
+// NOTE: resident-injury economics from sappers is NOT modeled here — sapper
+// kingdom damage is; injury income loss is a real-play tax the sim understates.
+const TIER_WAVES = [
+    [
+        ['brute 0 0', 'skirmisher 0 1', 'caster 1 0', 'shaman 1 1'],
+        ['brute 0 0', 'skirmisher 0 1', 'skirmisher 0 2', 'caster 1 0', 'shaman 1 1'],
+        ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'shaman 1 1'],
+        ['brute 0 0', 'skirmisher 0 1', 'skirmisher 0 2', 'caster 1 0', 'shaman 1 1', 'caster 1 2'],
+        ['BOSS 0 1', 'brute 0 0', 'skirmisher 0 2', 'caster 1 0', 'shaman 1 1']
+    ],
+    [
+        ['brute 0 0', 'skirmisher 0 1', 'caster 1 0', 'shaman 1 1'],
+        ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'shaman 1 1'],
+        ['skirmisher 0 0', 'skirmisher 0 1', 'skirmisher 0 2', 'caster 1 0', 'shaman 1 1'],
+        ['brute 0 0', 'skirmisher 0 1', 'caster 1 0', 'caster 1 2', 'shaman 1 1'],
+        ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'caster 1 0', 'shaman 1 1'],
+        ['brute 0 0', 'skirmisher 0 1', 'shaman 1 0', 'caster 1 1', 'shaman 1 2'],
+        ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'caster 1 0', 'shaman 1 1', 'shaman 1 2'],
+        ['BOSS 0 1', 'brute 0 0', 'skirmisher 0 2', 'caster 1 0', 'shaman 1 1', 'shaman 1 2']
+    ],
+    [
+        ['brute 0 0', 'skirmisher 0 1', 'caster 1 0', 'shaman 1 1'],
+        ['brute 0 0', 'skirmisher 0 1', 'skirmisher 0 2', 'caster 1 1', 'shaman 1 2'],
+        ['brute 0 0', 'brute 0 1', 'caster 1 0', 'caster 1 2', 'shaman 1 1'],
+        ['brute 0 0', 'skirmisher 0 1', 'caster 1 1', 'shaman 1 2', 'sapper 2 0', 'sapper 2 3'],
+        ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'skirmisher 0 3', 'caster 1 1', 'shaman 1 2'],
+        ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'caster 1 1', 'shaman 1 0', 'shaman 1 3'],
+        ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'skirmisher 0 3', 'caster 1 0', 'caster 1 3', 'shaman 1 1', 'sapper 2 2'],
+        ['skirmisher 0 0', 'skirmisher 0 1', 'skirmisher 0 2', 'skirmisher 0 3', 'caster 1 1', 'caster 1 2', 'shaman 1 0', 'shaman 1 3'],
+        ['brute 0 0', 'brute 0 1', 'brute 0 2', 'skirmisher 0 3', 'caster 1 1', 'shaman 1 0', 'shaman 1 2', 'sapper 2 1'],
+        ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'skirmisher 0 3', 'caster 1 0', 'caster 1 3', 'shaman 1 1', 'shaman 1 2', 'sapper 2 0', 'sapper 2 3'],
+        ['BOSS 0 1', 'brute 0 0', 'brute 0 2', 'skirmisher 0 3', 'caster 1 0', 'caster 1 3', 'shaman 1 1', 'shaman 1 2', 'sapper 2 2']
+    ],
+    [
+        ['brute 0 0', 'skirmisher 0 1', 'caster 1 0', 'shaman 1 1'],
+        ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'caster 1 1', 'shaman 1 2'],
+        ['brute 0 0', 'skirmisher 0 1', 'skirmisher 0 2', 'caster 1 0', 'caster 1 3', 'shaman 1 1'],
+        ['brute 0 0', 'brute 0 1', 'caster 1 0', 'caster 1 2', 'shaman 1 1', 'sapper 2 1'],
+        ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'skirmisher 0 3', 'caster 1 1', 'shaman 1 0', 'shaman 1 2'],
+        ['brute 0 0', 'brute 0 1', 'brute 0 2', 'caster 1 0', 'caster 1 3', 'shaman 1 1', 'sapper 2 0'],
+        ['skirmisher 0 0', 'skirmisher 0 1', 'skirmisher 0 2', 'skirmisher 0 3', 'caster 1 0', 'caster 1 2', 'shaman 1 1', 'shaman 1 3'],
+        ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'caster 1 0', 'caster 1 2', 'shaman 1 1', 'shaman 1 3', 'sapper 2 3'],
+        ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'caster 1 0', 'caster 1 1', 'caster 1 3', 'shaman 1 2'],
+        ['brute 0 0', 'brute 0 1', 'brute 0 2', 'skirmisher 0 3', 'caster 1 0', 'caster 1 3', 'shaman 1 1', 'shaman 1 2', 'sapper 2 1'],
+        ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'skirmisher 0 3', 'caster 1 0', 'caster 1 2', 'shaman 1 1', 'shaman 1 3', 'sapper 2 0', 'sapper 2 3'],
+        ['brute 0 0', 'brute 0 1', 'brute 0 2', 'caster 1 0', 'caster 1 3', 'shaman 1 1', 'shaman 1 2', 'sapper 2 2'],
+        ['brute 0 0', 'brute 0 1', 'brute 0 2', 'skirmisher 0 3', 'caster 1 0', 'shaman 1 1', 'caster 1 2', 'shaman 1 3', 'sapper 2 0', 'sapper 2 3'],
+        ['BOSS 0 1', 'brute 0 0', 'brute 0 2', 'skirmisher 0 3', 'caster 1 0', 'caster 1 2', 'shaman 1 1', 'shaman 1 3', 'sapper 2 2']
+    ],
+    [
+        ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'caster 1 0', 'shaman 1 1'],
+        ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'skirmisher 0 3', 'caster 1 1', 'shaman 1 2'],
+        ['skirmisher 0 0', 'skirmisher 0 1', 'skirmisher 0 2', 'skirmisher 0 3', 'skirmisher 1 0', 'skirmisher 1 3', 'caster 1 1', 'shaman 1 2'],
+        ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'caster 1 0', 'caster 1 3', 'shaman 1 1', 'sapper 2 0'],
+        ['brute 0 0', 'brute 0 1', 'brute 0 2', 'skirmisher 0 3', 'caster 1 1', 'shaman 1 0', 'shaman 1 2'],
+        ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'caster 1 0', 'caster 1 2', 'shaman 1 1', 'shaman 1 3', 'sapper 2 1'],
+        ['brute 0 0', 'brute 0 1', 'brute 0 2', 'skirmisher 0 3', 'caster 1 0', 'caster 1 3', 'shaman 1 1', 'shaman 1 2'],
+        ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'skirmisher 0 3', 'skirmisher 1 2', 'caster 1 0', 'caster 1 3', 'shaman 1 1', 'sapper 2 0', 'sapper 2 3'],
+        ['brute 0 0', 'brute 0 1', 'brute 0 2', 'skirmisher 0 3', 'caster 1 0', 'caster 1 2', 'shaman 1 1', 'shaman 1 3', 'sapper 2 1'],
+        ['skirmisher 0 0', 'skirmisher 0 1', 'skirmisher 0 2', 'skirmisher 0 3', 'skirmisher 1 0', 'skirmisher 1 2', 'caster 1 1', 'caster 1 3', 'shaman 2 0', 'shaman 2 3'],
+        ['brute 0 0', 'brute 0 1', 'brute 0 2', 'brute 0 3', 'caster 1 0', 'caster 1 2', 'shaman 1 1', 'shaman 1 3', 'sapper 2 0', 'sapper 2 2'],
+        ['brute 0 0', 'brute 0 1', 'brute 0 2', 'skirmisher 0 3', 'caster 1 0', 'caster 1 1', 'caster 1 3', 'shaman 1 2', 'shaman 2 0', 'sapper 2 3'],
+        ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'skirmisher 0 3', 'caster 1 0', 'caster 1 1', 'caster 1 2', 'shaman 1 3', 'shaman 2 1', 'sapper 2 2'],
+        ['brute 0 0', 'brute 0 1', 'brute 0 2', 'brute 0 3', 'skirmisher 1 3', 'caster 1 1', 'caster 1 2', 'shaman 2 0', 'shaman 2 3', 'sapper 2 2'],
+        ['brute 0 0', 'brute 0 1', 'brute 0 2', 'skirmisher 0 3', 'caster 1 0', 'caster 1 3', 'shaman 1 1', 'shaman 1 2', 'sapper 2 0', 'sapper 2 3'],
+        ['brute 0 0', 'brute 0 1', 'brute 0 2', 'brute 0 3', 'caster 1 0', 'caster 1 2', 'shaman 1 1', 'shaman 1 3', 'sapper 2 1', 'sapper 2 2'],
+        ['BOSS 0 1', 'brute 0 0', 'brute 0 2', 'brute 0 3', 'caster 1 0', 'caster 1 2', 'shaman 1 1', 'shaman 1 3', 'sapper 2 1', 'sapper 2 2']
+    ]
+];
 
 const HERO_ARCHETYPES = {
     guardian: { baseCost: 1000, defense: 35, hp: 140, attack: { power: 8,  speed: 0.7 } },
@@ -53,6 +132,10 @@ const HERO_ARCHETYPES = {
     // M10 unlockable archetypes
     paladin:  { baseCost: 1300, defense: 25, hp: 120, attack: { power: 9, speed: 0.7 }, heal: { power: 11, speed: 0.55 } },
     assassin: { baseCost: 950,  defense: 3,  hp: 45,  attack: { power: 26, speed: 1.2 }, backlineChance: 0.9 },
+    // M11 unlockable archetypes (aura/chill are fixed effects; rarity scales stats)
+    battlemage: { baseCost: 1600, defense: 8,  hp: 70,  attack: { power: 12, speed: 0.8, aoe: 'row' } },
+    banneret:   { baseCost: 1500, defense: 25, hp: 110, attack: { power: 6, speed: 0.6 }, aura: { power: 0.15, range: 'adjacent' } },
+    frostadept: { baseCost: 1400, defense: 6,  hp: 65,  attack: { power: 10, speed: 1.0, chill: { mult: 1.35, duration: 6 } } },
 };
 
 // Hall of Legends (Military tree, costs 50/750/5000 Legacy): hero rarity is
@@ -84,10 +167,10 @@ const LEVELS = [
     { name: 'Realm',   cost: 3000000, caps: { cottage: 16, tavern: 8, smithy: 7, library: 6, workshop: 4, apothecary: 4, tower: 3, cathedral: 2 } },
 ];
 
-// ---------- Combat engine (ported from game.js) ----------
-function makeUnit(name, defense, hp, row, side, attack, heal, backlineChance) {
+// ---------- Combat engine (ported from game.js, M11 feature-complete) ----------
+function makeUnit(name, defense, hp, row, col, side, attack, heal, backlineChance) {
     return {
-        name, defense, hp, maxHp: hp, row, side,
+        name, defense, hp, maxHp: hp, row, col, side,
         attack: attack ? { ...attack, cooldown: CFG.BASE_ATTACK_INTERVAL / attack.speed } : null,
         heal: heal ? { ...heal, cooldown: CFG.BASE_ATTACK_INTERVAL / heal.speed } : null,
         backlineChance: backlineChance ?? CFG.DEFAULT_BACKLINE_CHANCE,
@@ -100,30 +183,56 @@ function waveMult(tierIdx, wave) {
     return t.powerMult * Math.pow(t.growth, wave);
 }
 
+// Mirror of game.js: builds the wave from its hand-authored composition and
+// applies tier traits (+ boss signature traits on the boss unit).
 function generateEnemySquad(tierIdx, wave) {
     const t = RAID_TIERS[tierIdx];
     const mult = waveMult(tierIdx, wave);
-    const mk = (key, row, pMult = 1, hMult = 1) => {
-        const a = ENEMY_ARCHETYPES[key];
-        const attack = a.attack ? { power: Math.round(a.attack.power * mult * pMult), speed: a.attack.speed } : null;
-        const heal = a.heal ? { power: Math.round(a.heal.power * mult * pMult), speed: a.heal.speed } : null;
-        return makeUnit(key, a.defense, Math.round(a.hp * Math.sqrt(mult) * hMult), row, 'enemy', attack, heal, a.backlineChance);
-    };
-    const isBoss = wave === t.waveCount - 1;
-    if (isBoss) {
-        const b = mk('brute', 0, t.boss.powerMult, t.boss.hpMult);
-        b.name = t.boss.name;
-        return [b, mk('brute', 0), mk('skirmisher', 0), mk('shaman', 1)];
+    const comp = TIER_WAVES[tierIdx][Math.min(wave, TIER_WAVES[tierIdx].length - 1)];
+    const squad = [];
+    for (const entry of comp) {
+        const [key, r, c] = entry.split(' ');
+        const isBoss = key === 'BOSS';
+        const aKey = isBoss ? 'brute' : key;
+        const a = ENEMY_ARCHETYPES[aKey];
+        const pMult = mult * (isBoss ? t.boss.powerMult : 1);
+        const hMult = Math.sqrt(mult) * (isBoss ? t.boss.hpMult : 1);
+        const attack = a.attack ? { power: Math.round(a.attack.power * pMult), speed: a.attack.speed } : null;
+        const heal = a.heal ? { power: Math.round(a.heal.power * pMult), speed: a.heal.speed } : null;
+        const unit = makeUnit(isBoss ? t.boss.name : aKey, a.defense, Math.round(a.hp * hMult), Number(r), Number(c), 'enemy', attack, heal, a.backlineChance);
+        if (a.targetsKingdom) unit.targetsKingdom = true;
+        const traits = { ...(t.traits[aKey] || {}), ...(isBoss ? t.boss.traits : {}) };
+        if (traits.backlineChance !== undefined) unit.backlineChance = traits.backlineChance;
+        if (traits.enrage) unit.enrage = traits.enrage;
+        if (traits.reviveCharges) unit.reviveCharges = traits.reviveCharges;
+        if (traits.aura) unit.aura = traits.aura;
+        if (traits.aoe && unit.attack) unit.attack.aoe = traits.aoe;
+        squad.push(unit);
     }
-    return [mk('brute', 0), mk('skirmisher', 0), mk('caster', 1), mk('shaman', 1)];
+    return squad;
 }
 
 function makeHero(key, rarityMult, treePower = 1, treeHp = 1) {
     const a = HERO_ARCHETYPES[key];
     const attack = a.attack ? { power: Math.round(a.attack.power * rarityMult * treePower), speed: a.attack.speed } : null;
     const heal = a.heal ? { power: Math.round(a.heal.power * rarityMult * treePower), speed: a.heal.speed } : null;
-    const row = (key === 'guardian' || key === 'paladin') ? 0 : 1;
-    return makeUnit(key, a.defense, Math.round(a.hp * Math.sqrt(rarityMult) * treeHp), row, 'hero', attack, heal, a.backlineChance);
+    if (attack && a.attack.aoe) attack.aoe = a.attack.aoe;
+    if (attack && a.attack.chill) attack.chill = a.attack.chill;
+    const row = (key === 'guardian' || key === 'paladin' || key === 'banneret') ? 0 : 1;
+    const unit = makeUnit(key, a.defense, Math.round(a.hp * Math.sqrt(rarityMult) * treeHp), row, 0, 'hero', attack, heal, a.backlineChance);
+    if (a.aura) unit.aura = a.aura;
+    return unit;
+}
+
+// Assign columns within each row (needed for aura adjacency). Call after any
+// squad change.
+function assignHeroCols(heroes) {
+    const counts = {};
+    for (const h of heroes) {
+        if (!h) continue;
+        counts[h.row] = counts[h.row] || 0;
+        h.col = counts[h.row]++;
+    }
 }
 
 // Mirror of game.js pickTarget (generalized to N rows in M10): frontmost
@@ -150,32 +259,90 @@ function dmg(power, defense) {
     return Math.max(1, Math.round(power * (1 - defense / 100)));
 }
 
+// --- M11 modifier layer (mirror of game.js) ---
+function isEnraged(u) { return u.enrage && u.alive && u.hp / u.maxHp < 0.5; }
+
+function auraBonus(unit, squad) {
+    let bonus = 0;
+    for (const ally of squad) {
+        if (!ally || !ally.alive || ally === unit || !ally.aura) continue;
+        const adjacent = (ally.row === unit.row && Math.abs(ally.col - unit.col) === 1)
+            || (ally.col === unit.col && Math.abs(ally.row - unit.row) === 1);
+        if (ally.aura.range === 'all' || adjacent) bonus += ally.aura.power;
+    }
+    return bonus;
+}
+
+function effPower(unit, squad) {
+    let p = unit.attack.power;
+    if (isEnraged(unit)) p *= unit.enrage.power || 1;
+    return p * (1 + auraBonus(unit, squad));
+}
+
+function effInterval(unit, action, battleT) {
+    let interval = CFG.BASE_ATTACK_INTERVAL / action.speed;
+    if (isEnraged(unit)) interval /= unit.enrage.speed || 1;
+    if (unit.chilledUntil !== undefined && battleT < unit.chilledUntil) interval *= unit.chillMult || 1;
+    return interval;
+}
+
+function onUnitDeath(unit, enemies) {
+    if (unit.side !== 'enemy') return;
+    for (const ally of enemies) {
+        if (!ally || !ally.alive || !(ally.reviveCharges > 0)) continue;
+        ally.reviveCharges--;
+        unit.alive = true;
+        unit.hp = Math.round(unit.maxHp * 0.5);
+        if (unit.attack) unit.attack.cooldown = CFG.BASE_ATTACK_INTERVAL / unit.attack.speed;
+        if (unit.heal) unit.heal.cooldown = CFG.BASE_ATTACK_INTERVAL / unit.heal.speed;
+        return;
+    }
+}
+
 // Runs one game-second of combat. Returns kingdom damage dealt this tick.
-// escMult scales enemy attack power only (siege escalation).
-function combatTick(heroes, enemies, kingdomAlive, escMult = 1) {
+// escMult scales enemy attack power only (siege escalation); battleT is the
+// battle clock in seconds (chill expiry).
+function combatTick(heroes, enemies, kingdomAlive, escMult = 1, battleT = 0) {
     let kingdomDmg = 0;
+    const strike = (attacker, defender, friendly, powerScale = 1) => {
+        let p = effPower(attacker, friendly) * powerScale;
+        if (attacker.side === 'enemy') p *= escMult;
+        defender.hp -= dmg(p, defender.defense);
+        if (attacker.attack.chill && defender.hp > 0) {
+            defender.chilledUntil = battleT + attacker.attack.chill.duration;
+            defender.chillMult = attacker.attack.chill.mult;
+        }
+        if (defender.hp <= 0) { defender.hp = 0; defender.alive = false; onUnitDeath(defender, enemies); }
+    };
     for (const u of [...heroes, ...enemies]) {
         if (!u || !u.alive) continue;
         if (u.attack) {
             u.attack.cooldown -= 1000;
             while (u.attack.cooldown <= 0) {
-                if (u.side === 'hero') {
-                    const t = pickTarget(u, enemies);
-                    if (t) { t.hp -= dmg(u.attack.power, t.defense); if (t.hp <= 0) { t.hp = 0; t.alive = false; } }
-                } else if (heroes.some(h => h && h.alive)) {
-                    const t = pickTarget(u, heroes);
-                    if (t) { t.hp -= dmg(u.attack.power * escMult, t.defense); if (t.hp <= 0) { t.hp = 0; t.alive = false; } }
-                } else if (kingdomAlive()) {
-                    kingdomDmg += dmg(u.attack.power * escMult, CFG.KINGDOM_DEFENSE);
+                if (u.side === 'enemy' && (u.targetsKingdom || !heroes.some(h => h && h.alive))) {
+                    if (kingdomAlive()) kingdomDmg += dmg(effPower(u, enemies) * escMult, CFG.KINGDOM_DEFENSE);
+                } else {
+                    const friendly = u.side === 'hero' ? heroes : enemies;
+                    const opposing = u.side === 'hero' ? enemies : heroes;
+                    const t = pickTarget(u, opposing);
+                    if (t) {
+                        if (u.attack.aoe === 'row') {
+                            for (const v of opposing.filter(x => x && x.alive && x.row === t.row)) strike(u, v, friendly, CFG.AOE_POWER_FACTOR);
+                        } else strike(u, t, friendly);
+                    }
                 }
-                u.attack.cooldown += CFG.BASE_ATTACK_INTERVAL / u.attack.speed;
+                u.attack.cooldown += effInterval(u, u.attack, battleT);
             }
         }
         if (u.heal) {
             u.heal.cooldown -= 1000;
             if (u.heal.cooldown <= 0) {
-                const t = pickHealTarget(u.side === 'hero' ? heroes : enemies);
-                if (t) { t.hp = Math.min(t.maxHp, t.hp + u.heal.power); u.heal.cooldown += CFG.BASE_ATTACK_INTERVAL / u.heal.speed; }
+                const friendly = u.side === 'hero' ? heroes : enemies;
+                const t = pickHealTarget(friendly);
+                if (t) {
+                    t.hp = Math.min(t.maxHp, t.hp + u.heal.power * (1 + auraBonus(u, friendly)));
+                    u.heal.cooldown += effInterval(u, u.heal, battleT);
+                }
             }
         }
         // dead heroes free their slot at moment of death (M8 rule) -- modeled
@@ -223,6 +390,7 @@ function simulateRun({ treeIncome = 1, treePower = 1, treeHp = 1, startGold = 50
             gold -= heroCost(need);
             heroes = heroes.filter(x => x.alive);
             heroes.push(makeHero(need, rarityMult, treePower, treeHp));
+            assignHeroCols(heroes);
             hireCooldown = 8; // pool RNG / refresh delay
         } else if (!emergency) {
             // level up when affordable
@@ -267,7 +435,7 @@ function simulateRun({ treeIncome = 1, treePower = 1, treeHp = 1, startGold = 50
             if (battle) {
                 battleT++;
                 for (const h of heroes) if (!h.alive) heroes = heroes.filter(x => x.alive);
-                kingdomHP -= combatTick(heroes, battle, () => kingdomHP > 0, escMultAt(battleT));
+                kingdomHP -= combatTick(heroes, battle, () => kingdomHP > 0, escMultAt(battleT), battleT);
                 if (kingdomHP <= 0) {
                     log.push(`${fmt(t)}  OVERRUN at ${RAID_TIERS[tierIdx].name} wave ${wave + 1} -- RUN ENDS`);
                     return { t, tierIdx, wave, waves, legacy, income, log };
@@ -288,7 +456,7 @@ function simulateRun({ treeIncome = 1, treePower = 1, treeHp = 1, startGold = 50
                 if (timer <= 0) {
                     battle = generateEnemySquad(tierIdx, wave);
                     battleT = 0;
-                    for (const h of heroes) { h.hp = h.maxHp; h.alive = true; if (h.attack) h.attack.cooldown = CFG.BASE_ATTACK_INTERVAL / h.attack.speed; if (h.heal) h.heal.cooldown = CFG.BASE_ATTACK_INTERVAL / h.heal.speed; }
+                    for (const h of heroes) { h.hp = h.maxHp; h.alive = true; delete h.chilledUntil; if (h.attack) h.attack.cooldown = CFG.BASE_ATTACK_INTERVAL / h.attack.speed; if (h.heal) h.heal.cooldown = CFG.BASE_ATTACK_INTERVAL / h.heal.speed; }
                 }
             }
         }
@@ -304,10 +472,11 @@ function winRate(squadSpec, tierIdx, wave, trials = 40) {
     const winTimes = [];
     for (let i = 0; i < trials; i++) {
         const heroes = squadSpec.map(([k, r, tp, th]) => makeHero(k, r, tp, th));
+        assignHeroCols(heroes);
         const enemies = generateEnemySquad(tierIdx, wave);
         let khp = CFG.KINGDOM_HP_MAX, ticks = 0;
         while (ticks++ < 600) {
-            khp -= combatTick(heroes, enemies, () => khp > 0, escMultAt(ticks));
+            khp -= combatTick(heroes, enemies, () => khp > 0, escMultAt(ticks), ticks);
             if (khp <= 0) break;
             if (!enemies.some(e => e.alive)) { wins++; winTimes.push(ticks); break; }
         }
@@ -328,6 +497,7 @@ function grindBattle({ tierIdx, wave, rarityMult = 1, income = 400, regen = 6, h
     // previous wave was just won. Rehires then drip in against attrition.
     let gold = 20000, khp = CFG.KINGDOM_HP_MAX, cd = 0, hired = 0;
     let heroes = [0, 1, 2, 3, 4, 5].map(i => makeHero(want[i % want.length], rarityMult));
+    assignHeroCols(heroes);
     const enemies = generateEnemySquad(tierIdx, wave);
     for (let t = 1; t <= maxSeconds; t++) {
         gold += income;
@@ -338,8 +508,9 @@ function grindBattle({ tierIdx, wave, rarityMult = 1, income = 400, regen = 6, h
         const cost = HERO_ARCHETYPES[key].baseCost * costMult;
         if (heroes.length < 6 && cd === 0 && gold >= cost) {
             gold -= cost; heroes.push(makeHero(key, rarityMult)); hired++; cd = hireDelay;
+            assignHeroCols(heroes);
         }
-        khp -= combatTick(heroes, enemies, () => khp > 0, escalation ? escMultAt(t) : 1);
+        khp -= combatTick(heroes, enemies, () => khp > 0, escalation ? escMultAt(t) : 1, t);
         if (khp <= 0) return { outcome: 'OVERRUN', t, hired };
         if (!enemies.some(e => e.alive)) return { outcome: 'WIN', t, hired };
     }
@@ -394,7 +565,7 @@ const twelve = (r, tp, th) => [
     ['mender', r, tp, th], ['mender', r, tp, th], ['ranged', r, tp, th], ['mender', r, tp, th],
 ];
 const sixteen = (r, tp, th) => [...twelve(r, tp, th),
-    ['guardian', r, tp, th], ['paladin', r, tp, th], ['ranged', r, tp, th], ['assassin', r, tp, th]];
+    ['banneret', r, tp, th], ['battlemage', r, tp, th], ['frostadept', r, tp, th], ['assassin', r, tp, th]];
 specs.push(
     ['r3-4: 12 rare+PA x1.3',  twelve(2.5, 1.3, 1.3)],
     ['r5-6: 12 epic+PA x1.5',  twelve(5, 1.5, 1.5)],

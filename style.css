@@ -186,6 +186,13 @@ h1 {
     opacity: 0.4;
 }
 
+/* Injured residents (sapper hits): income paused until they recover */
+.portrait--injured {
+    filter: grayscale(0.8);
+    opacity: 0.55;
+    box-shadow: 0 0 0 1px #c0392b inset;
+}
+
 /* Expanded squads (War Banners): tighter slots so the panel footprint holds */
 .grid-compact .battle-slot {
     min-height: 54px;
