@@ -163,7 +163,7 @@ Rosters (brute / skirmisher / caster / shaman / sapper): Goblin Brute / Skulker 
 Each raid spawns a 2x3 enemy squad (brute + skirmisher front, caster + shaman back, two empty slots) that fights the player's hero squad in the same 2x3 grid layout. Combat runs automatically, advancing by one game-second per `tick()` (so dev-speed multipliers speed up battles too):
 
 - Each unit has independent `attack` and/or `heal` **actions**, each with its own `power`, `speed`, and cooldown (`cooldown = BASE_ATTACK_INTERVAL / speed`, `BASE_ATTACK_INTERVAL = 2500ms`). This lets future hybrid units (e.g. a Paladin) attack and heal on staggered timers without special-casing.
-- **Targeting** is weighted, not absolute: an attacker rolls its own `backlineChance` (`DEFAULT_BACKLINE_CHANCE = 0.15`, skirmishers are 0.4) to decide whether it goes after the front row or back row, then picks randomly within that row.
+- **Targeting** is weighted, not absolute: an attacker rolls its own `backlineChance` (`DEFAULT_BACKLINE_CHANCE = 0.15`, skirmishers are 0.4) to decide whether it goes after the front row or back row, then picks within that row — where each unit draws `guard` "tickets" (`weightedPick`, M14.1 guard spectrum: guardian 3 / paladin·banneret 2 / fighter 1.5 / assassin 0.5 / unset 1). A lone unit in its pool gains nothing from guard; the mechanic is engine-generic (enemy tanks could later use it too — currently hero-side only).
 - **Healers** (shamans, menders) always target the lowest-HP% wounded ally on their side; if nobody's wounded the heal is held for next tick.
 - Damage: `dmg = max(1, round(attackPower * (1 - defense / 100)))`.
 - **M11 modifier layer** — computed from unit state at each use (never stacked effect objects): **enrage** (`unit.enrage`, active below 50% HP: ×speed on cooldown refill, ×power), **auras** (`unit.aura` — Banneret: adjacent allies ±1 row/col; boss war-cries: whole squad; boosts attack *and* heal power), **chill** (`attack.chill` sets `chilledUntil`/`chillMult` on the target — cooldowns refill ×1.35 slower for 6s; heroes shed chill between battles), **row AoE** (`attack.aoe = 'row'` hits every living unit in the target's row at `AOE_POWER_FACTOR` 0.65 — the discount keeps the deep ladder winnable), **on-death revive** (`reviveCharges`: when an enemy dies, a living ally with charges raises it at 50% HP — killing revivers first is the counter), and **sappers** (`targetsKingdom`: always attack Kingdom HP even while heroes stand; each hit has `SAPPER_INJURY_CHANCE` 25% to injure a random staffed resident for `INJURY_DURATION` 90s — income/regen paused, portrait marked ✚, auto-recovers, never killed; `recomputeIncome()` runs each tick and skips injured residents).
@@ -184,25 +184,30 @@ Base loot per tier is in the raid-tier table above — cut ~170× from the pre-M
 Kingdom HP (`kingdomHP`, max `KINGDOM_HP_MAX = 1000`) is the persistent consequence of losing the hero squad in battle:
 
 - **Heroes "respawn" at full HP at the start of every battle** (`startInvasion` resets `hp = maxHp, alive = true` for the whole squad) — survivors start each battle healed up.
-- **The Kingdom is the last line of defense.** While any hero is alive, enemies target the hero squad as normal (`pickTarget`). Once the hero squad is wiped, every surviving enemy attack instead hits `kingdomHP` directly (`attackKingdom`), using the same `dmg = max(1, round(power * (1 - defense/100)))` formula against a flat `KINGDOM_DEFENSE = 15` (placeholder — could later be tied to a "Walls"-type building).
+- **The Kingdom is the last line of defense.** While any hero is alive, enemies target the hero squad as normal (`pickTarget`). Once the hero squad is wiped, every surviving enemy attack instead hits `kingdomHP` directly (`attackKingdom`), using the same `dmg = max(1, round(power * (1 - defense/100)))` formula against `getKingdomDefense()` — base `KINGDOM_DEFENSE = 15` plus **+3 per Reinforced Walls rank** (M14.1; the old "tie it to a Walls-type building" placeholder is now realized through the Legacy node, making Walls actively blunt every siege hit rather than just adding ablative HP).
 - A battle now ends when **either** the enemy squad is wiped (win) **or** `kingdomHP` reaches 0 (loss). The old "lump sum of dead heroes' maxHp at battle end" penalty has been removed entirely — all Kingdom HP loss now comes from this real-time siege.
 - Regenerated continuously by **Builders** (Workshop residents), `kingdomHpRegen` HP/sec, applied once per tick alongside gold income (including mid-battle).
 - If `kingdomHP` reaches 0 it clamps there and **the run ends**: `endRun('overrun')` records the fall (`kingdomFallRecord` for the HP-panel marker, plus an entry in the persistent `meta.fallHistory`), freezes the game (`tick()` no-ops while `runEnded`), and shows the run-summary overlay with the upgrade shop — see *Run loop implementation (M8)*.
 
 ### Heroes
-Heroes are recruited separately from townspeople and are **not building-gated** — the squad cap is the battlefield grid, which starts 2x3 (6 slots) and expands via the **War Banners** Military node to 3x4 (12) then 4x4 (16) (`HERO_GRID_BY_RANK` / `heroGridDims()`; `resizeHeroSquad()` re-seats heroes on rank-up and load, and the UI compacts slot size so the panel footprint holds — rows past the backline are labeled "Reserve"). Targeting is generalized to any number of rows (M10): the frontmost occupied row is "the front", every row behind it is the backline pool.
+Heroes are recruited separately from townspeople and are **not building-gated** — the squad cap is the battlefield grid, which starts 2x3 (6 slots) and expands via the **War Banners** Military node to 3x4 (12) then 4x4 (16) (`HERO_GRID_BY_RANK` / `heroGridDims()`; `resizeHeroSquad()` re-seats heroes on rank-up and load, and the UI compacts slot size so the panel footprint holds — every rear row is labeled "Backline", matching the mechanics). Targeting is generalized to any number of rows (M10): the frontmost occupied row is "the front", every row behind it is the backline pool.
 
 **Hero archetypes** (`HERO_ARCHETYPES`; an `unlock` field names the Military node that gates pool appearance):
 
 | Archetype | Names by rarity (common→legendary) | Base cost | Role |
 |---|---|---|---|
-| guardian | Knight / Sentinel / Vanguard / Paragon | 1,000g | Tanky attacker (35 defense, 140 hp, 8 atk) |
+| guardian | Knight / Sentinel / Vanguard / Paragon | 1,000g | **Taunt** tank (35 defense, 140 hp, 8 atk; **guard 3**) |
+| fighter | Footman / Sellsword / Blademaster / Warlord | 1,100g | Frontline damage-dealer (18 def, 95 hp, 14 atk @1.0; **guard 1.5**) — base roster (M14.1); pairs with a guardian |
 | ranged | Archer / Sharpshooter / Hunter / Marksman | 750g | Fast attacker (5 defense, 60 hp, 18 atk) |
-| mender | Acolyte / Cleric / Druid / Saint | 850g | Healer (5 defense, 55 hp, 20 heal) |
-| paladin | Squire / Paladin / Crusader / Highlord | 1,300g | Hybrid — attacks *and* heals on staggered timers (25 def, 120 hp, 9 atk + 11 heal); unlock: **Paladin's Oath** |
-| assassin | Rogue / Assassin / Nightblade / Phantom | 950g | Backline hunter (`backlineChance` 0.9; 3 def, 45 hp, 26 atk); unlock: **Shadow Guild** |
+| mender | Acolyte / Cleric / Druid / Saint | 850g | Healer (8 defense, 65 hp, 22 heal — M14.1 buff; was never worth the slot) |
+| paladin | Squire / Paladin / Crusader / Highlord | 1,300g | Hybrid — attacks *and* heals on staggered timers (25 def, 120 hp, 9 atk + 9 heal — heal trimmed in M14.1; stacks dominated; **guard 2**); unlock: **Paladin's Oath** |
+| assassin | Rogue / Assassin / Nightblade / Phantom | 950g | Backline hunter (`backlineChance` 0.9; 3 def, 45 hp, 26 atk; **guard 0.5 — "slippery"**, drawn half as often within its pool); unlock: **Shadow Guild** |
 
-A hero costs a meaningful slice of early income (~30–60s of gold at raid-trigger time), so a full 6-slot squad is a real investment — mid-battle emergency rehires compete with everything else the gold could buy.
+**The guard spectrum (M14.1):** every unit's `guard` is its targeting-ticket weight within its row pool (unset = 1; shown as "GRD ×N" on unit cards): guardian 3 · paladin/banneret 2 · fighter 1.5 · assassin 0.5. Tanks tank *for* whoever shares their pool, and a guardian stationed in a **rear row bodyguards the backline** — sim-verified as rewarding against marksman tiers (Bandit boss 93%→99%) and punished against front-heavy ones (Dark boss 12%→3%), a genuine matchup-dependent placement decision. The slippery assassin doesn't go degenerate: a full back pool still lands ~6% of its fire on it, and row-AoE breath ignores guard entirely.
+
+Sim-verified M14.1 frontline metagame: guardian+fighter beats double-fighter against the orc enrage tier (74% vs 40% at Orc w6), double-fighter beats double-guardian against bandit/dark heal-walls (94% vs 69% at the Bandit boss) — no front is strictly best, and paladin-stacks are now a specialist choice (win the Bandit-boss race, collapse at Dark) rather than the answer to everything.
+
+A hero costs a meaningful slice of early income (~30–60s of gold at raid-trigger time), so a full 6-slot squad is a real investment — mid-battle emergency rehires compete with everything else the gold could buy. **Hero hire costs scale ×1.4 per raid tier reached** (`HERO_COST_TIER_GROWTH`, M14.1): late-game income dwarfs flat costs, so this keeps a squad rebuild a real purchase (~2–4 min of contemporaneous income) all game. Sim-verified it does *not* move battle outcomes — walls are attrition-bound, not gold-bound — it only restores purchase weight.
 
 `generateHero` scales `attack`/`heal` power by the rarity tier's `incomeMult` and HP by `sqrt(incomeMult)` (same `rarityTiers` table used for townspeople — see *Recruit pool system*). Hero cost scales by the tier's `costMult`.
 
@@ -290,6 +295,7 @@ When tuning any number, tune *toward this table*, not toward abstract fairness. 
 - **Continuous curve across tier transitions** (implemented): each tier's `powerMult` = the previous tier's boss-wave multiplier (1.0 / 1.52 / 3.0 / 7.6 / 24.7), `defenseGrowth = 1.088`/wave everywhere. The final boss lands at ~95× goblin wave 1 (target was 80–100×), with the boss unit's own ×1.8/×4 on top. No stat cliffs — the old Dragon-wave-7 spike class of problem is gone by construction.
 - Raid pacing (implemented): per-tier `raidInterval` — 45s at Goblin/Orc tightening to 30s at Dragon — plus a 75s grace before the first raid ever.
 - Sim-measured expectations (`tools/balance-sim.js`, M14 campaign-arc check — the "wall" is the first wave under a 50% win rate for each run's arc-expected squad): run 1 walls Orc w5; run 2 Orc boss; run 3 Bandit w7; runs 4–6 run roughly half a tier deep of their targets (the 12-slot expansion is strong — War Banners rank 1 priced to 4,000 to delay it); runs 7–9 converge on target (Dragon w8 / w15 / w15-boss); the Final Siege gauntlet lands at ~27–38% for the full endgame kit and 0% without doctrines. Net: the campaign completes in ~8 runs of optimal play, 9–10 realistic — slightly compressed vs the table but the right shape. **The user's real 1× acceptance playtest is the final calibration gate.**
+- **M14.1 arc re-verification** (after taunt / fighter / mender-paladin rebalance / tier-scaled hero costs): walls land run-for-run on the M14 baseline (Orc w7 / Orc boss / Bandit w7 / Dark w7 / Dark w13 / Dark boss / Dragon w6 / w15 / w15), gauntlet 28% with the full kit and ~0% without doctrines, fair-fight medians all under the escalation grace, grind table unchanged (money still can't buy tiers). Same difficulty shape as the accepted playtest, now with the composition metagame underneath. The user's actual runs 1–5 fell ½–1 tier deeper than the arc targets — declared **acceptable variance**, not a tuning bug: Legacy-spend choices are supposed to swing run depth; the table is a script, not a contract.
 
 ### Victory condition — the Final Siege (implemented in M13)
 After the Dragon Siege boss (wave 17) falls **for the first time in the campaign**, a herald announces the **Final Siege** arrives in `FINAL_SIEGE_COUNTDOWN_RAIDS` (3) raids' time (status bar shows the countdown; the interim raids are ordinary post-boss waves — compositions clamp to the tier's last non-boss mix while stats keep scaling). Then the **3-phase gauntlet** (`FINAL_SIEGE_PHASES`, one invasion with `finalSiege: true`): **The Vanguard** (wave-14 stats, 10 units) → **The Elite Guard** (wave-16, 9) → **The Empress Ascendant** (wave-18, the boss + guard). Heroes do **not** reset HP between phases (menders/Blessing showcase; Blessing fires once per gauntlet), the **escalation clock resets each phase**, and Kingdom HP is the buffer that carries a partial wipe across phases. Phase waves sim-tuned: the endgame squad (16 legendaries + Realm doctrines) wins ~38%/attempt; without doctrines 0% — run 9 loses, run 10 wins, per the arc.
@@ -331,13 +337,13 @@ Two permanent, currency-funded trees spent into after each reset. Full planned s
 | Economy | Apothecary Salves (M12) | heroes regen 0.3% HP/s per Apothecary in battle | 1 | 6,000 |
 | Economy | Cathedral Blessing (M12) | first fallen hero each battle revives at 30% (needs a Cathedral) | 1 | 10,000 |
 | Economy | Prosperous Trade | +25% gold income | 5 | 15 / 60 / 250 / 1,000 / 6,000 |
-| Economy | Royal Treasury | starting gold 50 → 250 / 1,000 / 4,000 / 15,000 | 4 | 10 / 40 / 150 / 500 |
+| Economy | Royal Treasury | starting gold 75 → 250 / 1,000 / 4,000 / 15,000 | 4 | 10 / 40 / 150 / 500 |
 | Economy | Master Builders | +50% Builder HP regen | 3 | 25 / 100 / 400 |
 | Economy | Old Foundations | new Ages begin at Village | 1 | 400 |
 | Military | Weapon Drills | +20% hero attack & healing | 5 | 15 / 60 / 250 / 1,000 / 6,000 |
 | Military | Hardened Armor | +20% hero HP | 5 | 15 / 60 / 250 / 1,000 / 6,000 |
 | Military | Muster Rolls | hero hiring −15% (multiplicative) | 3 | 20 / 80 / 300 |
-| Military | Reinforced Walls | +250 max Kingdom HP | 4 | 15 / 60 / 250 / 1,000 |
+| Military | Reinforced Walls | +250 max Kingdom HP and +3 Kingdom defense | 4 | 15 / 60 / 250 / 1,000 |
 | Military | Veteran's Welcome | free Rare Knight each new Age | 1 | 100 |
 
 **M14 pricing math:** total trees ≈ 90k Legacy; the Final-Siege-winning kit (Hall of Legends, War Banners, power ranks, doctrines) ≈ 60k ≈ ⅔ of total, per the pricing philosophy. First-clear campaign budget ≈ 150k + countdown waves + the 25k Lessons bonus.
@@ -364,7 +370,7 @@ Sequenced so the zero-engine-work heroes arrive first:
 | Banneret | aura: adjacent allies +15% attack/heal power | buff system | **implemented (M11)** — unlock: Standard Bearers, 1,500 Legacy |
 | Frost Adept | attacks chill the target (cooldowns ×1.35 for 6s) | debuff-on-hit | **implemented (M11)** — unlock: Rimecraft, 1,200 Legacy |
 
-M11 hero stat blocks: Battlemage (Adept/Battlemage/Warmage/Archmage, 1,600g, 8 def / 70 hp / 12 atk row-AoE @0.8), Banneret (Herald/Banneret/Marshal/High Marshal, 1,500g, 25 def / 110 hp / 6 atk @0.6 + adjacency aura), Frost Adept (Frost Apprentice/Frost Adept/Rimecaller/Winter's Voice, 1,400g, 6 def / 65 hp / 10 atk @1.0 + chill). Auras and chill are fixed effects — rarity scales the unit's own stats only.
+M11 hero stat blocks: Battlemage (Adept/Battlemage/Warmage/Archmage, 1,600g, 8 def / 70 hp / 12 atk row-AoE @0.8), Banneret (Herald/Banneret/Marshal/High Marshal, 1,500g, 25 def / 110 hp / 6 atk @0.6 + adjacency aura + guard 2), Frost Adept (Frost Apprentice/Frost Adept/Rimecaller/Winter's Voice, 1,400g, 6 def / 65 hp / 10 atk @1.0 + chill). Auras and chill are fixed effects — rarity scales the unit's own stats only.
 
 ### Enemy tier mechanics (one tactical lesson per tier) — implemented in M11
 Later tiers are new problems, not just bigger numbers — each reuses an engine feature from the hero list (see the raid-tier table for the trait wiring):
@@ -393,12 +399,38 @@ The in-run economy stays **gold-only** — no separate combat currency for hero 
   something" lever landed in M9.6 as **siege escalation** (the 2026-07-17 playtest showed in-battle
   stalling was still free — see *Kingdom HP interplay*); sapper-type enemies remain a possible M11
   flavor mechanic but are no longer load-bearing for anti-stall.
-- [ ] Exact numbers throughout — wave counts, per-tier currency multiplier, boss bonus, `defenseGrowth`, loot values, Legacy wave values, upgrade costs — all placeholder until the M9/M14 playtests against the *Difficulty arc across runs* table.
+- [x] **New-save softlock (found in the 2026-07-17 acceptance playtest — FIXED same day):** with
+  50 starting gold, buying all 3 Hamlet cottages (39g total — a single click in ×max buy mode)
+  left 11g against the 25g Villager hire with zero income and no other gold faucet — a hard
+  self-inflicted softlock whose only exit was the meta-wiping dev reset ("Found a New Age" is
+  gated on `raidsStarted`, deliberately kept that way). **Fix: starting gold 50 → 75**
+  (`STARTING_GOLD_BY_TREASURY_RANK[0]`; sim mirror updated, arc re-verified unchanged), so
+  max-greedy building still leaves the first hire affordable; `loadGame()` now also applies
+  `getStartingGold()` on fresh boots so a no-save start honors Royal Treasury. Related teaching
+  ideas (free Villager with the first Cottage; rename/relocate the "Found a New Age" button —
+  "found" as a verb doesn't read on first sight) deferred to the tutorialization pass (see
+  *Ideas under consideration*).
 - [ ] Exact tier transitions where the enemy grid expands, and where the matching hero squad-expansion milestones sit in the Military tree.
+- [x] **Hero grid expansion shape / do rows survive at all (raised in the 2026-07-17 playtest — RESOLVED same day):** War Banners growth (2x3 → 3x4 → 4x4) only ever adds *rear* rows, which prompted "with taunt as a per-unit lever, do we need front/back targeting at all?" Analysis said keep rows — they still carry (1) the hunter identity (`backlineChance` is the whole mechanical identity of assassins/marksmen and two tier lessons); (2) protection that scales with bodies not stats (the front soaks ~85% at any squad size; flat guard-weighted targeting would dilute to ~30% tank-soak at 16 slots); (3) breath-AoE/aura/enemy comps are authored in rows; (4) legibility. Decisions: **rows stay**; **the guard spectrum shipped** (see *Heroes*); the misleading "Reserve" label is gone — **every rear row is labeled "Backline"**, since that's what it mechanically is (user's call: rear-adds-backline is thematically fine — armies have more backline than frontline). Parked for later, only if formation still feels shallow post-M15: the **lane/intercept model** (a guard unit protects whoever stands behind it in its column; hunters flank) — maximally legible and makes expansion slots protectable seats, but rebalances every fight and every enemy comp, so post-campaign scope. True-reserve bench likewise parked (big balance lever: "all 16 fight" is part of why expanded squads overshoot).
+- [ ] **War Banners budgeting feel** (playtest): saving for squad expansion against Hall of Legends ranks felt hard to plan. Partially intended (M14 priced rank 1 at 4,000 to delay the strong 12-slot jump) — revisit after the M14.1 hero-economy changes settle in play.
 - [ ] Boss unit stat blocks and any per-boss unique abilities beyond the tier gimmick.
 - [x] UI for the run-end/reset summary screen and the two upgrade trees — implemented in M8 as a full-screen overlay (see *Run loop implementation (M8)*).
 
 ### Ideas under consideration (raised 2026-07-13)
+- **Tutorialization pass (candidate M16, after visuals/sound; raised 2026-07-17):** guided first
+  steps for a new save — e.g. the first Cottage comes with a free Villager as the teaching hook
+  ("you bought a cottage, villagers live here, find more in the Town Square"); also rename and
+  relocate the "Found a New Age" button ("found" as a verb isn't intuitively understood on first
+  read).
+- **"Lock" a hero recruit (playtest 2026-07-17):** pin a pool recruit so it survives refreshes,
+  hire when affordable. User worried it's too strong; assessment: healthy as a Legacy QoL node,
+  especially now that hero costs scale by tier (locking becomes the pressure valve that makes
+  saving for an expensive recruit feel fair). Candidate Military-tree node.
+- **Doctrine presentation redesign (playtest 2026-07-17):** the per-building percentages read as
+  tiny against their Legacy prices even though the family is sim-decisive (opens the final boss).
+  M14.1 rewrote the shop copy to name the aggregate ("a full forge district: +10.5%"); the bigger
+  candidate redesign is chunkier threshold framing ("while you own 3+ Smithies…") or showing the
+  player's live computed bonus in the card. Revisit alongside M15/M16.
 - **The kingdom & villagers as rare combat targets — IMPLEMENTED in M11** as the sapper enemy
   mechanic; see *Enemy tier mechanics*.
 - **Per-building interactive minigames that automate later:** the classic incremental arc — each
@@ -496,9 +528,10 @@ runs at only ~5-8× effective. M15's "smooth at 100×" constraint requires rende
 - [x] Milestone 12: **Doctrines** (wild/m10-m14 branch) — the four building↔army synergy nodes (Forgework / Tactics / Salves / Blessing, 2k/3k/5k/8k Legacy) as live use-time multipliers through the M11 modifier layer; Dragon boss comp trimmed one breath-mage; sim-verified that doctrines open the final boss (2% → 25% for the endgame squad); browser-smoked (multiplier values, blessing one-revive-per-battle)
 - [x] Milestone 13: **Final Siege** (wild/m10-m14 branch) — herald + 3-raid countdown after the first Dragon Empress kill; 3-phase gauntlet as one invasion (HP carries, escalation resets per phase, Blessing once per gauntlet; phase waves 14/16/18 sim-tuned to ~38% for the endgame squad with doctrines, 0% without); Lessons of the Last Siege (25,000 Legacy, once) on a lost attempt; victory screen with campaign stats; endless mode (post-boss comp clamp, no second siege); browser-smoked end-to-end (herald, phases, victory overlay, endless resume, lessons once-only)
 - [x] Milestone 14: **Full-game balance calibration** (wild/m10-m14 branch; sim + accelerated-engine version — the user's real 1× playthrough is the acceptance gate) — campaign-arc wall-finder in the sim (per-run arc squads vs targets: on-target at both ends, ~half a tier deep mid-campaign; gauntlet 27–38% with the full kit, 0% without doctrines); tree-cost rescale to the pricing philosophy (totals ≈90k, winning kit ≈⅔; top power ranks 6,000, War Banners 4,000/30,000, Blessing 10,000); SAVE_VERSION → 5; browser soak test: a greedy driver played run 1 end-to-end at accelerated speed and fell to Orc w6 with 10 waves / 330 Legacy — matching the sim's prediction (Orc w5–7, ~380 LP) with zero console errors; known perf debt recorded for M15 (per-tick DOM rebuild caps 100× at ~5–8× effective)
+- [x] Milestone 14.1: **Acceptance-playtest feedback round 1** (uncommitted on wild/m10-m14) — stale-affordability UI fix (per-tick `refreshAffordability`); new-save softlock fix (starting gold 75); battle-grid column-stagger fix + hero-pool timer; **combat rebalance from the 5-reset playtest**: the **guard spectrum** (guardian 3 / paladin·banneret 2 / fighter 1.5 / assassin 0.5 weighted targeting, "GRD ×N" on unit cards), Fighter base-roster archetype (Footman/Sellsword/Blademaster/Warlord — frontline DPS), mender buff (22/65/8), paladin heal trim (11→9), hero costs ×1.4/raid tier, Reinforced Walls +3 Kingdom defense/rank, doctrine shop copy rewritten for impact. Sim re-verified: arc lands on the M14 baseline run-for-run (run-1 model reproduces the user's actual run 1 exactly: Orc w7, 11 waves, 380 LP), frontline composition is tier-dependent, paladin-stacks are a specialist choice, rear-row bodyguarding is a real matchup call, slippery assassins non-degenerate. Browser-smoked (weighted distributions exact, cost scaling ×1.96 at tier 2, walls def 27, GRD display, live battle repelled clean)
 - [ ] Milestone 15: **Game feel — visuals & sound** — the juice pass that turns the mechanically-complete game (M14) into one that feels good to play: combat/UI feedback animations, floating numbers, kingdom-damage and run-transition drama, portrait/sprite art pass; Web Audio SFX (hits, hires, raid horn, escalation heartbeat, stingers) with mute/volume; reduced-motion toggle. Scope sketch in *Game feel pass — visuals & sound (M15)*
 
 ## Starting state
-- Player begins with 50 gold (enough to buy first Cottage at 10g + hire first Villager at 25g); Royal Treasury ranks raise this for later Ages
+- Player begins with 75 gold — enough that even buying all 3 Hamlet Cottages (39g) still leaves the first 25g Villager hire affordable (softlock guard, 2026-07-17; was 50); Royal Treasury ranks raise this for later Ages
 - No base income — gold only accrues from hired residents
 - Kingdom HP starts full (base `KINGDOM_HP_MAX` = 1000, +250 per Reinforced Walls rank)

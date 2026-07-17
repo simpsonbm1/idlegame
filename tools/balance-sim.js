@@ -125,16 +125,22 @@ const TIER_WAVES = [
     ]
 ];
 
+// M14.1 rebalance (playtest feedback): the GUARD SPECTRUM — guard = targeting
+// tickets within the unit's row pool (unset = 1): guardian 3, paladin/banneret
+// 2, fighter 1.5, assassin 0.5 (slippery). Fighter debuts (frontline DPS, base
+// roster); paladin heal 11->9 (stack was dominant); mender buffed 22/65/8.
+const HERO_COST_TIER_GROWTH = 1.4; // hero hire cost x1.4 per raid tier reached
 const HERO_ARCHETYPES = {
-    guardian: { baseCost: 1000, defense: 35, hp: 140, attack: { power: 8,  speed: 0.7 } },
+    guardian: { baseCost: 1000, defense: 35, hp: 140, attack: { power: 8,  speed: 0.7 }, guard: 3 },
+    fighter:  { baseCost: 1100, defense: 18, hp: 95,  attack: { power: 14, speed: 1.0 }, guard: 1.5 },
     ranged:   { baseCost: 750, defense: 5,  hp: 60,  attack: { power: 18, speed: 1.3 } },
-    mender:   { baseCost: 850, defense: 5,  hp: 55,  heal:   { power: 20, speed: 0.7 } },
+    mender:   { baseCost: 850, defense: 8,  hp: 65,  heal:   { power: 22, speed: 0.7 } },
     // M10 unlockable archetypes
-    paladin:  { baseCost: 1300, defense: 25, hp: 120, attack: { power: 9, speed: 0.7 }, heal: { power: 11, speed: 0.55 } },
-    assassin: { baseCost: 950,  defense: 3,  hp: 45,  attack: { power: 26, speed: 1.2 }, backlineChance: 0.9 },
+    paladin:  { baseCost: 1300, defense: 25, hp: 120, attack: { power: 9, speed: 0.7 }, heal: { power: 9, speed: 0.55 }, guard: 2 },
+    assassin: { baseCost: 950,  defense: 3,  hp: 45,  attack: { power: 26, speed: 1.2 }, backlineChance: 0.9, guard: 0.5 },
     // M11 unlockable archetypes (aura/chill are fixed effects; rarity scales stats)
     battlemage: { baseCost: 1600, defense: 8,  hp: 70,  attack: { power: 12, speed: 0.8, aoe: 'row' } },
-    banneret:   { baseCost: 1500, defense: 25, hp: 110, attack: { power: 6, speed: 0.6 }, aura: { power: 0.15, range: 'adjacent' } },
+    banneret:   { baseCost: 1500, defense: 25, hp: 110, attack: { power: 6, speed: 0.6 }, aura: { power: 0.15, range: 'adjacent' }, guard: 2 },
     frostadept: { baseCost: 1400, defense: 6,  hp: 65,  attack: { power: 10, speed: 1.0, chill: { mult: 1.35, duration: 6 } } },
 };
 
@@ -218,9 +224,10 @@ function makeHero(key, rarityMult, treePower = 1, treeHp = 1) {
     const heal = a.heal ? { power: Math.round(a.heal.power * rarityMult * treePower), speed: a.heal.speed } : null;
     if (attack && a.attack.aoe) attack.aoe = a.attack.aoe;
     if (attack && a.attack.chill) attack.chill = a.attack.chill;
-    const row = (key === 'guardian' || key === 'paladin' || key === 'banneret') ? 0 : 1;
+    const row = (key === 'guardian' || key === 'paladin' || key === 'banneret' || key === 'fighter') ? 0 : 1;
     const unit = makeUnit(key, a.defense, Math.round(a.hp * Math.sqrt(rarityMult) * treeHp), row, 0, 'hero', attack, heal, a.backlineChance);
     if (a.aura) unit.aura = a.aura;
+    if (a.guard) unit.guard = a.guard;
     return unit;
 }
 
@@ -235,17 +242,26 @@ function assignHeroCols(heroes) {
     }
 }
 
-// Mirror of game.js pickTarget (generalized to N rows in M10): frontmost
-// occupied row is the front, everything behind is the backline pool.
+// Mirror of game.js pickTarget (generalized to N rows in M10; M14.1 taunt):
+// frontmost occupied row is the front, everything behind is the backline pool.
+// Within the chosen pool, a unit with guard > 1 draws that many targeting
+// "tickets" (guardians tank for whoever shares their pool).
+function weightedPick(pool) {
+    let total = 0;
+    for (const u of pool) total += u.guard || 1;
+    let roll = Math.random() * total;
+    for (const u of pool) { roll -= u.guard || 1; if (roll <= 0) return u; }
+    return pool[pool.length - 1];
+}
 function pickTarget(attacker, squad) {
     const alive = squad.filter(u => u && u.alive);
     if (!alive.length) return null;
     const frontRow = Math.min(...alive.map(u => u.row));
     const front = alive.filter(u => u.row === frontRow);
     const back = alive.filter(u => u.row > frontRow);
-    if (!back.length) return front[Math.floor(Math.random() * front.length)];
+    if (!back.length) return weightedPick(front);
     const pool = Math.random() < attacker.backlineChance ? back : front;
-    return pool[Math.floor(Math.random() * pool.length)];
+    return weightedPick(pool);
 }
 
 function pickHealTarget(squad) {
@@ -376,7 +392,7 @@ function combatTick(heroes, enemies, kingdomAlive, escMult = 1, battleT = 0) {
 }
 
 // ---------- Run-1 player simulation ----------
-function simulateRun({ treeIncome = 1, treePower = 1, treeHp = 1, startGold = 50, rarityMult = 1, verbose = true } = {}) {
+function simulateRun({ treeIncome = 1, treePower = 1, treeHp = 1, startGold = 75, rarityMult = 1, verbose = true } = {}) {
     let gold = startGold, earned = 0, income = 0, hpRegen = 0;
     let level = 0, kingdomHP = CFG.KINGDOM_HP_MAX;
     const owned = {}, staffed = {};
@@ -390,8 +406,12 @@ function simulateRun({ treeIncome = 1, treePower = 1, treeHp = 1, startGold = 50
     const log = [];
 
     const cap = id => (LEVELS[level].caps[id] || 0);
-    const heroCost = key => HERO_ARCHETYPES[key].baseCost * (rarityMult === 1 ? 1 : rarityMult === 2.5 ? 3 : rarityMult === 5 ? 8 : 20);
-    const wantHeroes = ['guardian', 'ranged', 'mender', 'guardian', 'ranged', 'mender'];
+    const heroCost = key => HERO_ARCHETYPES[key].baseCost * (rarityMult === 1 ? 1 : rarityMult === 2.5 ? 3 : rarityMult === 5 ? 8 : 20)
+        * Math.pow(HERO_COST_TIER_GROWTH, tierIdx);
+    // Role coverage first, then double up — the cheap 2nd/3rd hires matter for
+    // surviving the knife-edge first battle (the model spends down to ~0 gold
+    // at the trigger).
+    const wantHeroes = ['guardian', 'ranged', 'mender', 'fighter', 'ranged', 'mender'];
     const maxSquad = 6;
 
     while (t < 3 * 3600) {
@@ -520,8 +540,9 @@ function winRate(squadSpec, tierIdx, wave, trials = 40, doctrines = null) {
 // squad can't out-damage stalemates forever (the playtest soft-lock); with it,
 // the siege must resolve as WIN or OVERRUN.
 function grindBattle({ tierIdx, wave, rarityMult = 1, income = 400, regen = 6, hireDelay = 6, escalation = true, maxSeconds = 3600 }) {
-    const costMult = rarityMult === 1 ? 1 : rarityMult === 2.5 ? 3 : rarityMult === 5 ? 8 : 20;
-    const want = ['guardian', 'ranged', 'mender'];
+    const costMult = (rarityMult === 1 ? 1 : rarityMult === 2.5 ? 3 : rarityMult === 5 ? 8 : 20)
+        * Math.pow(HERO_COST_TIER_GROWTH, tierIdx);
+    const want = ['guardian', 'fighter', 'ranged', 'mender'];
     // Real walls are hit with a full squad standing and a deep wallet — the
     // previous wave was just won. Rehires then drip in against attrition.
     let gold = 20000, khp = CFG.KINGDOM_HP_MAX, cd = 0, hired = 0;
@@ -568,8 +589,8 @@ const r3 = simulateRun({ treeIncome: 1.5, treePower: 1.2, treeHp: 1.2, startGold
 for (const line of r3.log.slice(-12)) console.log(line);
 console.log(`Result: ${fmt(r3.t)} | wall ${RAID_TIERS[r3.tierIdx].name} w${r3.wave + 1} | ${r3.waves} waves | ${r3.legacy} LP\n`);
 
-console.log('=== Squad-vs-wave win rates (full 6-hero squads 2G/2R/2M) ===');
-const six = (r, tp, th) => [['guardian', r, tp, th], ['guardian', r, tp, th], ['ranged', r, tp, th], ['ranged', r, tp, th], ['mender', r, tp, th], ['mender', r, tp, th]];
+console.log('=== Squad-vs-wave win rates (full 6-hero squads G/F front + 2R/2M) ===');
+const six = (r, tp, th) => [['guardian', r, tp, th], ['fighter', r, tp, th], ['ranged', r, tp, th], ['ranged', r, tp, th], ['mender', r, tp, th], ['mender', r, tp, th]];
 const specs = [
     ['3 commons (run 1 early)', [['guardian', 1, 1, 1], ['ranged', 1, 1, 1], ['mender', 1, 1, 1]]],
     ['6 commons, no tree',      six(1, 1, 1)],
@@ -590,7 +611,7 @@ const specs = [
 // M10 expanded squads (War Banners 12/16 slots + Paladin/Assassin): compare
 // against the 6-slot cap rows above to price the expansion nodes on the arc.
 const twelve = (r, tp, th) => [
-    ['guardian', r, tp, th], ['guardian', r, tp, th], ['paladin', r, tp, th], ['paladin', r, tp, th],
+    ['guardian', r, tp, th], ['fighter', r, tp, th], ['paladin', r, tp, th], ['paladin', r, tp, th],
     ['ranged', r, tp, th], ['ranged', r, tp, th], ['assassin', r, tp, th], ['assassin', r, tp, th],
     ['mender', r, tp, th], ['mender', r, tp, th], ['ranged', r, tp, th], ['mender', r, tp, th],
 ];
@@ -650,11 +671,14 @@ function siegePhaseSquad(phaseDef) {
     return squad;
 }
 
-// Endgame kingdom defaults: Reinforced Walls maxed (2000 HP) and a Realm-level
-// Builder corps (8 slots, uncapped rarity, Master Builders) ~25 hp/s regen.
-function finalSiegeRate(squadSpec, trials = 60, doctrines = null, regen = 25, khpMax = 2000) {
+// Endgame kingdom defaults: Reinforced Walls maxed (2000 HP, and since M14.1
+// +3 Kingdom defense per rank -> 15+12=27) and a Realm-level Builder corps
+// (8 slots, uncapped rarity, Master Builders) ~25 hp/s regen.
+function finalSiegeRate(squadSpec, trials = 60, doctrines = null, regen = 25, khpMax = 2000, kdef = 27) {
     let wins = 0;
     const saved = DOCTRINES;
+    const savedKdef = CFG.KINGDOM_DEFENSE;
+    CFG.KINGDOM_DEFENSE = kdef;
     if (doctrines) DOCTRINES = { ...saved, ...doctrines };
     for (let i = 0; i < trials; i++) {
         blessingUsed = false;
@@ -675,6 +699,7 @@ function finalSiegeRate(squadSpec, trials = 60, doctrines = null, regen = 25, kh
         if (!dead) wins++;
     }
     DOCTRINES = saved;
+    CFG.KINGDOM_DEFENSE = savedKdef;
     return wins / trials;
 }
 
@@ -712,7 +737,7 @@ function findWall(spec, doctrines, startTier = 0, startWave = 0, trials = 16) {
 }
 
 console.log('\n=== M14 campaign-arc check (wall = first wave under 50%) ===');
-const fourC2R = tp => [['guardian', 2.5, tp, tp], ['guardian', 1, tp, tp], ['ranged', 2.5, tp, tp], ['ranged', 1, tp, tp], ['mender', 1, tp, tp], ['mender', 1, tp, tp]];
+const fourC2R = tp => [['guardian', 2.5, tp, tp], ['fighter', 1, tp, tp], ['ranged', 2.5, tp, tp], ['ranged', 1, tp, tp], ['mender', 1, tp, tp], ['mender', 1, tp, tp]];
 const ARC_RUNS = [
     ['run 1',  'Goblin boss-Orc w5',   six(1, 1, 1), null],
     ['run 2',  'Orc w3-5',             fourC2R(1.15), null],

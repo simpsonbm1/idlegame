@@ -1,4 +1,4 @@
-let gold = 50;
+let gold = 75; // placeholder until loadGame(); kept at STARTING_GOLD_BY_TREASURY_RANK[0]
 let goldEarned = 0;
 let goldPerSecond = 0;
 let kingdomHpRegen = 0;
@@ -47,6 +47,13 @@ const HERO_POOL_REFRESH_INTERVAL = 15;
 
 const KINGDOM_HP_MAX = 1000;
 const KINGDOM_DEFENSE = 15;
+// Hero hires cost x1.4 more per raid tier reached (M14.1): late-game income
+// dwarfs flat hero costs, so a squad rebuild should stay a real purchase
+// (~2-4 min of contemporaneous income) all game. Doesn't move battle outcomes
+// (sim-verified — walls are attrition-bound, not gold-bound); it restores
+// purchase weight.
+const HERO_COST_TIER_GROWTH = 1.4;
+const WALLS_DEFENSE_PER_RANK = 3; // Reinforced Walls: +3 Kingdom defense per rank (M14.1)
 
 const ARM_TIMEOUT_MS = 3000;
 
@@ -226,20 +233,33 @@ const ENEMY_ARCHETYPES = {
 
 // Archetypes with an `unlock` field only appear in the hero pool once that
 // Military-tree node is owned (M10: Paladin, Assassin).
+// M14.1 rebalance (acceptance-playtest feedback): the GUARD SPECTRUM — each
+// unit's `guard` is its targeting-ticket weight within its row pool (unset =
+// 1): guardian 3, paladin/banneret 2, fighter 1.5, assassin 0.5 ("slippery").
+// Tanks tank FOR whoever shares their pool; a rear-row guardian bodyguards
+// the backline (sim: rewarding vs marksman tiers, punished vs front-heavy
+// ones — a real placement decision). Also: fighter debuts as the base-roster
+// frontline damage-dealer; paladin heal trimmed 11->9 (stacks dominated);
+// mender buffed 22 heal / 65 hp / 8 def (was never worth the slot).
+// Sim-verified: front composition is tier-dependent (GF beats FF vs orc
+// enrage; FF beats GG vs bandit/dark heal-walls), paladin-stacks are a
+// specialist choice, and slippery assassins don't go degenerate (row-AoE
+// ignores guard; a full back pool still lands ~6% of its fire on them).
 const HERO_ARCHETYPES = {
-    guardian: { names: ['Knight', 'Sentinel', 'Vanguard', 'Paragon'],    baseCost: 1000, base: { defense: 35, hp: 140, attack: { power: 8,  speed: 0.7 } } },
+    guardian: { names: ['Knight', 'Sentinel', 'Vanguard', 'Paragon'],    baseCost: 1000, base: { defense: 35, hp: 140, attack: { power: 8,  speed: 0.7 }, guard: 3 } },
+    fighter:  { names: ['Footman', 'Sellsword', 'Blademaster', 'Warlord'], baseCost: 1100, base: { defense: 18, hp: 95, attack: { power: 14, speed: 1.0 }, guard: 1.5 } },
     ranged:   { names: ['Archer', 'Sharpshooter', 'Hunter', 'Marksman'], baseCost: 750,  base: { defense: 5,  hp: 60,  attack: { power: 18, speed: 1.3 } } },
-    mender:   { names: ['Acolyte', 'Cleric', 'Druid', 'Saint'],          baseCost: 850,  base: { defense: 5,  hp: 55,  heal:   { power: 20, speed: 0.7 } } },
+    mender:   { names: ['Acolyte', 'Cleric', 'Druid', 'Saint'],          baseCost: 850,  base: { defense: 8,  hp: 65,  heal:   { power: 22, speed: 0.7 } } },
     paladin:  { names: ['Squire', 'Paladin', 'Crusader', 'Highlord'],    baseCost: 1300, unlock: 'paladin',
-                base: { defense: 25, hp: 120, attack: { power: 9, speed: 0.7 }, heal: { power: 11, speed: 0.55 } } },
+                base: { defense: 25, hp: 120, attack: { power: 9, speed: 0.7 }, heal: { power: 9, speed: 0.55 }, guard: 2 } },
     assassin: { names: ['Rogue', 'Assassin', 'Nightblade', 'Phantom'],   baseCost: 950,  unlock: 'assassin',
-                base: { defense: 3,  hp: 45,  attack: { power: 26, speed: 1.2 }, backlineChance: 0.9 } },
+                base: { defense: 3,  hp: 45,  attack: { power: 26, speed: 1.2 }, backlineChance: 0.9, guard: 0.5 } },
     // M11 archetypes exercising the new engine features. Banneret's aura and
     // Frost Adept's chill are fixed effects — rarity scales their own stats.
     battlemage: { names: ['Adept', 'Battlemage', 'Warmage', 'Archmage'], baseCost: 1600, unlock: 'battlemage',
                 base: { defense: 8,  hp: 70,  attack: { power: 12, speed: 0.8, aoe: 'row' } } },
     banneret: { names: ['Herald', 'Banneret', 'Marshal', 'High Marshal'], baseCost: 1500, unlock: 'banneret',
-                base: { defense: 25, hp: 110, attack: { power: 6, speed: 0.6 }, aura: { power: 0.15, range: 'adjacent' } } },
+                base: { defense: 25, hp: 110, attack: { power: 6, speed: 0.6 }, aura: { power: 0.15, range: 'adjacent' }, guard: 2 } },
     frostadept: { names: ['Frost Apprentice', 'Frost Adept', 'Rimecaller', "Winter's Voice"], baseCost: 1400, unlock: 'frost',
                 base: { defense: 6,  hp: 65,  attack: { power: 10, speed: 1.0, chill: { mult: 1.35, duration: 6 } } } }
 };
@@ -323,9 +343,9 @@ const UPGRADE_TREES = {
             { id: 'foundations', name: 'Old Foundations',  desc: 'New Ages begin at Village level',                              maxRank: 1, costs: [400] },
             // Doctrines (M12): buildings feed the army, so town composition
             // stays a battle decision all game.
-            { id: 'forgework', name: 'Smithy Forgework',    desc: '+1.5% hero attack per Smithy owned',                           maxRank: 1, costs: [2000] },
-            { id: 'tactics',   name: 'Library Tactics',     desc: '+1% hero action speed per Library owned',                      maxRank: 1, costs: [3000] },
-            { id: 'salves',    name: 'Apothecary Salves',   desc: 'Heroes regenerate 0.3% HP/s per Apothecary during battle',     maxRank: 1, costs: [6000] },
+            { id: 'forgework', name: 'Smithy Forgework',    desc: 'Every Smithy sharpens the army: +1.5% hero attack each, on every swing (a full forge district: +10.5%)', maxRank: 1, costs: [2000] },
+            { id: 'tactics',   name: 'Library Tactics',     desc: 'Every Library drills the army: heroes act +1% faster each — attacks AND heals (6 Libraries: +6%)', maxRank: 1, costs: [3000] },
+            { id: 'salves',    name: 'Apothecary Salves',   desc: 'Every Apothecary tends the field: heroes regenerate 0.3% max HP/s each in battle (4 shops fight like a fifth mender)', maxRank: 1, costs: [6000] },
             { id: 'blessing',  name: 'Cathedral Blessing',  desc: 'The first hero to fall each battle revives at 30% HP (requires a Cathedral)', maxRank: 1, costs: [10000] }
         ]
     },
@@ -342,13 +362,16 @@ const UPGRADE_TREES = {
             { id: 'drills',  name: 'Weapon Drills',     desc: '+20% hero attack & healing per rank',        maxRank: 5, costs: [15, 60, 250, 1000, 6000] },
             { id: 'armor',   name: 'Hardened Armor',    desc: '+20% hero HP per rank',                      maxRank: 5, costs: [15, 60, 250, 1000, 6000] },
             { id: 'muster',  name: 'Muster Rolls',      desc: 'Hero hiring 15% cheaper per rank',           maxRank: 3, costs: [20, 80, 300] },
-            { id: 'walls',   name: 'Reinforced Walls',  desc: '+250 max Kingdom HP per rank',               maxRank: 4, costs: [15, 60, 250, 1000] },
+            { id: 'walls',   name: 'Reinforced Walls',  desc: '+250 max Kingdom HP and +3 Kingdom defense per rank — every siege hit lands softer', maxRank: 4, costs: [15, 60, 250, 1000] },
             { id: 'veteran', name: "Veteran's Welcome", desc: 'Each new Age begins with a free Rare Knight', maxRank: 1, costs: [100] }
         ]
     }
 };
 
-const STARTING_GOLD_BY_TREASURY_RANK = [50, 250, 1000, 4000, 15000];
+// Base 75, not 50: buying all 3 Hamlet cottages (39g) must still leave the
+// 25g first Villager hire affordable — at 50g that was a hard new-save
+// softlock (no income, no faucet, no escape; 2026-07-17 playtest).
+const STARTING_GOLD_BY_TREASURY_RANK = [75, 250, 1000, 4000, 15000];
 
 function upgradeRank(id) {
     return meta.upgrades[id] || 0;
@@ -388,6 +411,7 @@ function getStartingLevel()  { return upgradeRank('foundations') > 0 ? 1 : 0; }
 function heroPowerMult()     { return 1 + 0.2 * upgradeRank('drills'); }
 function heroHpMult()        { return 1 + 0.2 * upgradeRank('armor'); }
 function heroCostMult()      { return Math.pow(0.85, upgradeRank('muster')); }
+function getKingdomDefense() { return KINGDOM_DEFENSE + WALLS_DEFENSE_PER_RANK * upgradeRank('walls'); }
 // Hero rarity ceiling (index into rarityOrder): heroes above this rarity never
 // appear in the pool. THE run-depth pacing gate — one rarity step is worth
 // ~1.5 raid tiers of squad power, so this is what the Legacy trees meter out
@@ -785,16 +809,30 @@ function randomFrom(list) {
 // backlineChance to decide which row it goes after.
 // Generalized to any number of rows (M10 squad expansion): the frontmost
 // occupied row is "the front"; every row behind it is the backline pool.
+// Taunt (M14.1): within the chosen pool, a unit with guard > 1 draws that many
+// targeting "tickets" — guardians (guard 3) soak hits that would land on
+// whoever shares their pool. A lone unit in its pool gains nothing.
+function weightedPick(pool) {
+    let total = 0;
+    for (const u of pool) total += u.guard || 1;
+    let roll = Math.random() * total;
+    for (const u of pool) {
+        roll -= u.guard || 1;
+        if (roll <= 0) return u;
+    }
+    return pool[pool.length - 1];
+}
+
 function pickTarget(attacker, enemySquad) {
     const alive = enemySquad.filter(u => u && u.alive);
     if (alive.length === 0) return null;
     const frontRow = Math.min(...alive.map(u => u.row));
     const front = alive.filter(u => u.row === frontRow);
     const back = alive.filter(u => u.row > frontRow);
-    if (back.length === 0) return randomFrom(front);
+    if (back.length === 0) return weightedPick(front);
 
     const wantsBackline = Math.random() < attacker.backlineChance;
-    return randomFrom(wantsBackline ? back : front);
+    return weightedPick(wantsBackline ? back : front);
 }
 
 // Healers always tend to whoever's lowest on HP%, ignoring full-health allies.
@@ -917,7 +955,7 @@ function squadAlive(squad) {
 // raid is repelled some other way.
 function attackKingdom(attacker) {
     const power = effectiveAttackPower(attacker) * escalationMult(currentInvasion);
-    const dmg = Math.max(1, Math.round(power * (1 - KINGDOM_DEFENSE / 100)));
+    const dmg = Math.max(1, Math.round(power * (1 - getKingdomDefense() / 100)));
     kingdomHP = Math.max(0, kingdomHP - dmg);
 }
 
@@ -1070,6 +1108,7 @@ function generateHero(archetypeKey, rarity, row, col) {
     unit.rarity = rarity;
     unit.archetypeKey = archetypeKey;
     if (base.aura) unit.aura = base.aura;
+    if (base.guard) unit.guard = base.guard;
     return unit;
 }
 
@@ -1109,7 +1148,7 @@ function generateHeroRecruit() {
         archetypeKey,
         name: archetype.names[rarityIndex],
         rarity,
-        cost: Math.floor(archetype.baseCost * tier.costMult * heroCostMult())
+        cost: Math.floor(archetype.baseCost * tier.costMult * heroCostMult() * Math.pow(HERO_COST_TIER_GROWTH, raidTierIndex))
     };
 }
 
@@ -1436,13 +1475,17 @@ function saveGame() {
 }
 
 function loadGame() {
+    // Fresh boots (no save, or a discarded pre-rebalance one) must still
+    // honor Royal Treasury; a usable save overwrites this right below.
+    // Requires loadMeta() to have run first.
+    gold = getStartingGold();
     const saved = localStorage.getItem('idleKingdomSave');
     if (!saved) return;
     const state = JSON.parse(saved);
     // Pre-rebalance saves are meaningless after a version bump — discard.
     if ((state.version ?? 1) !== SAVE_VERSION) return;
 
-    gold = state.gold ?? 50;
+    gold = state.gold ?? getStartingGold();
     goldEarned = state.goldEarned ?? 0;
     kingdomLevel = state.kingdomLevel ?? 0;
     raidsStarted = state.raidsStarted ?? false;
@@ -1611,6 +1654,12 @@ function buyBuilding(id) {
     updateUI();
 }
 
+function canHireRecruit(recruit) {
+    const b = buildings[recruit.buildingId];
+    const hasSlot = b.residents.length < b.count * b.slotsPerBuilding;
+    return gold >= recruit.cost && hasSlot && getBuildingCap(recruit.buildingId) > 0;
+}
+
 function renderRecruitPool() {
     const timeUntilRefresh = POOL_REFRESH_INTERVAL - poolTimer;
 
@@ -1646,9 +1695,8 @@ function renderRecruitPool() {
             const b = buildings[recruit.buildingId];
             const slots = b.count * b.slotsPerBuilding;
             const hasSlot = b.residents.length < slots;
-            const canAfford = gold >= recruit.cost;
             const buildingUnlocked = getBuildingCap(recruit.buildingId) > 0;
-            const canHire = canAfford && hasSlot && buildingUnlocked;
+            const canHire = canHireRecruit(recruit);
             const isHpregen = b.type === 'hpregen';
             const type = recruitTypes[recruit.typeId];
             const tier = rarityTiers[recruit.rarity];
@@ -1681,7 +1729,7 @@ function renderRecruitPool() {
                 </div>
                 <div class="recruit-action">
                     <div class="recruit-cost">${recruit.cost.toLocaleString()}g</div>
-                    <button class="btn-hire-recruit" onclick="hireRecruit(${recruit.id})" ${canHire ? '' : 'disabled'}>Hire</button>
+                    <button class="btn-hire-recruit" data-recruit-id="${recruit.id}" onclick="hireRecruit(${recruit.id})" ${canHire ? '' : 'disabled'}>Hire</button>
                 </div>
             </div>`;
         });
@@ -1689,6 +1737,22 @@ function renderRecruitPool() {
 
     html += `</div>`;
     document.getElementById('recruit-pool').innerHTML = html;
+}
+
+// Buy-button state for the current buy-quantity mode. Shared by the full
+// render and the per-tick affordability refresh so the two can't drift.
+function buildingPurchaseInfo(id) {
+    const b = buildings[id];
+    const cap = getBuildingCap(id);
+    const atCap = cap - b.count <= 0;
+    const n = buyQuantity === 'max' ? maxAffordableBuildings(id) : Math.min(buyQuantity, cap - b.count);
+    const totalCost = n > 0 ? bulkBuildingCost(id, n) : 0;
+    const canAfford = n > 0 && gold >= totalCost;
+    const costLabel = atCap ? 'At cap'
+        : buyQuantity === 1 || n <= 0
+        ? `${b.cost.toLocaleString()} gold`
+        : `${totalCost.toLocaleString()} gold (×${n})`;
+    return { canAfford, costLabel };
 }
 
 function renderBuildings() {
@@ -1717,14 +1781,7 @@ function renderBuildings() {
         const isHpregen = b.type === 'hpregen';
         const hasSlots = b.slotsPerBuilding > 0;
         const totalSlots = b.count * b.slotsPerBuilding;
-        const n = buyQuantity === 'max' ? maxAffordableBuildings(id) : Math.min(buyQuantity, cap - b.count);
-        const totalCost = n > 0 ? bulkBuildingCost(id, n) : 0;
-        const canAffordBuilding = n > 0 && gold >= totalCost;
-        const costLabel = buyQuantity === 'max'
-            ? (n > 0 ? `${totalCost.toLocaleString()} gold (×${n})` : 'At cap')
-            : buyQuantity === 1
-            ? `${b.cost.toLocaleString()} gold`
-            : `${totalCost.toLocaleString()} gold (×${n})`;
+        const { canAfford: canAffordBuilding, costLabel } = buildingPurchaseInfo(id);
 
         const isExpanded = buildingExpanded[id] || false;
         const buildingTotal = b.residents.reduce((sum, r) => sum + r.income, 0);
@@ -1736,7 +1793,7 @@ function renderBuildings() {
 
         html += `<div class="building-card ${isHpregen ? 'building-card--hpregen' : ''}">
             <div class="building-row">
-                <button class="btn-building" onclick="buyBuilding('${id}')" ${canAffordBuilding ? '' : 'disabled'}>
+                <button class="btn-building" data-building-id="${id}" onclick="buyBuilding('${id}')" ${canAffordBuilding ? '' : 'disabled'}>
                     <span class="building-name">${b.name}</span>
                     <span class="building-meta">
                         <span class="building-cost">Cost: ${costLabel}</span>
@@ -1921,6 +1978,7 @@ function renderSquad(containerId, squad, sideClass, columnOrder, interactive, co
                 if (unit.attack) statParts.push(`ATK ${unit.attack.power}`);
                 if (unit.heal) statParts.push(`HLR ${unit.heal.power}`);
                 statParts.push(`DEF ${unit.defense}%`);
+                if (unit.guard) statParts.push(`GRD ×${unit.guard}`);
                 slot.innerHTML = `
                     <div class="battle-unit-name">${unit.name}</div>
                     <div class="battle-unit-stats">${statParts.join(' &middot; ')}</div>
@@ -1961,9 +2019,10 @@ function renderBattleSquads() {
     const enemyGrid = currentInvasion ? currentInvasion.grid : RAID_TIERS[raidTierIndex].grid;
     const enemies = currentInvasion ? currentInvasion.enemies : new Array(enemyGrid.rows * enemyGrid.cols).fill(null);
     // Hero columns render rear-to-front so the frontline sits nearest the
-    // enemy area; enemy columns front-first. Rows past the backline: Reserve.
+    // enemy area; enemy columns front-first. Every row behind the front is one
+    // flat backline pool mechanically, so every rear row is labeled Backline.
     const dims = heroGridDims();
-    const rowLabel = r => r === 0 ? 'Frontline' : r === 1 ? 'Backline' : 'Reserve';
+    const rowLabel = r => r === 0 ? 'Frontline' : 'Backline';
     const heroColumns = [];
     for (let r = dims.rows - 1; r >= 0; r--) heroColumns.push({ label: rowLabel(r), row: r });
     const enemyColumns = [];
@@ -1979,7 +2038,9 @@ function renderHeroRecruitPool() {
         return;
     }
 
-    let html = '';
+    let html = `<div class="pool-header">
+        <span class="pool-timer">New heroes in ${HERO_POOL_REFRESH_INTERVAL - heroPoolTimer}s</span>
+    </div>`;
 
     if (heroRecruitPool.length === 0) {
         html += `<div class="pool-empty">No heroes seeking work right now.</div>`;
@@ -1993,6 +2054,7 @@ function renderHeroRecruitPool() {
             if (base.attack) statParts.push(`ATK ${Math.round(base.attack.power * tier.incomeMult * heroPowerMult())}`);
             if (base.heal) statParts.push(`HLR ${Math.round(base.heal.power * tier.incomeMult * heroPowerMult())}`);
             statParts.push(`DEF ${base.defense}%`);
+            if (base.guard) statParts.push(`GRD ×${base.guard}`);
 
             const canAfford = gold >= recruit.cost;
             const canHire = canAfford && hasSlot;
@@ -2101,6 +2163,23 @@ function renderVictory() {
     overlay.classList.remove('hidden');
 }
 
+// Gold accrues every tick, but the Town Square and building panels only
+// rebuild on events (pool refresh, purchases, expand/collapse) — so their
+// baked-in disabled states go stale as gold comes in. Refresh them in place
+// each tick instead of rebuilding the DOM (see the M15 perf-debt note).
+function refreshAffordability() {
+    document.querySelectorAll('#recruit-pool .btn-hire-recruit[data-recruit-id]').forEach(btn => {
+        const recruit = recruitPool.find(r => r.id === Number(btn.dataset.recruitId));
+        if (recruit) btn.disabled = !canHireRecruit(recruit);
+    });
+    document.querySelectorAll('#building-list .btn-building[data-building-id]').forEach(btn => {
+        const info = buildingPurchaseInfo(btn.dataset.buildingId);
+        btn.disabled = !info.canAfford;
+        const costEl = btn.querySelector('.building-cost');
+        if (costEl) costEl.textContent = `Cost: ${info.costLabel}`;
+    });
+}
+
 function tickRender() {
     document.getElementById('gold-display').textContent = Math.floor(gold).toLocaleString();
     document.getElementById('gps-display').textContent = Math.round(goldPerSecond * econIncomeMult()).toLocaleString();
@@ -2115,6 +2194,8 @@ function tickRender() {
 
     const poolTimerEl = document.getElementById('pool-timer-text');
     if (poolTimerEl) poolTimerEl.textContent = `New arrivals in ${POOL_REFRESH_INTERVAL - poolTimer}s`;
+
+    refreshAffordability();
 }
 
 function updateUI() {
