@@ -1237,3 +1237,142 @@ h1 {
     .fx-float { display: none; }
     .fx-hit, .fx-heal-glow, .fx-kingdom-hit { animation: none; }
 }
+
+/* --- M15 Phase 1: combat juice --- */
+.battle-squads { position: relative; }
+#fx-layer { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
+#fx-layer .fx-float { position: absolute; }
+
+.fx-lunge-right { animation: fx-lunge-r 0.22s ease-out; }
+.fx-lunge-left  { animation: fx-lunge-l 0.22s ease-out; }
+@keyframes fx-lunge-r { 30% { transform: translateX(5px); } 100% { transform: translateX(0); } }
+@keyframes fx-lunge-l { 30% { transform: translateX(-5px); } 100% { transform: translateX(0); } }
+
+.fx-death-anim { animation: fx-death-fall 0.5s ease-in; }
+@keyframes fx-death-fall {
+    0%   { filter: brightness(2.2); transform: scale(1.04); }
+    100% { filter: none; transform: scale(1); }
+}
+
+.fx-ghost {
+    position: absolute;
+    box-sizing: border-box;
+    border: 1px solid #5a4a2e;
+    border-radius: 3px;
+    background: #241f14;
+    color: #8a7f63;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    animation: fx-ghost-fall 0.7s ease-in forwards;
+}
+@keyframes fx-ghost-fall {
+    0%   { opacity: 0.9; transform: translateY(0) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(14px) rotate(3deg); }
+}
+
+.fx-revive { animation: fx-revive-glow 0.7s ease-out; }
+@keyframes fx-revive-glow {
+    0%   { background-color: rgba(240, 210, 100, 0.75); transform: scale(1.06); }
+    100% { background-color: transparent; transform: scale(1); }
+}
+
+.fx-chilled { background-color: rgba(90, 140, 220, 0.16); }
+.fx-chilled::after {
+    content: '\2744';
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 0.65rem;
+    color: #9cc8ff;
+}
+
+.hp-bar-track { position: relative; }
+.hp-bar-fill  { position: absolute; left: 0; top: 0; }
+.hp-bar-trail {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: #8a2a20;
+}
+
+.fx-shake { animation: fx-shake-anim 0.25s ease-out; }
+@keyframes fx-shake-anim {
+    20% { transform: translate(-2px, 1px); }
+    40% { transform: translate(2px, -1px); }
+    60% { transform: translate(-1px, 0); }
+    80% { transform: translate(1px, 0); }
+}
+
+#fx-vignette {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 90;
+    opacity: 0;
+    box-shadow: inset 0 0 90px rgba(180, 30, 15, 0.55);
+}
+.fx-vignette-pulse { animation: fx-vignette-anim 0.45s ease-out; }
+@keyframes fx-vignette-anim { 0% { opacity: 1; } 100% { opacity: 0; } }
+
+.fx-injury-flash { animation: fx-injury-anim 0.5s ease-out; }
+@keyframes fx-injury-anim {
+    0%   { box-shadow: inset 0 0 14px rgba(200, 60, 40, 0.7); }
+    100% { box-shadow: none; }
+}
+
+.fx-raid-slam { animation: fx-raid-slam-anim 0.35s ease-out; }
+@keyframes fx-raid-slam-anim {
+    0%   { transform: scale(1.05); box-shadow: 0 0 16px rgba(200, 60, 40, 0.6); }
+    100% { transform: scale(1); box-shadow: none; }
+}
+
+.fx-repelled-flash { animation: fx-repelled-anim 0.6s ease-out; }
+@keyframes fx-repelled-anim {
+    0%   { box-shadow: 0 0 18px rgba(220, 180, 70, 0.7); }
+    100% { box-shadow: none; }
+}
+
+.fx-float--loot   { color: #e8c46a; text-shadow: 1px 1px 0 #14110c; font-size: 0.9rem; }
+.fx-float--legacy { color: #b490ff; text-shadow: 1px 1px 0 #14110c; }
+.resource { position: relative; }
+.fx-float--badge {
+    position: absolute;
+    right: 6px;
+    top: 0;
+    left: auto;
+    transform: none;
+}
+@keyframes fx-badge-up {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(-18px); }
+}
+.fx-float--badge { animation: fx-badge-up 1.2s ease-out forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+    .fx-lunge-right, .fx-lunge-left, .fx-death-anim, .fx-revive, .fx-shake,
+    .fx-vignette-pulse, .fx-injury-flash, .fx-raid-slam, .fx-repelled-flash {
+        animation: none;
+    }
+}
+
+/* --- M15 sprite pipeline: real art in portraits and battle slots --- */
+.portrait-sprite {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center bottom;
+    image-rendering: pixelated;
+}
+
+.battle-slot.has-sprite {
+    background-repeat: no-repeat;
+    background-position: right 4px bottom 4px;
+    background-size: auto 68%;
+    image-rendering: pixelated;
+}

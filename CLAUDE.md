@@ -27,7 +27,10 @@ incoming `wip/<other-hostname>` branch (stop and ask on conflict), then **delete
 immediately after the cherry-pick succeeds**.
 
 ## Tech stack
-Plain HTML + CSS + JavaScript. No frameworks, no build step. Open `index.html` in a browser to run.
+Plain HTML + CSS + JavaScript. No frameworks, no build step. Open `index.html` in a browser to
+run — but **serve over http for sprites** (e.g. `py -m http.server 8321`): the M15 runtime
+sprite pipeline needs canvas pixel access, which browsers block on `file://` (the game still
+runs there, with letter portraits).
 
 ## File structure
 - `index.html` — page structure and UI elements
@@ -221,7 +224,7 @@ A hero costs a meaningful slice of early income (~30–60s of gold at raid-trigg
 
 **Hero rarity ceiling — Hall of Legends (added 2026-07-13):** the hero weights are then **clamped to the Hall of Legends rank** (Military tree, 3 ranks, 50/750/5,000 Legacy): rank 0 = Common only, then Rare / Epic / Legendary per rank (`heroRarityCap()`, filtered in `getHeroRarityWeights` — `weightedRarityRoll` renormalizes over what remains). In-run gold can never buy hero rarity past the ceiling; kingdom level and Keeps only improve the odds *under* it. This is the fix for the run-1 min/max break (see *Open questions*): sim-verified walls per ceiling — Common: Orc boss; Rare: Bandit boss/early Undead; Epic: Undead boss; Legendary: deep Infernal, final boss still closed until M10–12 content. Townsperson rarity is deliberately NOT capped (income rarity is harmless once hero power is gated). Veteran's Welcome still grants its free Rare Knight regardless of ceiling (it's Legacy-bought, which is the point).
 
-**Hero recruit pool:** unlocks at `RAID_TRIGGER_LEVEL` (Town, level 2) — the Battle column shows "Unlocks at Town" until then. A pool of `HERO_POOL_SIZE = 3` recruits refreshes every `HERO_POOL_REFRESH_INTERVAL` (15) seconds. Hiring is manual only (no auto-recruit for heroes — placement matters) and requires gold plus an empty squad slot. Firing a hero is free.
+**Hero recruit pool:** unlocks at `RAID_TRIGGER_LEVEL` (Town, level 2) — the Battle column shows "Unlocks at Town" until then. A pool of `HERO_POOL_SIZE` (base 3, +1 per **Mustering Grounds** rank — the M15 node countering archetype-unlock dilution: 9 unlocked archetypes make a 3-slot pool only a ~30% shot at any specific one per refresh) refreshes every `HERO_POOL_REFRESH_INTERVAL` (15) seconds. Hiring is manual only (no auto-recruit for heroes — placement matters) and requires gold plus an empty squad slot. Firing a hero is free.
 
 **Squad formation:** drag-and-drop a hero portrait onto another slot to swap positions (`swapHeroes`); this works mid-battle. Row 0 = frontline (nearest the gate), row 1 = backline.
 
@@ -349,6 +352,7 @@ Two permanent, currency-funded trees spent into after each reset. Full planned s
 | Military | Weapon Drills | +20% hero attack & healing | 5 | 15 / 60 / 250 / 1,000 / 6,000 |
 | Military | Hardened Armor | +20% hero HP | 5 | 15 / 60 / 250 / 1,000 / 6,000 |
 | Military | Muster Rolls | hero hiring −15% (multiplicative) | 3 | 20 / 80 / 300 |
+| Military | Mustering Grounds (M15) | +1 hero per recruit-pool refresh (4, then 5) — counters archetype-unlock pool dilution | 2 | 300 / 900 |
 | Military | Reinforced Walls | +250 max Kingdom HP and +3 Kingdom defense | 4 | 15 / 60 / 250 / 1,000 |
 | Military | Veteran's Welcome | free Rare Knight each new Age | 1 | 100 |
 
@@ -427,7 +431,10 @@ The in-run economy stays **gold-only** — no separate combat currency for hero 
   steps for a new save — e.g. the first Cottage comes with a free Villager as the teaching hook
   ("you bought a cottage, villagers live here, find more in the Town Square"); also rename and
   relocate the "Found a New Age" button ("found" as a verb isn't intuitively understood on first
-  read).
+  read). **Stat-abbreviation legibility (added 2026-07-17):** hover tooltips on unit-card stat
+  lines (ATK / HLR / DEF / GRD) — GRD especially ("Guard: draws ×N of the targeting weight in
+  its row"); even the developer didn't associate "GRD" with guard when re-reading it, so the
+  abbreviation demonstrably doesn't carry the mechanic.
 - **"Lock" a hero recruit (playtest 2026-07-17):** pin a pool recruit so it survives refreshes,
   hire when affordable. User worried it's too strong; assessment: healthy as a Legacy QoL node,
   especially now that hero costs scale by tier (locking becomes the pressure valve that makes
@@ -543,6 +550,15 @@ tick costs ~0.02ms). The mechanisms:
   `style.css`, with a `prefers-reduced-motion` guard). Death/revive events are Phase 1 scope.
 - `updateUI()` survives as the universal "repaint now" entry point for event handlers — an
   immediate full pass is cheap now that everything is memoized.
+- **Runtime sprite pipeline** (M15, same day): `loadSprites()` at boot reads the RAW Gemini
+  PNGs from `assets/raw/` (`SPRITE_SOURCES` maps all 47 keys → spec filenames) and processes
+  each in memory — magenta keying, trim, foot-anchor, downscale to 160px — into `blob:`
+  object URLs in `sprites{}`. Missing file = letter-portrait fallback per key, so art drops
+  are "copy PNG in, refresh"; no build step, no duplicate processed assets. Consumers:
+  `portraitInner()` (recruit cards, resident grids, hero pool) and battle slots
+  (`unitSpriteKey()` — heroes via `archetypeKey`, enemies via `spriteKey` set in
+  `generateEnemy` from the tier's `key` field; corner background, provisional pending the T2
+  diorama). Requires http serving (canvas is tainted on file://; loader degrades cleanly).
 
 ## Milestone tracker
 - [x] Milestone 1: Gold counter ticking automatically
@@ -562,7 +578,7 @@ tick costs ~0.02ms). The mechanisms:
 - [x] Milestone 13: **Final Siege** (wild/m10-m14 branch) — herald + 3-raid countdown after the first Demon Empress kill; 3-phase gauntlet as one invasion (HP carries, escalation resets per phase, Blessing once per gauntlet; phase waves 14/16/18 sim-tuned to ~38% for the endgame squad with doctrines, 0% without); Lessons of the Last Siege (25,000 Legacy, once) on a lost attempt; victory screen with campaign stats; endless mode (post-boss comp clamp, no second siege); browser-smoked end-to-end (herald, phases, victory overlay, endless resume, lessons once-only)
 - [x] Milestone 14: **Full-game balance calibration** (wild/m10-m14 branch; sim + accelerated-engine version — the user's real 1× playthrough is the acceptance gate) — campaign-arc wall-finder in the sim (per-run arc squads vs targets: on-target at both ends, ~half a tier deep mid-campaign; gauntlet 27–38% with the full kit, 0% without doctrines); tree-cost rescale to the pricing philosophy (totals ≈90k, winning kit ≈⅔; top power ranks 6,000, War Banners 4,000/30,000, Blessing 10,000); SAVE_VERSION → 5; browser soak test: a greedy driver played run 1 end-to-end at accelerated speed and fell to Orc w6 with 10 waves / 330 Legacy — matching the sim's prediction (Orc w5–7, ~380 LP) with zero console errors; known perf debt recorded for M15 (per-tick DOM rebuild caps 100× at ~5–8× effective)
 - [x] Milestone 14.1: **Acceptance-playtest feedback round 1** (uncommitted on wild/m10-m14) — stale-affordability UI fix (per-tick `refreshAffordability`); new-save softlock fix (starting gold 75); battle-grid column-stagger fix + hero-pool timer; **combat rebalance from the 5-reset playtest**: the **guard spectrum** (guardian 3 / paladin·banneret 2 / fighter 1.5 / assassin 0.5 weighted targeting, "GRD ×N" on unit cards), Fighter base-roster archetype (Footman/Sellsword/Blademaster/Warlord — frontline DPS), mender buff (22/65/8), paladin heal trim (11→9), hero costs ×1.4/raid tier, Reinforced Walls +3 Kingdom defense/rank, doctrine shop copy rewritten for impact. Sim re-verified: arc lands on the M14 baseline run-for-run (run-1 model reproduces the user's actual run 1 exactly: Orc w7, 11 waves, 380 LP), frontline composition is tier-dependent, paladin-stacks are a specialist choice, rear-row bodyguarding is a real matchup call, slippery assassins non-degenerate. Browser-smoked (weighted distributions exact, cost scaling ×1.96 at tier 2, walls def 27, GRD display, live battle repelled clean)
-- [ ] Milestone 15: **Game feel — visuals & sound** — the juice pass that turns the mechanically-complete game (M14) into one that feels good to play: combat/UI feedback animations, floating numbers, kingdom-damage and run-transition drama, portrait/sprite art pass; Web Audio SFX (hits, hires, raid horn, escalation heartbeat, stingers) with mute/volume; reduced-motion toggle. Scope sketch in *Game feel pass — visuals & sound (M15)*. **In progress:** full scope in `M15_SCOPE.md`; Gemini art workflow proven (`M15_ART_PILOT.md` — anchor knight, goblin, backdrop, frame all passed; pipeline tools in `tools/`); tier re-theme (Undead Legion / Infernal Siege) landed ahead of the asset run; **Phase 0 render refactor DONE 2026-07-17** (sim/render decoupled, memoized panels, persistent battle slots, FX bus with first consumers; 100× measured at true 100× effective, browser-verified across three organic run-ends with zero console errors — see *Render architecture* above)
+- [ ] Milestone 15: **Game feel — visuals & sound** — the juice pass that turns the mechanically-complete game (M14) into one that feels good to play: combat/UI feedback animations, floating numbers, kingdom-damage and run-transition drama, portrait/sprite art pass; Web Audio SFX (hits, hires, raid horn, escalation heartbeat, stingers) with mute/volume; reduced-motion toggle. Scope sketch in *Game feel pass — visuals & sound (M15)*. **In progress:** full scope in `M15_SCOPE.md`; Gemini art workflow proven (`M15_ART_PILOT.md` — anchor knight, goblin, backdrop, frame all passed; pipeline tools in `tools/`); tier re-theme (Undead Legion / Infernal Siege) landed ahead of the asset run; **Phase 0 render refactor DONE 2026-07-17** (sim/render decoupled, memoized panels, persistent battle slots, FX bus with first consumers; 100× measured at true 100× effective, browser-verified across three organic run-ends with zero console errors — see *Render architecture* above); **Phase 1 combat juice DONE 2026-07-17** (lunges, hero death-ghosts + enemy death flashes, revive glow, chill tint + ❄, Kingdom HP damage-trail, kingdom-hit shake/vignette, injury flash, raid slam-in, repelled loot float + Legacy badge, escalation red wash — all through the FX bus / state-driven bindings; details in M15_SCOPE.md Phase 1); **runtime sprite pipeline DONE 2026-07-17** (raw-PNG loading + in-memory keying/trim/anchor/downscale, per-key letter fallback, wired into portraits and battle slots — see *Render architecture*)
 
 ## Starting state
 - Player begins with 75 gold — enough that even buying all 3 Hamlet Cottages (39g) still leaves the first 25g Villager hire affordable (softlock guard, 2026-07-17; was 50); Royal Treasury ranks raise this for later Ages

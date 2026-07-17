@@ -52,8 +52,26 @@ Work items:
 Exit criteria: 100× runs at ~100× effective (measure with the existing soak approach); a test
 animation on a battle slot runs uninterrupted across ticks; zero console errors in a full run.
 
-## Phase 1 — Combat & kingdom juice (pure CSS/JS, zero assets)
-All emitter sites already exist and are single functions:
+## Phase 1 — Combat & kingdom juice — ✅ DONE 2026-07-17 (browser-verified same day)
+Shipped: attacker micro-lunges (heroes lunge right, enemies left, on every attack fire incl.
+kingdom attacks); death FX (enemies flash-and-settle in place; heroes spawn a fading "ghost"
+card in the overlay layer since their slot frees instantly — geometry captured pre-rebuild by
+draining FX at the top of renderAll); revive golden flash (necromancer + Blessing, emitted by
+resolveAttack checking alive-state after onUnitDeath); chill = steady blue tint + ❄ badge
+(state-driven in updateSquad); Kingdom HP crimson damage-trail (structure memoized without
+live values, widths updated in place, trail lags 0.7%/frame and snaps up on heal); kingdom
+hits = panel flash + small screen shake + red screen-edge vignette pulse; sapper injury =
+town-panel flash; raid arrival = status-bar slam; repelled = gold flash + "+Ng" loot float +
+"+N" Legacy badge on the admin resource row; escalation = deepening red wash on the enemy
+squad container driven live by escalationMult. Floats/ghosts live in an #fx-layer overlay
+(squad rebuilds can't kill them); all spawns skip under prefers-reduced-motion (JS-gated for
+removal-dependent nodes, CSS-gated for flashes). Verified: floats/ghost/trail/payoff moment
+captured live in-browser; tick cost ~0.009ms with FX emits; zero console errors.
+Not visually exercised (class-bound, low risk): chill tint (no chill source in goblin tier),
+injury flash (sappers debut at Bandit), escalation wash (needs a 60s+ battle) — confirm in
+the next real playtest.
+
+Original emitter table:
 
 | Event | Source | Effect |
 |---|---|---|
@@ -94,6 +112,21 @@ Engine (small, ~150–250 lines):
 
 Assets: CC0 packs (see sourcing below), a few hundred KB of .ogg committed to `assets/sfx/`.
 **Music is deliberately out of Phase 3** — see decisions.
+
+## Sprite pipeline — ✅ DONE 2026-07-17 (runtime, no build step; T2's foundation)
+The game loads the RAW magenta PNGs straight from `assets/raw/` and runs the whole pipeline
+at boot in memory: magenta keying, content trim, foot-anchor computation, downscale to
+`SPRITE_MAX_H` (160px), stored as tiny `blob:` object URLs. `SPRITE_SOURCES` maps all 47
+character keys to spec filenames (`M15_ASSET_SPECS.md` names); a missing file = silent
+letter-portrait fallback per key, so **an art drop is "copy PNG into assets/raw/, refresh"**
+— no processing step, no duplicate assets, no manifest files. Sprites show in: town recruit
+cards, resident portrait grids (✚ still overrides when injured), hero recruit cards, and
+battle slots (corner-anchored background, provisional pending the T2 diorama; late async
+loads adopted per frame in updateSquad). Enemy units carry `spriteKey` from generateEnemy
+(tier `key` field added to RAID_TIERS); heroes derive from `archetypeKey`. Requires http
+serving (canvas pixel access is blocked on file:// — loader degrades to letters).
+Verified in-browser with the two existing sprites: knight in hero slot + pool chip, goblin
+brute in enemy slot, letters everywhere else, zero console errors.
 
 ## Phase 4 — Art pass (DIRECTION CHOSEN 2026-07-17: Gemini-generated, user-in-the-loop)
 The developer produced Gemini pixel-art mockups matching their vision (one-scene town→wall→

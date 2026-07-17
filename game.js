@@ -104,23 +104,23 @@ const AOE_POWER_FACTOR = 0.65;
 // M11: each tier carries its battle grid, per-archetype trait overrides (the
 // tier's tactical lesson), and a boss with a signature ability (boss.traits).
 const RAID_TIERS = [
-    { name: 'Goblin Raid',  powerMult: 1.0,  defenseGrowth: 1.088, waveCount: 5,  raidInterval: 45, baseLoot: 1200,   lootGrowth: 1.10,
+    { name: 'Goblin Raid',  key: 'goblin', powerMult: 1.0,  defenseGrowth: 1.088, waveCount: 5,  raidInterval: 45, baseLoot: 1200,   lootGrowth: 1.10,
         grid: { rows: 2, cols: 3 }, traits: {},
         boss: { name: 'Goblin Warmaster', powerMult: 1.8, hpMult: 4.0, traits: { aura: { power: 0.15, range: 'all' } } },
         roster: { brute: 'Goblin Brute',    skirmisher: 'Goblin Skulker',   caster: 'Goblin Slinger',  shaman: 'Goblin Shaman',  sapper: 'Goblin Tunneler' } },
-    { name: 'Orc Warband',  powerMult: 1.52, defenseGrowth: 1.088, waveCount: 8,  raidInterval: 45, baseLoot: 5000,   lootGrowth: 1.10,
+    { name: 'Orc Warband',  key: 'orc', powerMult: 1.52, defenseGrowth: 1.088, waveCount: 8,  raidInterval: 45, baseLoot: 5000,   lootGrowth: 1.10,
         grid: { rows: 2, cols: 3 }, traits: { brute: { enrage: { speed: 1.5, power: 1 } } },
         boss: { name: 'Orc Warlord', powerMult: 1.8, hpMult: 4.0, traits: { enrage: { speed: 1.75, power: 1.25 } } },
         roster: { brute: 'Orc Brute',       skirmisher: 'Orc Berserker',    caster: 'Orc Warcaster',   shaman: 'Orc Witch Doctor', sapper: 'Orc Saboteur' } },
-    { name: 'Bandit Horde', powerMult: 3.0,  defenseGrowth: 1.088, waveCount: 11, raidInterval: 40, baseLoot: 30000,  lootGrowth: 1.10,
+    { name: 'Bandit Horde', key: 'bandit', powerMult: 3.0,  defenseGrowth: 1.088, waveCount: 11, raidInterval: 40, baseLoot: 30000,  lootGrowth: 1.10,
         grid: { rows: 3, cols: 4 }, traits: { caster: { backlineChance: 0.7 } },
         boss: { name: 'Bandit King', powerMult: 1.8, hpMult: 4.0, traits: { backlineChance: 0.85 } },
         roster: { brute: 'Bandit Enforcer', skirmisher: 'Bandit Cutthroat', caster: 'Bandit Marksman', shaman: 'Bandit Medic',   sapper: 'Bandit Torchman' } },
-    { name: 'Undead Legion', powerMult: 7.6, defenseGrowth: 1.088, waveCount: 14, raidInterval: 35, baseLoot: 120000, lootGrowth: 1.10,
+    { name: 'Undead Legion', key: 'undead', powerMult: 7.6, defenseGrowth: 1.088, waveCount: 14, raidInterval: 35, baseLoot: 120000, lootGrowth: 1.10,
         grid: { rows: 3, cols: 4 }, traits: { caster: { reviveCharges: 1 } },
         boss: { name: 'Lich Commander', powerMult: 1.8, hpMult: 4.0, traits: { reviveCharges: 2 } },
         roster: { brute: 'Death Knight',    skirmisher: 'Shadow Reaver',    caster: 'Necromancer',     shaman: 'Bone Priest',    sapper: 'Grave Digger' } },
-    { name: 'Infernal Siege', powerMult: 24.7, defenseGrowth: 1.088, waveCount: 17, raidInterval: 30, baseLoot: 500000, lootGrowth: 1.10,
+    { name: 'Infernal Siege', key: 'infernal', powerMult: 24.7, defenseGrowth: 1.088, waveCount: 17, raidInterval: 30, baseLoot: 500000, lootGrowth: 1.10,
         grid: { rows: 4, cols: 4 }, traits: { caster: { aoe: 'row' } },
         boss: { name: 'Demon Empress', powerMult: 1.8, hpMult: 4.0, traits: { aoe: 'row', enrage: { speed: 1, power: 1.25 } } },
         roster: { brute: 'Pit Fiend',       skirmisher: 'Hellhound',        caster: 'Flamecaller',     shaman: 'Blood Acolyte',  sapper: 'Cinder Imp' } }
@@ -363,6 +363,7 @@ const UPGRADE_TREES = {
             { id: 'drills',  name: 'Weapon Drills',     desc: '+20% hero attack & healing per rank',        maxRank: 5, costs: [15, 60, 250, 1000, 6000] },
             { id: 'armor',   name: 'Hardened Armor',    desc: '+20% hero HP per rank',                      maxRank: 5, costs: [15, 60, 250, 1000, 6000] },
             { id: 'muster',  name: 'Muster Rolls',      desc: 'Hero hiring 15% cheaper per rank',           maxRank: 3, costs: [20, 80, 300] },
+            { id: 'mustergrounds', name: 'Mustering Grounds', desc: '+1 hero per recruit-pool refresh (4, then 5) — comp-hunting stays viable as archetype unlocks widen the pool', maxRank: 2, costs: [300, 900] },
             { id: 'walls',   name: 'Reinforced Walls',  desc: '+250 max Kingdom HP and +3 Kingdom defense per rank — every siege hit lands softer', maxRank: 4, costs: [15, 60, 250, 1000] },
             { id: 'veteran', name: "Veteran's Welcome", desc: 'Each new Age begins with a free Rare Knight', maxRank: 1, costs: [100] }
         ]
@@ -412,6 +413,9 @@ function getStartingLevel()  { return upgradeRank('foundations') > 0 ? 1 : 0; }
 function heroPowerMult()     { return 1 + 0.2 * upgradeRank('drills'); }
 function heroHpMult()        { return 1 + 0.2 * upgradeRank('armor'); }
 function heroCostMult()      { return Math.pow(0.85, upgradeRank('muster')); }
+// Mustering Grounds: pool-QoL answer to archetype-unlock dilution (9 unlocked
+// archetypes make a 3-slot pool a ~30% shot at any specific one per refresh).
+function getHeroPoolSize()   { return HERO_POOL_SIZE + upgradeRank('mustergrounds'); }
 function getKingdomDefense() { return KINGDOM_DEFENSE + WALLS_DEFENSE_PER_RANK * upgradeRank('walls'); }
 // Hero rarity ceiling (index into rarityOrder): heroes above this rarity never
 // appear in the pool. THE run-depth pacing gate — one rarity step is worth
@@ -947,6 +951,9 @@ function resolveAttack(attacker, defender, powerScale = 1) {
         defender.hp = 0;
         defender.alive = false;
         onUnitDeath(defender);
+        // onUnitDeath may have raised them back up (necromancer / Blessing).
+        if (defender.alive) emitFx('revive', defender);
+        else emitFx('death', defender);
     }
 }
 
@@ -978,6 +985,7 @@ function maybeInjureResident() {
     if (staffed.length === 0) return;
     randomFrom(staffed).injuredUntil = runTime + INJURY_DURATION;
     recomputeIncome();
+    emitFx('injury', null);
 }
 
 function isInjured(resident) {
@@ -1010,6 +1018,7 @@ function combatTick(deltaMs) {
         if (unit.attack) {
             unit.attack.cooldown -= deltaMs;
             if (unit.attack.cooldown <= 0) {
+                emitFx('lunge', unit);
                 if (unit.side === 'enemy' && (unit.targetsKingdom || !squadAlive(heroSquad))) {
                     // Sappers always hit the Kingdom; everyone does once no hero stands.
                     attackKingdom(unit);
@@ -1081,6 +1090,7 @@ function generateEnemy(tierIndex, archetypeKey, row, col, wave, bossPart = null)
 
     const name = bossPart ? tier.boss.name : tier.roster[archetypeKey];
     const unit = makeUnit(name, base.defense, scaleHp(base.hp), row, col, 'enemy', attack, heal, backlineChance);
+    unit.spriteKey = bossPart ? 'boss_' + tier.key : 'enemy_' + tier.key + '_' + archetypeKey;
     if (base.targetsKingdom) unit.targetsKingdom = true;
 
     // Tier trait overrides (the tier's tactical lesson), then boss signature
@@ -1158,7 +1168,7 @@ function generateHeroRecruit() {
 
 function refreshHeroPool() {
     heroRecruitPool = [];
-    for (let i = 0; i < HERO_POOL_SIZE; i++) {
+    for (let i = 0; i < getHeroPoolSize(); i++) {
         heroRecruitPool.push(generateHeroRecruit());
     }
 }
@@ -1243,6 +1253,7 @@ function swapHeroes(sourceIndex, targetIndex) {
 
 // --- Invasions ---
 function startInvasion() {
+    emitFx('raidStart', null);
     // Heroes "respawn" at full HP each battle — the kingdom absorbs losses
     // via Kingdom HP, not permanent hero death. Chill wears off between battles.
     for (const hero of heroSquad) {
@@ -1316,6 +1327,8 @@ function winInvasion() {
     runWavesCleared++;
     lastVictory = { name: currentInvasion.name, loot, legacy, won: true };
     gold += loot;
+    emitFx('repelled', null, loot);
+    if (legacy > 0) emitFx('legacy', null, legacy);
 
     // Killing a tier's boss advances to the next tier's wave 1 (streak and
     // wave counter reset). Past the last tier's boss, waves keep climbing
@@ -1725,7 +1738,7 @@ function renderRecruitPool() {
 
             html += `<div class="recruit-card recruit-card--${recruit.rarity}">
                 <div class="portrait portrait--${recruit.rarity}" data-type="${recruit.typeId}">
-                    <span class="portrait-letter">${letter}</span>
+                    ${portraitInner('town_' + recruit.typeId, letter)}
                 </div>
                 <div class="recruit-info">
                     <div class="recruit-name">${recruit.name}</div>
@@ -1831,7 +1844,7 @@ function renderBuildings() {
                 html += `<div class="portrait portrait--${r.rarity || 'common'}${injured ? ' portrait--injured' : ''}" data-type="${r.typeId || 'villager'}"
                     title="${r.name} (${rarityInfo.name}) — ${valueLabel}${injuredTitle}&#10;Click to dismiss"
                     onclick="fireResident('${id}', ${r.originalIndex})">
-                    <span class="portrait-letter">${injured ? '✚' : letter}</span>
+                    ${injured ? '<span class="portrait-letter">✚</span>' : portraitInner('town_' + (r.typeId || 'villager'), letter)}
                     <span class="portrait-stat">${r.income}</span>
                 </div>`;
             });
@@ -1911,15 +1924,25 @@ function renderLeftPanel() {
     setPanelHtml('left-panel-dynamic', html);
 }
 
+let kingdomTrailPct = 100; // M15 Phase 1: crimson damage-trail lags behind HP losses
+
 function renderKingdomHP() {
     const hpMax = getKingdomHpMax();
     const pct = Math.max(0, Math.min(100, (kingdomHP / hpMax) * 100));
-    const html = `<div class="panel-label">Kingdom HP</div>
-        <div class="hp-bar-track"><div class="hp-bar-fill" style="width:${pct}%"></div></div>
-        <div class="hp-bar-caption">${Math.round(kingdomHP).toLocaleString()} / ${hpMax.toLocaleString()}</div>
+    // Structure is memoized WITHOUT live values; widths/caption update in
+    // place each frame so the trail animation isn't destroyed by rebuilds.
+    const structure = `<div class="panel-label">Kingdom HP</div>
+        <div class="hp-bar-track"><div class="hp-bar-trail"></div><div class="hp-bar-fill"></div></div>
+        <div class="hp-bar-caption"></div>
         ${kingdomHP <= 0 ? '<div class="kingdom-falling">Kingdom Falling!</div>' : ''}
         ${kingdomFallRecord ? `<div class="kingdom-fall-record">Fell at: ${kingdomFallRecord.name} (Kingdom Lv ${kingdomFallRecord.level})</div>` : ''}`;
-    setPanelHtml('kingdom-hp', html);
+    setPanelHtml('kingdom-hp', structure);
+    if (pct >= kingdomTrailPct) kingdomTrailPct = pct;             // heals snap the trail up
+    else kingdomTrailPct = Math.max(pct, kingdomTrailPct - 0.7);   // losses drain it slowly
+    const el = document.getElementById('kingdom-hp');
+    el.querySelector('.hp-bar-fill').style.width = pct + '%';
+    el.querySelector('.hp-bar-trail').style.width = kingdomTrailPct + '%';
+    el.querySelector('.hp-bar-caption').textContent = `${Math.round(kingdomHP).toLocaleString()} / ${hpMax.toLocaleString()}`;
 }
 
 function renderRaidStatusBar() {
@@ -1975,53 +1998,299 @@ function unitDomKey(unit) {
 // coalesces per unit (one number per unit per frame, float count capped), so
 // 100x dev speed produces the same on-screen effect density as 1x.
 const fxQueue = [];
-const FX_MAX_FLOATS_PER_SLOT = 2;
+const FX_MAX_FLOATS = 14; // concurrent floats in the battle overlay layer
+const REDUCED_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function emitFx(type, unit, amount) {
     // Hidden tabs don't render (rAF pauses), so a long-running battle could
     // pool events without bound — stale visuals aren't worth keeping.
     if (fxQueue.length > 2000) fxQueue.length = 0;
-    fxQueue.push({ type, key: unit ? unitDomKey(unit) : null, amount: amount || 0 });
+    fxQueue.push({
+        type,
+        key: unit ? unitDomKey(unit) : null,
+        side: unit ? unit.side : null,
+        name: unit ? unit.name : null,
+        amount: amount || 0
+    });
 }
 
 function flashClass(el, cls) {
+    if (!el) return;
     el.classList.remove(cls);
     void el.offsetWidth; // reflow so re-adding the class restarts the animation
     el.classList.add(cls);
 }
 
-function spawnFloat(slot, text, cls) {
-    if (slot.querySelectorAll('.fx-float').length >= FX_MAX_FLOATS_PER_SLOT) return;
+// Floats and death-ghosts live in an overlay layer over the battle area —
+// not inside the slots — so a squad-structure rebuild the same frame (a
+// death, a hire) can't destroy them mid-animation.
+function fxLayer() {
+    let layer = document.getElementById('fx-layer');
+    if (!layer) {
+        layer = document.createElement('div');
+        layer.id = 'fx-layer';
+        document.querySelector('.battle-squads').appendChild(layer);
+    }
+    return layer;
+}
+
+function spawnFloatAt(anchorEl, text, cls) {
+    if (REDUCED_MOTION) return;
+    const layer = fxLayer();
+    if (layer.querySelectorAll('.fx-float').length >= FX_MAX_FLOATS) return;
+    const lr = layer.getBoundingClientRect();
+    const ar = anchorEl.getBoundingClientRect();
     const f = document.createElement('div');
     f.className = 'fx-float ' + cls;
     f.textContent = text;
+    f.style.left = (ar.left - lr.left + ar.width / 2) + 'px';
+    f.style.top = (ar.top - lr.top - 4) + 'px';
     f.addEventListener('animationend', () => f.remove());
-    slot.appendChild(f);
+    layer.appendChild(f);
+}
+
+// One-at-a-time float pinned inside a stable (never innerHTML-replaced)
+// container — used for the Legacy gain on the admin panel's resource row.
+function spawnBadgeFloat(container, text, cls) {
+    if (REDUCED_MOTION || !container || container.querySelector('.fx-float')) return;
+    const f = document.createElement('div');
+    f.className = 'fx-float fx-float--badge ' + cls;
+    f.textContent = text;
+    f.addEventListener('animationend', () => f.remove());
+    container.appendChild(f);
+}
+
+function spawnDeathGhost(slot, name) {
+    if (REDUCED_MOTION) return;
+    const layer = fxLayer();
+    const lr = layer.getBoundingClientRect();
+    const sr = slot.getBoundingClientRect();
+    const g = document.createElement('div');
+    g.className = 'fx-ghost';
+    g.textContent = name;
+    g.style.left = (sr.left - lr.left) + 'px';
+    g.style.top = (sr.top - lr.top) + 'px';
+    g.style.width = sr.width + 'px';
+    g.style.height = sr.height + 'px';
+    g.addEventListener('animationend', () => g.remove());
+    layer.appendChild(g);
+}
+
+function fxVignette() {
+    let v = document.getElementById('fx-vignette');
+    if (!v) {
+        v = document.createElement('div');
+        v.id = 'fx-vignette';
+        document.body.appendChild(v);
+    }
+    return v;
 }
 
 function drainFx() {
     if (fxQueue.length === 0) return;
-    const dmg = new Map(), heal = new Map();
-    let kingdomHit = 0;
+    const dmg = new Map(), heal = new Map(), lunges = new Map();
+    const deaths = [], revives = [];
+    let kingdomHit = 0, injury = false, raidStart = false, repelledLoot = 0, legacyGain = 0;
     for (const fx of fxQueue) {
         if (fx.type === 'hit') dmg.set(fx.key, (dmg.get(fx.key) || 0) + fx.amount);
         else if (fx.type === 'heal') heal.set(fx.key, (heal.get(fx.key) || 0) + fx.amount);
+        else if (fx.type === 'lunge') lunges.set(fx.key, fx.side);
+        else if (fx.type === 'death') deaths.push(fx);
+        else if (fx.type === 'revive') revives.push(fx);
         else if (fx.type === 'kingdomHit') kingdomHit += fx.amount;
+        else if (fx.type === 'injury') injury = true;
+        else if (fx.type === 'raidStart') raidStart = true;
+        else if (fx.type === 'repelled') repelledLoot += fx.amount;
+        else if (fx.type === 'legacy') legacyGain += fx.amount;
     }
     fxQueue.length = 0;
+
+    // Deaths first: ghosts must capture slot geometry BEFORE this frame's
+    // squad render rebuilds the structure (drainFx runs at the top of
+    // renderAll for exactly this reason).
+    for (const fx of deaths) {
+        const slot = slotElByKey.get(fx.key);
+        if (!slot || !slot.isConnected) continue;
+        if (fx.side === 'hero') spawnDeathGhost(slot, fx.name);
+        else flashClass(slot, 'fx-death-anim');
+    }
+    for (const fx of revives) {
+        flashClass(slotElByKey.get(fx.key), 'fx-revive');
+    }
+    for (const [key, side] of lunges) {
+        const slot = slotElByKey.get(key);
+        if (slot && slot.isConnected) flashClass(slot, side === 'hero' ? 'fx-lunge-right' : 'fx-lunge-left');
+    }
     for (const [key, amount] of dmg) {
         const slot = slotElByKey.get(key);
         if (!slot || !slot.isConnected) continue;
         flashClass(slot, 'fx-hit');
-        spawnFloat(slot, '-' + Math.round(amount).toLocaleString(), 'fx-float--dmg');
+        spawnFloatAt(slot, '-' + Math.round(amount).toLocaleString(), 'fx-float--dmg');
     }
     for (const [key, amount] of heal) {
         const slot = slotElByKey.get(key);
         if (!slot || !slot.isConnected) continue;
         flashClass(slot, 'fx-heal-glow');
-        spawnFloat(slot, '+' + Math.round(amount).toLocaleString(), 'fx-float--heal');
+        spawnFloatAt(slot, '+' + Math.round(amount).toLocaleString(), 'fx-float--heal');
     }
-    if (kingdomHit > 0) flashClass(document.getElementById('kingdom-hp'), 'fx-kingdom-hit');
+    if (kingdomHit > 0) {
+        flashClass(document.getElementById('kingdom-hp'), 'fx-kingdom-hit');
+        flashClass(document.getElementById('game'), 'fx-shake');
+        flashClass(fxVignette(), 'fx-vignette-pulse');
+    }
+    if (injury) flashClass(document.getElementById('town-buildings'), 'fx-injury-flash');
+    const raidBar = document.getElementById('raid-status-bar');
+    if (raidStart) flashClass(raidBar, 'fx-raid-slam');
+    if (repelledLoot > 0) {
+        flashClass(raidBar, 'fx-repelled-flash');
+        spawnFloatAt(raidBar, '+' + Math.round(repelledLoot).toLocaleString() + 'g', 'fx-float--loot');
+    }
+    if (legacyGain > 0) {
+        const legacyEl = document.getElementById('legacy-display');
+        spawnBadgeFloat(legacyEl && legacyEl.parentElement, '+' + legacyGain.toLocaleString(), 'fx-float--legacy');
+    }
+}
+
+// --- M15 sprite pipeline (runtime — no build step, per the tech-stack rule) ---
+// The game loads the RAW Gemini sprites straight from assets/raw/ and runs
+// the whole art pipeline at boot, in memory: key out the magenta background,
+// trim to content, compute the foot anchor (weighted centroid of the bottom
+// rows, weapon overhang excluded — seats sprites in future diorama slots),
+// and downscale. A sprite that hasn't been generated yet is just a missing
+// file: the UI falls back to letter portraits per key, so an art drop is
+// "copy PNG into assets/raw, refresh". Needs http serving — canvas pixel
+// access is blocked on file:// and the loader degrades to letters there.
+const SPRITE_MAX_H = 160;
+const sprites = {}; // key -> { url, w, h, ax, ay } (foot anchor in output px)
+
+const SPRITE_SOURCES = {
+    hero_guardian: 'raw_hero_knight_v3.png',
+    hero_fighter: 'raw_hero_fighter.png',
+    hero_ranged: 'raw_hero_ranged.png',
+    hero_mender: 'raw_hero_mender.png',
+    hero_paladin: 'raw_hero_paladin.png',
+    hero_assassin: 'raw_hero_assassin.png',
+    hero_battlemage: 'raw_hero_battlemage.png',
+    hero_banneret: 'raw_hero_banneret.png',
+    hero_frostadept: 'raw_hero_frostadept.png',
+    town_villager: 'raw_town_villager.png',
+    town_tavernkeeper: 'raw_town_tavernkeeper.png',
+    town_blacksmith: 'raw_town_blacksmith.png',
+    town_scholar: 'raw_town_scholar.png',
+    town_builder: 'raw_town_builder.png',
+    town_alchemist: 'raw_town_alchemist.png',
+    town_mage: 'raw_town_mage.png',
+    town_priest: 'raw_town_highpriest.png',
+    enemy_goblin_brute: 'raw_enemy_goblin_brute.png',
+    enemy_goblin_skirmisher: 'raw_enemy_goblin_skirmisher.png',
+    enemy_goblin_caster: 'raw_enemy_goblin_caster.png',
+    enemy_goblin_shaman: 'raw_enemy_goblin_shaman.png',
+    enemy_goblin_sapper: 'raw_enemy_goblin_sapper.png',
+    boss_goblin: 'raw_boss_goblin.png',
+    enemy_orc_brute: 'raw_enemy_orc_brute.png',
+    enemy_orc_skirmisher: 'raw_enemy_orc_skirmisher.png',
+    enemy_orc_caster: 'raw_enemy_orc_caster.png',
+    enemy_orc_shaman: 'raw_enemy_orc_shaman.png',
+    enemy_orc_sapper: 'raw_enemy_orc_sapper.png',
+    boss_orc: 'raw_boss_orc.png',
+    enemy_bandit_brute: 'raw_enemy_bandit_brute.png',
+    enemy_bandit_skirmisher: 'raw_enemy_bandit_skirmisher.png',
+    enemy_bandit_caster: 'raw_enemy_bandit_caster.png',
+    enemy_bandit_shaman: 'raw_enemy_bandit_shaman.png',
+    enemy_bandit_sapper: 'raw_enemy_bandit_sapper.png',
+    boss_bandit: 'raw_boss_bandit.png',
+    enemy_undead_brute: 'raw_enemy_undead_brute.png',
+    enemy_undead_skirmisher: 'raw_enemy_undead_skirmisher.png',
+    enemy_undead_caster: 'raw_enemy_undead_caster.png',
+    enemy_undead_shaman: 'raw_enemy_undead_shaman.png',
+    enemy_undead_sapper: 'raw_enemy_undead_sapper.png',
+    boss_undead: 'raw_boss_undead.png',
+    enemy_infernal_brute: 'raw_enemy_infernal_brute.png',
+    enemy_infernal_skirmisher: 'raw_enemy_infernal_skirmisher.png',
+    enemy_infernal_caster: 'raw_enemy_infernal_caster.png',
+    enemy_infernal_shaman: 'raw_enemy_infernal_shaman.png',
+    enemy_infernal_sapper: 'raw_enemy_infernal_sapper.png',
+    boss_infernal: 'raw_boss_infernal.png'
+};
+
+function processSprite(img) {
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const data = ctx.getImageData(0, 0, c.width, c.height); // throws on file://
+    const p = data.data;
+    for (let i = 0; i < p.length; i += 4) {
+        const r = p[i], g = p[i + 1], b = p[i + 2];
+        const m = Math.max(r, b);
+        if (m > 130 && g < 0.65 * m && Math.min(r, b) > 0.45 * m) p[i + 3] = 0;
+    }
+    let minX = c.width, minY = c.height, maxX = -1, maxY = -1;
+    for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
+        if (p[(y * c.width + x) * 4 + 3] > 8) {
+            if (x < minX) minX = x; if (x > maxX) maxX = x;
+            if (y < minY) minY = y; if (y > maxY) maxY = y;
+        }
+    }
+    if (maxX < 0) return null;
+    ctx.putImageData(data, 0, 0);
+    const w = maxX - minX + 1, h = maxY - minY + 1;
+    const bandTop = minY + Math.floor(h * 0.88);
+    let sx = 0, n = 0;
+    for (let y = bandTop; y <= maxY; y++) for (let x = minX; x <= maxX; x++) {
+        if (p[(y * c.width + x) * 4 + 3] > 8) { sx += (x - minX); n++; }
+    }
+    const ax = n ? sx / n : w / 2;
+    const half = w * 0.14;
+    let ay = h - 1;
+    outer:
+    for (let y = maxY; y >= minY; y--) {
+        const x0 = Math.max(minX, Math.floor(minX + ax - half));
+        const x1 = Math.min(maxX + 1, Math.ceil(minX + ax + half));
+        for (let x = x0; x < x1; x++) {
+            if (p[(y * c.width + x) * 4 + 3] > 8) { ay = y - minY; break outer; }
+        }
+    }
+    const scale = Math.min(1, SPRITE_MAX_H / h);
+    const out = document.createElement('canvas');
+    out.width = Math.max(1, Math.round(w * scale));
+    out.height = Math.max(1, Math.round(h * scale));
+    const octx = out.getContext('2d');
+    octx.imageSmoothingEnabled = true;
+    octx.imageSmoothingQuality = 'high';
+    octx.drawImage(c, minX, minY, w, h, 0, 0, out.width, out.height);
+    return { canvas: out, w: out.width, h: out.height, ax: Math.round(ax * scale), ay: Math.round(ay * scale) };
+}
+
+function loadSprites() {
+    for (const key of Object.keys(SPRITE_SOURCES)) {
+        const img = new Image();
+        img.onload = () => {
+            try {
+                const s = processSprite(img);
+                // Tiny blob: object URLs, not 40KB data: URLs — keeps style
+                // attributes and the per-frame panel memo strings small.
+                if (s) s.canvas.toBlob(blob => {
+                    if (!blob) return;
+                    sprites[key] = { url: URL.createObjectURL(blob), w: s.w, h: s.h, ax: s.ax, ay: s.ay };
+                }, 'image/png');
+            } catch (e) { /* file:// canvas taint — letter portraits remain */ }
+        };
+        img.onerror = () => {}; // not generated yet — letter portraits remain
+        img.src = 'assets/raw/' + SPRITE_SOURCES[key];
+    }
+}
+
+// Portrait chip content: real sprite when its file exists, letter otherwise.
+function portraitInner(spriteKey, letter) {
+    const s = sprites[spriteKey];
+    if (s) return `<span class="portrait-sprite" style="background-image:url(${s.url})"></span>`;
+    return `<span class="portrait-letter">${letter}</span>`;
+}
+
+function unitSpriteKey(unit) {
+    if (unit.side === 'hero') return unit.archetypeKey ? 'hero_' + unit.archetypeKey : null;
+    return unit.spriteKey || null;
 }
 
 // Memoized innerHTML: only touch the DOM when the panel's content actually
@@ -2083,6 +2352,11 @@ function buildSquad(el, squad, sideClass, columnOrder, interactive, cols) {
                 `;
                 slot._hpFill = slot.querySelector('.battle-hp-fill');
                 slot._hpText = slot.querySelector('.battle-hp-text');
+                const sKey = unitSpriteKey(unit);
+                if (sKey && sprites[sKey]) {
+                    slot.style.backgroundImage = `url(${sprites[sKey].url})`;
+                    slot.classList.add('has-sprite');
+                }
                 const key = unitDomKey(unit);
                 slotElByKey.set(key, slot);
                 el._slotKeys.push(key);
@@ -2121,6 +2395,15 @@ function updateSquad(el, squad, columnOrder, interactive, cols) {
                 slot._hpFill.style.width = pct + '%';
                 slot._hpText.textContent = `${Math.max(0, Math.round(unit.hp))} / ${unit.maxHp}`;
                 slot.classList.toggle('dead', !unit.alive);
+                slot.classList.toggle('fx-chilled', chilled(unit));
+                // Sprites load async — adopt one the frame it becomes ready.
+                if (!slot.classList.contains('has-sprite')) {
+                    const sKey = unitSpriteKey(unit);
+                    if (sKey && sprites[sKey]) {
+                        slot.style.backgroundImage = `url(${sprites[sKey].url})`;
+                        slot.classList.add('has-sprite');
+                    }
+                }
                 if (interactive) {
                     const armed = armedHeroSlot === index && Date.now() - armedHeroSlotTime < ARM_TIMEOUT_MS;
                     slot.classList.toggle('armed', armed);
@@ -2159,6 +2442,12 @@ function renderBattleSquads() {
     for (let r = 0; r < enemyGrid.rows; r++) enemyColumns.push({ label: rowLabel(r), row: r });
     renderSquad('heroSquad', heroSquad, '', heroColumns, true, dims.cols);
     renderSquad('enemySquad', enemies, 'enemy', enemyColumns, false, enemyGrid.cols);
+
+    // Escalation reads visually: the enemy side takes on a deepening red
+    // wash as the multiplier climbs (state-driven, straight from the sim).
+    const esc = currentInvasion ? escalationMult(currentInvasion) : 1;
+    document.getElementById('enemySquad').style.backgroundColor =
+        esc > 1 ? `rgba(160, 30, 20, ${Math.min(0.35, (esc - 1) * 0.5)})` : '';
 }
 
 function renderHeroRecruitPool() {
@@ -2195,7 +2484,7 @@ function renderHeroRecruitPool() {
 
             html += `<div class="recruit-card recruit-card--${recruit.rarity}">
                 <div class="portrait portrait--${recruit.rarity}" data-type="${recruit.archetypeKey}">
-                    <span class="portrait-letter">${letter}</span>
+                    ${portraitInner('hero_' + recruit.archetypeKey, letter)}
                 </div>
                 <div class="recruit-info">
                     <div class="recruit-name">${recruit.name}</div>
@@ -2322,6 +2611,10 @@ function refreshAffordability() {
 // battle slots update in place, and the FX queue drains under its budget.
 // Render cost is now independent of dev speed — 100x sim, ~15fps paint.
 function renderAll() {
+    // FX drain FIRST: death-ghosts must capture slot geometry before this
+    // frame's squad render rebuilds the structure out from under them.
+    drainFx();
+
     document.getElementById('gold-display').textContent = Math.floor(gold).toLocaleString();
     document.getElementById('gps-display').textContent = Math.round(goldPerSecond * econIncomeMult()).toLocaleString();
     document.getElementById('legacy-display').textContent = meta.legacy.toLocaleString();
@@ -2336,7 +2629,6 @@ function renderAll() {
     renderHeroRecruitPool();
 
     refreshAffordability();
-    drainFx();
 }
 
 // Kept as the universal "something changed, repaint" entry point for event
@@ -2354,6 +2646,7 @@ function renderFrame(ts) {
     renderAll();
 }
 
+loadSprites(); // async — sprites pop into portraits/slots as each file processes
 loadMeta();
 loadGame();
 resizeHeroSquad(); // no-save startups still need the squad sized to War Banners rank
