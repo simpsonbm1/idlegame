@@ -289,7 +289,7 @@ When tuning any number, tune *toward this table*, not toward abstract fairness. 
 ### Scaling & tuning targets — implemented in M9
 - **Continuous curve across tier transitions** (implemented): each tier's `powerMult` = the previous tier's boss-wave multiplier (1.0 / 1.52 / 3.0 / 7.6 / 24.7), `defenseGrowth = 1.088`/wave everywhere. The final boss lands at ~95× goblin wave 1 (target was 80–100×), with the boss unit's own ×1.8/×4 on top. No stat cliffs — the old Dragon-wave-7 spike class of problem is gone by construction.
 - Raid pacing (implemented): per-tier `raidInterval` — 45s at Goblin/Orc tightening to 30s at Dragon — plus a 75s grace before the first raid ever.
-- Sim-measured expectations at these numbers (`tools/balance-sim.js`): optimal greedy run 1 ≈ 24 min, wall at Orc boss (a realistic first run fields fewer heroes and walls at the Goblin boss / early Orc); 6 rares + tree ×1.2 wall at Bandit boss; 6 epics ×1.6 at Dark boss; 6 legendaries ×2.0 reach Dragon wave 9+ but score ~0% on the final boss — that last stretch is deliberately closed until M10–12 content (squad expansion, new archetypes) opens it.
+- Sim-measured expectations (`tools/balance-sim.js`, M14 campaign-arc check — the "wall" is the first wave under a 50% win rate for each run's arc-expected squad): run 1 walls Orc w5; run 2 Orc boss; run 3 Bandit w7; runs 4–6 run roughly half a tier deep of their targets (the 12-slot expansion is strong — War Banners rank 1 priced to 4,000 to delay it); runs 7–9 converge on target (Dragon w8 / w15 / w15-boss); the Final Siege gauntlet lands at ~27–38% for the full endgame kit and 0% without doctrines. Net: the campaign completes in ~8 runs of optimal play, 9–10 realistic — slightly compressed vs the table but the right shape. **The user's real 1× acceptance playtest is the final calibration gate.**
 
 ### Victory condition — the Final Siege (implemented in M13)
 After the Dragon Siege boss (wave 17) falls **for the first time in the campaign**, a herald announces the **Final Siege** arrives in `FINAL_SIEGE_COUNTDOWN_RAIDS` (3) raids' time (status bar shows the countdown; the interim raids are ordinary post-boss waves — compositions clamp to the tier's last non-boss mix while stats keep scaling). Then the **3-phase gauntlet** (`FINAL_SIEGE_PHASES`, one invasion with `finalSiege: true`): **The Vanguard** (wave-14 stats, 10 units) → **The Elite Guard** (wave-16, 9) → **The Empress Ascendant** (wave-18, the boss + guard). Heroes do **not** reset HP between phases (menders/Blessing showcase; Blessing fires once per gauntlet), the **escalation clock resets each phase**, and Kingdom HP is the buffer that carries a partial wipe across phases. Phase waves sim-tuned: the endgame squad (16 legendaries + Realm doctrines) wins ~38%/attempt; without doctrines 0% — run 9 loses, run 10 wins, per the arc.
@@ -316,29 +316,31 @@ Two permanent, currency-funded trees spent into after each reset. Full planned s
 
 **M8 starter set (implemented, `UPGRADE_TREES` in `game.js` — all numbers placeholder pending M9):**
 
-| Tree | Node | Effect per rank | Ranks | Costs (Legacy, rescaled in M9) |
+| Tree | Node | Effect per rank | Ranks | Costs (Legacy, M14 rescale) |
 |---|---|---|---|---|
-| Military | Hall of Legends | unlocks Rare / Epic / Legendary heroes in the pool (the run-depth gate — see *Hero rarity ceiling*) | 3 | 50 / 750 / 5,000 |
+| Military | Hall of Legends | unlocks Rare / Epic / Legendary heroes in the pool (the run-depth gate — see *Hero rarity ceiling*) | 3 | 50 / 750 / 6,000 |
 | Military | Paladin's Oath (M10) | unlocks the Paladin archetype | 1 | 250 |
 | Military | Shadow Guild (M10) | unlocks the Assassin archetype | 1 | 400 |
-| Military | War Banners (M10) | hero squad 2x3 → 3x4 → 4x4 (final pricing M14) | 2 | 2,500 / 20,000 |
+| Military | War Banners (M10) | hero squad 2x3 → 3x4 → 4x4 | 2 | 4,000 / 30,000 |
 | Military | War Magics (M11) | unlocks the Battlemage archetype | 1 | 800 |
 | Military | Rimecraft (M11) | unlocks the Frost Adept archetype | 1 | 1,200 |
 | Military | Standard Bearers (M11) | unlocks the Banneret archetype | 1 | 1,500 |
 | Economy | Steward's Ledger (M10) | unlocks townsfolk auto-hire (always-on in dev builds via `DEV_MODE`) | 1 | 150 |
 | Economy | Smithy Forgework (M12) | +1.5% hero attack per Smithy owned | 1 | 2,000 |
 | Economy | Library Tactics (M12) | +1% hero action speed per Library owned | 1 | 3,000 |
-| Economy | Apothecary Salves (M12) | heroes regen 0.3% HP/s per Apothecary in battle | 1 | 5,000 |
-| Economy | Cathedral Blessing (M12) | first fallen hero each battle revives at 30% (needs a Cathedral) | 1 | 8,000 |
-| Economy | Prosperous Trade | +25% gold income | 5 | 15 / 60 / 250 / 1,000 / 4,000 |
+| Economy | Apothecary Salves (M12) | heroes regen 0.3% HP/s per Apothecary in battle | 1 | 6,000 |
+| Economy | Cathedral Blessing (M12) | first fallen hero each battle revives at 30% (needs a Cathedral) | 1 | 10,000 |
+| Economy | Prosperous Trade | +25% gold income | 5 | 15 / 60 / 250 / 1,000 / 6,000 |
 | Economy | Royal Treasury | starting gold 50 → 250 / 1,000 / 4,000 / 15,000 | 4 | 10 / 40 / 150 / 500 |
 | Economy | Master Builders | +50% Builder HP regen | 3 | 25 / 100 / 400 |
 | Economy | Old Foundations | new Ages begin at Village | 1 | 400 |
-| Military | Weapon Drills | +20% hero attack & healing | 5 | 15 / 60 / 250 / 1,000 / 4,000 |
-| Military | Hardened Armor | +20% hero HP | 5 | 15 / 60 / 250 / 1,000 / 4,000 |
+| Military | Weapon Drills | +20% hero attack & healing | 5 | 15 / 60 / 250 / 1,000 / 6,000 |
+| Military | Hardened Armor | +20% hero HP | 5 | 15 / 60 / 250 / 1,000 / 6,000 |
 | Military | Muster Rolls | hero hiring −15% (multiplicative) | 3 | 20 / 80 / 300 |
 | Military | Reinforced Walls | +250 max Kingdom HP | 4 | 15 / 60 / 250 / 1,000 |
 | Military | Veteran's Welcome | free Rare Knight each new Age | 1 | 100 |
+
+**M14 pricing math:** total trees ≈ 90k Legacy; the Final-Siege-winning kit (Hall of Legends, War Banners, power ranks, doctrines) ≈ 60k ≈ ⅔ of total, per the pricing philosophy. First-clear campaign budget ≈ 150k + countdown waves + the 25k Lessons bonus.
 
 Effects route through helper functions (`econIncomeMult`, `heroPowerMult`, `getKingdomHpMax`, etc.) so later nodes slot in without special-casing. Squad expansion, archetype unlocks, doctrines, and pool QoL arrive in M10–M12.
 
@@ -422,7 +424,7 @@ Playtesting at 100x surfaced a hard difficulty wall: an all-legendary hero squad
 How the death-and-rebuild loop from *Progression loop redesign* is wired in `game.js`:
 
 - **Two-key save model:** run state stays in `idleKingdomSave`; everything that survives a reset lives in `meta` (localStorage key `idleKingdomMeta`, `META_SAVE_KEY`): `age` counter, `legacy` balance, `waveCredit` high-water marks, `upgrades` ranks, and `fallHistory` (one entry per ended Age: age, fall wave, kingdom level, waves cleared, Legacy earned). The dev "Reset game" button wipes **both** keys — it's the full debug wipe, distinct from the in-fiction Age reset.
-- **Save versioning (M9):** both saves carry `version: SAVE_VERSION`; a mismatch on load discards the save (fresh start). Bump `SAVE_VERSION` whenever a rebalance makes old saves meaningless.
+- **Save versioning (M9):** both saves carry `version: SAVE_VERSION`; a mismatch on load discards the save (fresh start). Bump `SAVE_VERSION` whenever a rebalance makes old saves meaningless. Currently **5** (M14 rebalance).
 - **Run end:** `endRun(reason)` — `'overrun'` from `tick()` when `kingdomHP` hits 0 mid-battle, `'abandoned'` from the manual left-panel "Found a New Age" button (visible once raids have begun, two-click confirm). Either way: fall recorded, `runEnded = true` (the whole game freezes — `tick()` no-ops), and the full-screen run-summary overlay opens showing Age number, fall point, waves repelled, Legacy earned/available, both upgrade trees with Buy buttons, and the "Found a New Age" button. Closing the browser mid-summary is safe: `runEnded`/`runSummary` are saved, so the overlay reopens on load.
 - **The reset:** `foundNewAge()` increments `meta.age` and rebuilds run state: gold = `getStartingGold()` (Royal Treasury), kingdom level = Hamlet (or Village with Old Foundations), Kingdom HP = `getKingdomHpMax()` (Reinforced Walls), buildings back to zero at base costs (`BUILDING_BASE_COSTS`), residents/heroes/pools cleared, raid tier/wave/streak zeroed, free Rare Knight placed if Veteran's Welcome is owned. Upgrades are bought *on* the summary screen, so purchases there apply to the very next Age.
 - **What resets:** gold, `goldEarned`, buildings, residents, heroes, kingdom level, raid tier/wave/streak, Kingdom HP.
@@ -472,6 +474,11 @@ a 100× battle must not fire 100× the particles and sounds).
 ### Feel-adjacent QoL
 - Reduced-motion / no-shake toggle alongside the volume controls.
 
+### Known performance debt (found in the M14 soak, 2026-07-17)
+`tickRender()` rebuilds large chunks of the DOM (innerHTML) every tick; at 100× dev speed the game
+runs at only ~5-8× effective. M15's "smooth at 100×" constraint requires render throttling
+(render at most ~10-20fps regardless of tick rate) and/or incremental DOM updates.
+
 ## Milestone tracker
 - [x] Milestone 1: Gold counter ticking automatically
 - [x] Milestone 2: Cottage building — buy to earn gold/sec
@@ -488,7 +495,7 @@ a 100× battle must not fire 100× the particles and sounds).
 - [x] Milestone 11: **Combat engine features** (wild/m10-m14 branch) — computed modifier layer (enrage / auras / chill / row-AoE at 0.65 discount / on-death revive); per-tier tactical lessons + boss signature traits (raid-tier table); hand-authored deterministic wave compositions (`TIER_WAVES`) with variety mixes; enemy grid expansion 2x3 → 3x4 (Bandit) → 4x4 (Dragon); sappers + resident injury (25%/hit, 90s, never killed, `recomputeIncome` authoritative per tick); Battlemage/Banneret/Frost Adept unlocks (War Magics 800 / Standard Bearers 1,500 / Rimecraft 1,200). Sim ported 1:1; arc re-verified (capC walls Orc w5–boss, capR Bandit w6–boss, 12-epic walls Dark w9–14, 16-epic Dragon w2–9, 16-leg reaches Dragon w9 at 90% with the **final boss still closed at 0% — M12 doctrines must open it, verify then**). Browser-smoked (sapper kingdom bypass + injury, necro revive, breath data, battlemage AoE, chill, 3x4/4x4 grids)
 - [x] Milestone 12: **Doctrines** (wild/m10-m14 branch) — the four building↔army synergy nodes (Forgework / Tactics / Salves / Blessing, 2k/3k/5k/8k Legacy) as live use-time multipliers through the M11 modifier layer; Dragon boss comp trimmed one breath-mage; sim-verified that doctrines open the final boss (2% → 25% for the endgame squad); browser-smoked (multiplier values, blessing one-revive-per-battle)
 - [x] Milestone 13: **Final Siege** (wild/m10-m14 branch) — herald + 3-raid countdown after the first Dragon Empress kill; 3-phase gauntlet as one invasion (HP carries, escalation resets per phase, Blessing once per gauntlet; phase waves 14/16/18 sim-tuned to ~38% for the endgame squad with doctrines, 0% without); Lessons of the Last Siege (25,000 Legacy, once) on a lost attempt; victory screen with campaign stats; endless mode (post-boss comp clamp, no second siege); browser-smoked end-to-end (herald, phases, victory overlay, endless resume, lessons once-only)
-- [ ] Milestone 14: **Full-game balance playtest** against the *Difficulty arc across runs* table
+- [x] Milestone 14: **Full-game balance calibration** (wild/m10-m14 branch; sim + accelerated-engine version — the user's real 1× playthrough is the acceptance gate) — campaign-arc wall-finder in the sim (per-run arc squads vs targets: on-target at both ends, ~half a tier deep mid-campaign; gauntlet 27–38% with the full kit, 0% without doctrines); tree-cost rescale to the pricing philosophy (totals ≈90k, winning kit ≈⅔; top power ranks 6,000, War Banners 4,000/30,000, Blessing 10,000); SAVE_VERSION → 5; browser soak test: a greedy driver played run 1 end-to-end at accelerated speed and fell to Orc w6 with 10 waves / 330 Legacy — matching the sim's prediction (Orc w5–7, ~380 LP) with zero console errors; known perf debt recorded for M15 (per-tick DOM rebuild caps 100× at ~5–8× effective)
 - [ ] Milestone 15: **Game feel — visuals & sound** — the juice pass that turns the mechanically-complete game (M14) into one that feels good to play: combat/UI feedback animations, floating numbers, kingdom-damage and run-transition drama, portrait/sprite art pass; Web Audio SFX (hits, hires, raid horn, escalation heartbeat, stingers) with mute/volume; reduced-motion toggle. Scope sketch in *Game feel pass — visuals & sound (M15)*
 
 ## Starting state

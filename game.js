@@ -58,7 +58,7 @@ const FIRST_RAID_GRACE = 75;
 
 // Bump when a rebalance makes old saves meaningless; mismatched saves are
 // discarded on load (fresh start).
-const SAVE_VERSION = 4;
+const SAVE_VERSION = 5;
 
 // Dev build flag: keeps testing conveniences (auto-hire without the Steward's
 // Ledger upgrade, dev speed buttons) always available. Flip to false for a
@@ -316,7 +316,7 @@ const UPGRADE_TREES = {
     economy: {
         label: 'Economy',
         nodes: [
-            { id: 'trade',       name: 'Prosperous Trade', desc: '+25% gold income per rank',                                    maxRank: 5, costs: [15, 60, 250, 1000, 4000] },
+            { id: 'trade',       name: 'Prosperous Trade', desc: '+25% gold income per rank',                                    maxRank: 5, costs: [15, 60, 250, 1000, 6000] },
             { id: 'treasury',    name: 'Royal Treasury',   desc: 'Begin each Age with a larger treasury (250 / 1,000 / 4,000 / 15,000 gold)', maxRank: 4, costs: [10, 40, 150, 500] },
             { id: 'builders',    name: 'Master Builders',  desc: '+50% Builder HP regen per rank',                               maxRank: 3, costs: [25, 100, 400] },
             { id: 'steward',     name: "Steward's Ledger", desc: 'Unlocks auto-hiring for townsfolk',                            maxRank: 1, costs: [150] },
@@ -325,22 +325,22 @@ const UPGRADE_TREES = {
             // stays a battle decision all game.
             { id: 'forgework', name: 'Smithy Forgework',    desc: '+1.5% hero attack per Smithy owned',                           maxRank: 1, costs: [2000] },
             { id: 'tactics',   name: 'Library Tactics',     desc: '+1% hero action speed per Library owned',                      maxRank: 1, costs: [3000] },
-            { id: 'salves',    name: 'Apothecary Salves',   desc: 'Heroes regenerate 0.3% HP/s per Apothecary during battle',     maxRank: 1, costs: [5000] },
-            { id: 'blessing',  name: 'Cathedral Blessing',  desc: 'The first hero to fall each battle revives at 30% HP (requires a Cathedral)', maxRank: 1, costs: [8000] }
+            { id: 'salves',    name: 'Apothecary Salves',   desc: 'Heroes regenerate 0.3% HP/s per Apothecary during battle',     maxRank: 1, costs: [6000] },
+            { id: 'blessing',  name: 'Cathedral Blessing',  desc: 'The first hero to fall each battle revives at 30% HP (requires a Cathedral)', maxRank: 1, costs: [10000] }
         ]
     },
     military: {
         label: 'Military',
         nodes: [
-            { id: 'renown',  name: 'Hall of Legends',   desc: 'Greater heroes join the recruit pool (Rare / Epic / Legendary)', maxRank: 3, costs: [50, 750, 5000] },
+            { id: 'renown',  name: 'Hall of Legends',   desc: 'Greater heroes join the recruit pool (Rare / Epic / Legendary)', maxRank: 3, costs: [50, 750, 6000] },
             { id: 'paladin', name: "Paladin's Oath",    desc: 'Unlocks the Paladin — a stalwart who attacks and heals',   maxRank: 1, costs: [250] },
             { id: 'assassin', name: 'Shadow Guild',     desc: 'Unlocks the Assassin — hunts the enemy backline',          maxRank: 1, costs: [400] },
             { id: 'battlemage', name: 'War Magics',     desc: 'Unlocks the Battlemage — strikes an entire enemy row',     maxRank: 1, costs: [800] },
             { id: 'frost', name: 'Rimecraft',           desc: 'Unlocks the Frost Adept — attacks slow the target',        maxRank: 1, costs: [1200] },
             { id: 'banneret', name: 'Standard Bearers', desc: 'Unlocks the Banneret — adjacent allies fight harder',      maxRank: 1, costs: [1500] },
-            { id: 'squadsize', name: 'War Banners',     desc: 'Expand the hero squad (12 slots, then 16)',                maxRank: 2, costs: [2500, 20000] },
-            { id: 'drills',  name: 'Weapon Drills',     desc: '+20% hero attack & healing per rank',        maxRank: 5, costs: [15, 60, 250, 1000, 4000] },
-            { id: 'armor',   name: 'Hardened Armor',    desc: '+20% hero HP per rank',                      maxRank: 5, costs: [15, 60, 250, 1000, 4000] },
+            { id: 'squadsize', name: 'War Banners',     desc: 'Expand the hero squad (12 slots, then 16)',                maxRank: 2, costs: [4000, 30000] },
+            { id: 'drills',  name: 'Weapon Drills',     desc: '+20% hero attack & healing per rank',        maxRank: 5, costs: [15, 60, 250, 1000, 6000] },
+            { id: 'armor',   name: 'Hardened Armor',    desc: '+20% hero HP per rank',                      maxRank: 5, costs: [15, 60, 250, 1000, 6000] },
             { id: 'muster',  name: 'Muster Rolls',      desc: 'Hero hiring 15% cheaper per rank',           maxRank: 3, costs: [20, 80, 300] },
             { id: 'walls',   name: 'Reinforced Walls',  desc: '+250 max Kingdom HP per rank',               maxRank: 4, costs: [15, 60, 250, 1000] },
             { id: 'veteran', name: "Veteran's Welcome", desc: 'Each new Age begins with a free Rare Knight', maxRank: 1, costs: [100] }

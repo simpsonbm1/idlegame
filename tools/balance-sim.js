@@ -678,11 +678,12 @@ function finalSiegeRate(squadSpec, trials = 60, doctrines = null, regen = 25, kh
     return wins / trials;
 }
 
-// M12 verification: doctrines must open the final boss for the endgame squad.
 // Realm-level doctrine values: 7 Smithies x1.5% = x1.105 attack, 6 Libraries
 // x1% = x1.06 speed, 4 Apothecaries x0.3% = 1.2%/s salves, blessing on.
-console.log('\n=== M12 doctrine check (16-slot squads + Realm doctrines) ===');
 const REALM_DOCTRINES = { attack: 1.105, speed: 1.06, salves: 0.012, blessing: true };
+
+// M12 verification: doctrines must open the final boss for the endgame squad.
+console.log('\n=== M12 doctrine check (16-slot squads + Realm doctrines) ===');
 for (const [label, spec, ti, w] of [
     ['16 epic x1.7 vs Dark boss',   sixteen(5, 1.7, 1.7), 3, 13],
     ['16 epic x1.7 vs Drag w9',     sixteen(5, 1.7, 1.7), 4, 8],
@@ -692,6 +693,48 @@ for (const [label, spec, ti, w] of [
     const bare = winRate(spec, ti, w, 60);
     const doc = winRate(spec, ti, w, 60, REALM_DOCTRINES);
     console.log(`${label.padEnd(28)} no doctrines: ${String(Math.round(bare.rate * 100)).padStart(3)}%   with doctrines: ${String(Math.round(doc.rate * 100)).padStart(3)}%`);
+}
+
+// ---------- Campaign-arc verification (M14) ----------
+// For each run's arc-expected squad, walk the ladder to the first wave under
+// a 50% win rate ("the wall") and compare to the difficulty-arc table target.
+// Rows are strictly stronger than their predecessors, so each scan starts at
+// the previous wall.
+function findWall(spec, doctrines, startTier = 0, startWave = 0, trials = 16) {
+    for (let ti = startTier; ti < RAID_TIERS.length; ti++) {
+        const start = ti === startTier ? startWave : 0;
+        for (let w = start; w < RAID_TIERS[ti].waveCount; w++) {
+            const wr = winRate(spec, ti, w, trials, doctrines);
+            if (wr.rate < 0.5) return { tier: ti, wave: w, rate: wr.rate };
+        }
+    }
+    return null; // cleared the entire ladder
+}
+
+console.log('\n=== M14 campaign-arc check (wall = first wave under 50%) ===');
+const fourC2R = tp => [['guardian', 2.5, tp, tp], ['guardian', 1, tp, tp], ['ranged', 2.5, tp, tp], ['ranged', 1, tp, tp], ['mender', 1, tp, tp], ['mender', 1, tp, tp]];
+const ARC_RUNS = [
+    ['run 1',  'Goblin boss-Orc w5',   six(1, 1, 1), null],
+    ['run 2',  'Orc w3-5',             fourC2R(1.15), null],
+    ['run 3',  'Orc boss-Bandit w2',   six(2.5, 1.2, 1.2), null],
+    ['run 4',  'Bandit w6-8',          twelve(2.5, 1.3, 1.3), { attack: 1.06 }],
+    ['run 5',  'Bandit boss-Dark w3',  twelve(5, 1.4, 1.4), { attack: 1.06 }],
+    ['run 6',  'Dark w7-10',           twelve(5, 1.5, 1.5), { attack: 1.06, speed: 1.05 }],
+    ['run 7',  'Dark boss-Dragon w4',  sixteen(5, 1.6, 1.6), { attack: 1.08, speed: 1.05, blessing: true }],
+    ['run 8',  'Dragon w9-13',         sixteen(10, 1.8, 1.8), { attack: 1.09, speed: 1.06, salves: 0.009, blessing: true }],
+    ['run 9',  'Dragon boss (w17)',    sixteen(10, 2, 2), REALM_DOCTRINES],
+];
+let scanTier = 0, scanWave = 0;
+for (const [run, target, spec, doc] of ARC_RUNS) {
+    const wall = findWall(spec, doc, scanTier, scanWave);
+    if (wall) {
+        const t = RAID_TIERS[wall.tier];
+        const isBoss = wall.wave === t.waveCount - 1;
+        console.log(`${run.padEnd(7)} target: ${target.padEnd(22)} sim wall: ${t.name} w${wall.wave + 1}${isBoss ? ' BOSS' : ''} (${Math.round(wall.rate * 100)}%)`);
+        scanTier = wall.tier; scanWave = wall.wave;
+    } else {
+        console.log(`${run.padEnd(7)} target: ${target.padEnd(22)} sim wall: NONE — clears the ladder`);
+    }
 }
 
 console.log('\n=== M13 Final Siege gauntlet (3 phases, HP carries, blessing once) ===');
