@@ -50,6 +50,9 @@ const HERO_ARCHETYPES = {
     guardian: { baseCost: 1000, defense: 35, hp: 140, attack: { power: 8,  speed: 0.7 } },
     ranged:   { baseCost: 750, defense: 5,  hp: 60,  attack: { power: 18, speed: 1.3 } },
     mender:   { baseCost: 850, defense: 5,  hp: 55,  heal:   { power: 20, speed: 0.7 } },
+    // M10 unlockable archetypes
+    paladin:  { baseCost: 1300, defense: 25, hp: 120, attack: { power: 9, speed: 0.7 }, heal: { power: 11, speed: 0.55 } },
+    assassin: { baseCost: 950,  defense: 3,  hp: 45,  attack: { power: 26, speed: 1.2 }, backlineChance: 0.9 },
 };
 
 // Hall of Legends (Military tree, costs 50/750/5000 Legacy): hero rarity is
@@ -119,14 +122,18 @@ function makeHero(key, rarityMult, treePower = 1, treeHp = 1) {
     const a = HERO_ARCHETYPES[key];
     const attack = a.attack ? { power: Math.round(a.attack.power * rarityMult * treePower), speed: a.attack.speed } : null;
     const heal = a.heal ? { power: Math.round(a.heal.power * rarityMult * treePower), speed: a.heal.speed } : null;
-    return makeUnit(key, a.defense, Math.round(a.hp * Math.sqrt(rarityMult) * treeHp), key === 'guardian' ? 0 : 1, 'hero', attack, heal);
+    const row = (key === 'guardian' || key === 'paladin') ? 0 : 1;
+    return makeUnit(key, a.defense, Math.round(a.hp * Math.sqrt(rarityMult) * treeHp), row, 'hero', attack, heal, a.backlineChance);
 }
 
+// Mirror of game.js pickTarget (generalized to N rows in M10): frontmost
+// occupied row is the front, everything behind is the backline pool.
 function pickTarget(attacker, squad) {
-    const front = squad.filter(u => u && u.alive && u.row === 0);
-    const back = squad.filter(u => u && u.alive && u.row === 1);
-    if (!front.length && !back.length) return null;
-    if (!front.length) return back[Math.floor(Math.random() * back.length)];
+    const alive = squad.filter(u => u && u.alive);
+    if (!alive.length) return null;
+    const frontRow = Math.min(...alive.map(u => u.row));
+    const front = alive.filter(u => u.row === frontRow);
+    const back = alive.filter(u => u.row > frontRow);
     if (!back.length) return front[Math.floor(Math.random() * front.length)];
     const pool = Math.random() < attacker.backlineChance ? back : front;
     return pool[Math.floor(Math.random() * pool.length)];
@@ -378,6 +385,22 @@ const specs = [
     ['capE r4-5: 6 epic x1.5',  six(5, 1.5, 1.5)],
     ['capL r6+: 6 leg x1.8',    six(10, 1.8, 1.8)],
 ];
+
+// M10 expanded squads (War Banners 12/16 slots + Paladin/Assassin): compare
+// against the 6-slot cap rows above to price the expansion nodes on the arc.
+const twelve = (r, tp, th) => [
+    ['guardian', r, tp, th], ['guardian', r, tp, th], ['paladin', r, tp, th], ['paladin', r, tp, th],
+    ['ranged', r, tp, th], ['ranged', r, tp, th], ['assassin', r, tp, th], ['assassin', r, tp, th],
+    ['mender', r, tp, th], ['mender', r, tp, th], ['ranged', r, tp, th], ['mender', r, tp, th],
+];
+const sixteen = (r, tp, th) => [...twelve(r, tp, th),
+    ['guardian', r, tp, th], ['paladin', r, tp, th], ['ranged', r, tp, th], ['assassin', r, tp, th]];
+specs.push(
+    ['r3-4: 12 rare+PA x1.3',  twelve(2.5, 1.3, 1.3)],
+    ['r5-6: 12 epic+PA x1.5',  twelve(5, 1.5, 1.5)],
+    ['r7-8: 16 epic+PA x1.7',  sixteen(5, 1.7, 1.7)],
+    ['r9+: 16 leg+PA x2.0',    sixteen(10, 2.0, 2.0)],
+);
 for (const [label, spec] of specs) {
     const cells = [];
     for (let ti = 0; ti < RAID_TIERS.length; ti++) {

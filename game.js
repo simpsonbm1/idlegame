@@ -57,6 +57,11 @@ const FIRST_RAID_GRACE = 75;
 // discarded on load (fresh start).
 const SAVE_VERSION = 4;
 
+// Dev build flag: keeps testing conveniences (auto-hire without the Steward's
+// Ledger upgrade, dev speed buttons) always available. Flip to false for a
+// release build.
+const DEV_MODE = true;
+
 const BASE_ATTACK_INTERVAL = 2500;
 const DEFAULT_BACKLINE_CHANCE = 0.15;
 
@@ -99,10 +104,16 @@ const ENEMY_ARCHETYPES = {
     shaman:     { base: { defense: 8,  hp: 50, heal: { power: 10, speed: 0.7 } } }
 };
 
+// Archetypes with an `unlock` field only appear in the hero pool once that
+// Military-tree node is owned (M10: Paladin, Assassin).
 const HERO_ARCHETYPES = {
-    guardian: { names: ['Knight', 'Sentinel', 'Vanguard', 'Paragon'],   baseCost: 1000, base: { defense: 35, hp: 140, attack: { power: 8,  speed: 0.7 } } },
+    guardian: { names: ['Knight', 'Sentinel', 'Vanguard', 'Paragon'],    baseCost: 1000, base: { defense: 35, hp: 140, attack: { power: 8,  speed: 0.7 } } },
     ranged:   { names: ['Archer', 'Sharpshooter', 'Hunter', 'Marksman'], baseCost: 750,  base: { defense: 5,  hp: 60,  attack: { power: 18, speed: 1.3 } } },
-    mender:   { names: ['Acolyte', 'Cleric', 'Druid', 'Saint'],          baseCost: 850,  base: { defense: 5,  hp: 55,  heal:   { power: 20, speed: 0.7 } } }
+    mender:   { names: ['Acolyte', 'Cleric', 'Druid', 'Saint'],          baseCost: 850,  base: { defense: 5,  hp: 55,  heal:   { power: 20, speed: 0.7 } } },
+    paladin:  { names: ['Squire', 'Paladin', 'Crusader', 'Highlord'],    baseCost: 1300, unlock: 'paladin',
+                base: { defense: 25, hp: 120, attack: { power: 9, speed: 0.7 }, heal: { power: 11, speed: 0.55 } } },
+    assassin: { names: ['Rogue', 'Assassin', 'Nightblade', 'Phantom'],   baseCost: 950,  unlock: 'assassin',
+                base: { defense: 3,  hp: 45,  attack: { power: 26, speed: 1.2 }, backlineChance: 0.9 } }
 };
 
 function isBossWave(tierIndex, wave) {
@@ -174,6 +185,7 @@ const UPGRADE_TREES = {
             { id: 'trade',       name: 'Prosperous Trade', desc: '+25% gold income per rank',                                    maxRank: 5, costs: [15, 60, 250, 1000, 4000] },
             { id: 'treasury',    name: 'Royal Treasury',   desc: 'Begin each Age with a larger treasury (250 / 1,000 / 4,000 / 15,000 gold)', maxRank: 4, costs: [10, 40, 150, 500] },
             { id: 'builders',    name: 'Master Builders',  desc: '+50% Builder HP regen per rank',                               maxRank: 3, costs: [25, 100, 400] },
+            { id: 'steward',     name: "Steward's Ledger", desc: 'Unlocks auto-hiring for townsfolk',                            maxRank: 1, costs: [150] },
             { id: 'foundations', name: 'Old Foundations',  desc: 'New Ages begin at Village level',                              maxRank: 1, costs: [400] }
         ]
     },
@@ -181,6 +193,9 @@ const UPGRADE_TREES = {
         label: 'Military',
         nodes: [
             { id: 'renown',  name: 'Hall of Legends',   desc: 'Greater heroes join the recruit pool (Rare / Epic / Legendary)', maxRank: 3, costs: [50, 750, 5000] },
+            { id: 'paladin', name: "Paladin's Oath",    desc: 'Unlocks the Paladin — a stalwart who attacks and heals',   maxRank: 1, costs: [250] },
+            { id: 'assassin', name: 'Shadow Guild',     desc: 'Unlocks the Assassin — hunts the enemy backline',          maxRank: 1, costs: [400] },
+            { id: 'squadsize', name: 'War Banners',     desc: 'Expand the hero squad (12 slots, then 16)',                maxRank: 2, costs: [2500, 20000] },
             { id: 'drills',  name: 'Weapon Drills',     desc: '+20% hero attack & healing per rank',        maxRank: 5, costs: [15, 60, 250, 1000, 4000] },
             { id: 'armor',   name: 'Hardened Armor',    desc: '+20% hero HP per rank',                      maxRank: 5, costs: [15, 60, 250, 1000, 4000] },
             { id: 'muster',  name: 'Muster Rolls',      desc: 'Hero hiring 15% cheaper per rank',           maxRank: 3, costs: [20, 80, 300] },
@@ -213,6 +228,10 @@ function buyUpgrade(id) {
     if (meta.legacy < cost) return;
     meta.legacy -= cost;
     meta.upgrades[id] = rank + 1;
+    if (id === 'squadsize') {
+        resizeHeroSquad();
+        saveGame();
+    }
     saveMeta();
     renderRunSummary();
 }
@@ -232,6 +251,44 @@ function heroCostMult()      { return Math.pow(0.85, upgradeRank('muster')); }
 // (kingdom level + Keeps only shift weights *under* the unlocked ceiling).
 function heroRarityCap()     { return upgradeRank('renown'); }
 function getKingdomHpMax()   { return KINGDOM_HP_MAX + 250 * upgradeRank('walls'); }
+
+// Hero grid dimensions by War Banners rank: 2x3 -> 3x4 -> 4x4 (rows x cols).
+// Row 0 is the frontline; rows only ever grow, so no unit can be orphaned.
+const HERO_GRID_BY_RANK = [{ rows: 2, cols: 3 }, { rows: 3, cols: 4 }, { rows: 4, cols: 4 }];
+function heroGridDims()  { return HERO_GRID_BY_RANK[Math.min(upgradeRank('squadsize'), HERO_GRID_BY_RANK.length - 1)]; }
+function heroSquadCap()  { const d = heroGridDims(); return d.rows * d.cols; }
+
+// Rebuilds the squad array to the current grid dimensions, keeping every hero
+// at its row/col (grids only grow, but guard against any stale position).
+function resizeHeroSquad() {
+    const { rows, cols } = heroGridDims();
+    if (heroSquad.length === rows * cols && heroSquad.every(u => !u || (u.row < rows && u.col < cols))) return;
+    const resized = new Array(rows * cols).fill(null);
+    for (const unit of heroSquad) {
+        if (!unit) continue;
+        let idx = unit.row * cols + unit.col;
+        if (unit.row >= rows || unit.col >= cols || resized[idx]) {
+            idx = resized.findIndex(s => s === null);
+            if (idx === -1) continue;
+            unit.row = Math.floor(idx / cols);
+            unit.col = idx % cols;
+        }
+        resized[idx] = unit;
+    }
+    heroSquad = resized;
+}
+
+// Archetypes whose unlock node is owned (or that never needed one).
+function unlockedHeroArchetypes() {
+    return Object.keys(HERO_ARCHETYPES).filter(key => {
+        const unlock = HERO_ARCHETYPES[key].unlock;
+        return !unlock || upgradeRank(unlock) > 0;
+    });
+}
+
+// Townsfolk auto-hire is an Economy-tree purchase (Steward's Ledger); the dev
+// build keeps it always-on for testing.
+function autoRecruitAvailable() { return DEV_MODE || upgradeRank('steward') > 0; }
 
 // First-ever-clear pays full value; re-clears pay the trickle. Credit is
 // all-time (the high-water mark persists across Ages).
@@ -480,7 +537,7 @@ function setAutoRecruit(rarity) {
 }
 
 function autoRecruit() {
-    if (!autoRecruitRarity) return;
+    if (!autoRecruitRarity || !autoRecruitAvailable()) return;
     const threshold = rarityOrder.indexOf(autoRecruitRarity);
     let anyHired = false;
 
@@ -575,11 +632,14 @@ function randomFrom(list) {
 
 // Frontline is favored but not absolute — each attacker rolls against its own
 // backlineChance to decide which row it goes after.
+// Generalized to any number of rows (M10 squad expansion): the frontmost
+// occupied row is "the front"; every row behind it is the backline pool.
 function pickTarget(attacker, enemySquad) {
-    const front = enemySquad.filter(u => u && u.row === 0 && u.alive);
-    const back = enemySquad.filter(u => u && u.row === 1 && u.alive);
-    if (front.length === 0 && back.length === 0) return null;
-    if (front.length === 0) return randomFrom(back);
+    const alive = enemySquad.filter(u => u && u.alive);
+    if (alive.length === 0) return null;
+    const frontRow = Math.min(...alive.map(u => u.row));
+    const front = alive.filter(u => u.row === frontRow);
+    const back = alive.filter(u => u.row > frontRow);
     if (back.length === 0) return randomFrom(front);
 
     const wantsBackline = Math.random() < attacker.backlineChance;
@@ -706,7 +766,7 @@ function generateHero(archetypeKey, rarity, row, col) {
     const attack = base.attack ? attackAction(scalePower(base.attack.power), base.attack.speed) : null;
     const heal = base.heal ? healAction(scalePower(base.heal.power), base.heal.speed) : null;
 
-    const unit = makeUnit(archetype.names[rarityIndex], base.defense, scaleHp(base.hp), row, col, 'hero', attack, heal);
+    const unit = makeUnit(archetype.names[rarityIndex], base.defense, scaleHp(base.hp), row, col, 'hero', attack, heal, base.backlineChance);
     unit.rarity = rarity;
     unit.archetypeKey = archetypeKey;
     return unit;
@@ -737,7 +797,7 @@ function generateEnemySquad(tierIndex, wave) {
 
 // --- Hero recruiting & squad management ---
 function generateHeroRecruit() {
-    const archetypeKeys = Object.keys(HERO_ARCHETYPES);
+    const archetypeKeys = unlockedHeroArchetypes();
     const archetypeKey = archetypeKeys[Math.floor(Math.random() * archetypeKeys.length)];
     const archetype = HERO_ARCHETYPES[archetypeKey];
     const rarity = rollHeroRarity();
@@ -770,7 +830,8 @@ function hireHero(recruitId) {
 
     gold -= recruit.cost;
     heroRecruitPool.splice(index, 1);
-    heroSquad[slotIndex] = generateHero(recruit.archetypeKey, recruit.rarity, Math.floor(slotIndex / 3), slotIndex % 3);
+    const cols = heroGridDims().cols;
+    heroSquad[slotIndex] = generateHero(recruit.archetypeKey, recruit.rarity, Math.floor(slotIndex / cols), slotIndex % cols);
 
     saveGame();
     updateUI();
@@ -822,8 +883,9 @@ function attachHeroDragHandlers(slot, index) {
 
 function swapHeroes(sourceIndex, targetIndex) {
     if (sourceIndex === targetIndex || isNaN(sourceIndex)) return;
-    const rowOf = idx => Math.floor(idx / 3);
-    const colOf = idx => idx % 3;
+    const cols = heroGridDims().cols;
+    const rowOf = idx => Math.floor(idx / cols);
+    const colOf = idx => idx % cols;
 
     const a = heroSquad[sourceIndex];
     const b = heroSquad[targetIndex];
@@ -936,7 +998,7 @@ function foundNewAge() {
     runSummary = null;
     runLegacyEarned = 0;
     runWavesCleared = 0;
-    heroSquad = new Array(6).fill(null);
+    heroSquad = new Array(heroSquadCap()).fill(null);
     heroRecruitPool = [];
     heroPoolTimer = 0;
     recruitPool = [];
@@ -1058,6 +1120,10 @@ function loadGame() {
             else goldPerSecond += r.income;
         }
     }
+
+    // Saved squads predate any War Banners rank bought this session (and a
+    // missing save leaves the 6-slot default) — normalize to current dims.
+    resizeHeroSquad();
 }
 
 function showResetConfirm() {
@@ -1158,9 +1224,8 @@ function renderRecruitPool() {
         { value: 'legendary', label: 'Legendary' }
     ];
 
-    let html = `<div class="pool-header">
-        <span class="pool-timer" id="pool-timer-text">New arrivals in ${timeUntilRefresh}s</span>
-        <div class="auto-recruit">
+    const autoRecruitHtml = autoRecruitAvailable()
+        ? `<div class="auto-recruit">
             <span class="auto-recruit-label">Auto-hire:</span>
             ${autoOptions.map(({ value, label }) => {
                 const active = autoRecruitRarity === value;
@@ -1168,7 +1233,12 @@ function renderRecruitPool() {
                 const rarityClass = value ? `btn-auto--${value}` : '';
                 return `<button class="btn-auto ${rarityClass} ${active ? 'btn-auto--active' : ''}" onclick="setAutoRecruit(${arg})">${label}</button>`;
             }).join('')}
-        </div>
+        </div>`
+        : `<div class="auto-recruit"><span class="auto-recruit-label auto-recruit-locked">Auto-hire: unlocks with Steward's Ledger (Economy)</span></div>`;
+
+    let html = `<div class="pool-header">
+        <span class="pool-timer" id="pool-timer-text">New arrivals in ${timeUntilRefresh}s</span>
+        ${autoRecruitHtml}
     </div><div class="pool-cards">`;
 
     if (recruitPool.length === 0) {
@@ -1421,9 +1491,11 @@ function renderRaidStatusBar() {
 // Heroes: backline column first, frontline second (frontline sits nearest the
 // Enemies area). Enemies: frontline first, backline second (frontline sits
 // nearest the Defenders area). This keeps both frontlines next to each other.
-function renderSquad(containerId, squad, sideClass, columnOrder, interactive) {
+function renderSquad(containerId, squad, sideClass, columnOrder, interactive, cols = 3) {
     const el = document.getElementById(containerId);
     el.innerHTML = '';
+    // Expanded grids shrink their slots so the battle panel keeps its footprint.
+    el.classList.toggle('grid-compact', squad.length > 6);
     for (const colDef of columnOrder) {
         const colEl = document.createElement('div');
         colEl.className = 'battle-column';
@@ -1433,8 +1505,8 @@ function renderSquad(containerId, squad, sideClass, columnOrder, interactive) {
         label.textContent = colDef.label;
         colEl.appendChild(label);
 
-        for (let i = 0; i < 3; i++) {
-            const index = colDef.row * 3 + i;
+        for (let i = 0; i < cols; i++) {
+            const index = colDef.row * cols + i;
             const unit = squad[index];
             const slot = document.createElement('div');
             if (!unit) {
@@ -1483,8 +1555,14 @@ function renderSquad(containerId, squad, sideClass, columnOrder, interactive) {
 function renderBattleSquads() {
     if (isDraggingHero) return;
     const enemies = currentInvasion ? currentInvasion.enemies : new Array(6).fill(null);
-    renderSquad('heroSquad', heroSquad, '', [{ label: 'Backline', row: 1 }, { label: 'Frontline', row: 0 }], true);
-    renderSquad('enemySquad', enemies, 'enemy', [{ label: 'Frontline', row: 0 }, { label: 'Backline', row: 1 }], false);
+    // Hero columns render rear-to-front so the frontline sits nearest the
+    // enemy area; rows past the backline are labeled Reserve.
+    const dims = heroGridDims();
+    const rowLabel = r => r === 0 ? 'Frontline' : r === 1 ? 'Backline' : 'Reserve';
+    const heroColumns = [];
+    for (let r = dims.rows - 1; r >= 0; r--) heroColumns.push({ label: rowLabel(r), row: r });
+    renderSquad('heroSquad', heroSquad, '', heroColumns, true, dims.cols);
+    renderSquad('enemySquad', enemies, 'enemy', [{ label: 'Frontline', row: 0 }, { label: 'Backline', row: 1 }], false, 3);
 }
 
 function renderHeroRecruitPool() {
@@ -1615,6 +1693,7 @@ function updateUI() {
 
 loadMeta();
 loadGame();
+resizeHeroSquad(); // no-save startups still need the squad sized to War Banners rank
 if (recruitPool.length === 0) refreshPool();
 if (kingdomLevel >= RAID_TRIGGER_LEVEL && heroRecruitPool.length === 0) refreshHeroPool();
 updateUI();

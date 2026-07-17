@@ -186,6 +186,24 @@ h1 {
     opacity: 0.4;
 }
 
+/* Expanded squads (War Banners): tighter slots so the panel footprint holds */
+.grid-compact .battle-slot {
+    min-height: 54px;
+    padding: 4px;
+}
+
+.grid-compact .battle-unit-name {
+    font-size: 0.65rem;
+}
+
+.grid-compact .battle-unit-stats {
+    font-size: 0.6rem;
+}
+
+.grid-compact .battle-hp-text {
+    font-size: 0.6rem;
+}
+
 .battle-slot.dead {
     opacity: 0.35;
     border-color: #5a2020;
@@ -523,6 +541,12 @@ h1 {
     align-items: center;
     gap: 4px;
     flex-wrap: wrap;
+}
+
+.auto-recruit-label.auto-recruit-locked {
+    text-transform: none;
+    letter-spacing: 0;
+    font-style: italic;
 }
 
 .auto-recruit-label {

@@ -185,15 +185,17 @@ Kingdom HP (`kingdomHP`, max `KINGDOM_HP_MAX = 1000`) is the persistent conseque
 - If `kingdomHP` reaches 0 it clamps there and **the run ends**: `endRun('overrun')` records the fall (`kingdomFallRecord` for the HP-panel marker, plus an entry in the persistent `meta.fallHistory`), freezes the game (`tick()` no-ops while `runEnded`), and shows the run-summary overlay with the upgrade shop — see *Run loop implementation (M8)*.
 
 ### Heroes
-Heroes are recruited separately from townspeople and are **not building-gated** — the squad cap is simply the 6 slots on the 2x3 battlefield grid (a future "zoom" upgrade could grow this while keeping the panel's footprint fixed).
+Heroes are recruited separately from townspeople and are **not building-gated** — the squad cap is the battlefield grid, which starts 2x3 (6 slots) and expands via the **War Banners** Military node to 3x4 (12) then 4x4 (16) (`HERO_GRID_BY_RANK` / `heroGridDims()`; `resizeHeroSquad()` re-seats heroes on rank-up and load, and the UI compacts slot size so the panel footprint holds — rows past the backline are labeled "Reserve"). Targeting is generalized to any number of rows (M10): the frontmost occupied row is "the front", every row behind it is the backline pool.
 
-**Hero archetypes** (`HERO_ARCHETYPES`):
+**Hero archetypes** (`HERO_ARCHETYPES`; an `unlock` field names the Military node that gates pool appearance):
 
 | Archetype | Names by rarity (common→legendary) | Base cost | Role |
 |---|---|---|---|
 | guardian | Knight / Sentinel / Vanguard / Paragon | 1,000g | Tanky attacker (35 defense, 140 hp, 8 atk) |
 | ranged | Archer / Sharpshooter / Hunter / Marksman | 750g | Fast attacker (5 defense, 60 hp, 18 atk) |
 | mender | Acolyte / Cleric / Druid / Saint | 850g | Healer (5 defense, 55 hp, 20 heal) |
+| paladin | Squire / Paladin / Crusader / Highlord | 1,300g | Hybrid — attacks *and* heals on staggered timers (25 def, 120 hp, 9 atk + 11 heal); unlock: **Paladin's Oath** |
+| assassin | Rogue / Assassin / Nightblade / Phantom | 950g | Backline hunter (`backlineChance` 0.9; 3 def, 45 hp, 26 atk); unlock: **Shadow Guild** |
 
 A hero costs a meaningful slice of early income (~30–60s of gold at raid-trigger time), so a full 6-slot squad is a real investment — mid-battle emergency rehires compete with everything else the gold could buy.
 
@@ -219,7 +221,7 @@ A hero costs a meaningful slice of early income (~30–60s of gold at raid-trigg
 The hero-squad-vs-enemy-squad autobattle described above replaces the old duration/ratio siege system (`totalDefense` vs. a flat `defenseRequired`, `clamp(60/ratio, 10, 180)`). The 3-column "battle at the gates" layout (Admin / Town / Battle) from `layout-prototype.html` is now the live UI in `index.html`. `autobattler-prototype.html` and `layout-prototype.html` remain as standalone references but are no longer the source of truth.
 
 **Remaining open items:**
-- Hero squad cap growth — now planned as Military-tree expansion milestones, see *Progression loop redesign*.
+- ~~Hero squad cap growth~~ — implemented in M10 as the War Banners Military node (see *Heroes*).
 - See *Progression loop redesign* and *Difficulty & meta-progression design* for the raid-tier vs. hero-rarity vs. Kingdom-siege balance pass — now an M9 tuning job (the run loop and currency flow landed in M8).
 
 ## Progression loop redesign — end-to-end storyboard (core run loop implemented in M8; wave/boss structure, new content, and tuning pending M9+)
@@ -304,7 +306,7 @@ After victory the player may keep playing the current run (or start fresh runs) 
 ### Upgrade trees (Economy / Military)
 Two permanent, currency-funded trees spent into after each reset. Full planned scope:
 
-- **Economy tree** — income multipliers (global or per-building), starting gold, "Old Foundations" (start runs at Village level), building cost-growth reduction, building cap increases beyond kingdom-level grants, Builder Kingdom-HP-regen multiplier, recruit-pool quality-of-life (refresh speed, rarity weights, pool size, reroll button), **townsperson auto-buy** (decided 2026-07-13: the current auto-recruit toggle becomes a purchasable Economy node — "QoL as upgrades", the incremental-genre pattern of an interactive mechanic earning its own automation; it stays always-available in the dev build for testing), **Doctrines** (below).
+- **Economy tree** — income multipliers (global or per-building), starting gold, "Old Foundations" (start runs at Village level), building cost-growth reduction, building cap increases beyond kingdom-level grants, Builder Kingdom-HP-regen multiplier, recruit-pool quality-of-life (refresh speed, rarity weights, pool size, reroll button), **townsperson auto-buy** (implemented M10 as **Steward's Ledger** — "QoL as upgrades", the incremental-genre pattern of an interactive mechanic earning its own automation; always-available in dev builds via `DEV_MODE`), **Doctrines** (below).
 - **Military tree** — **Hall of Legends** (the hero rarity ceiling — implemented, see *Hero rarity ceiling* under *Heroes*), hero stat multipliers (HP/attack/defense/heal, ranked, global or per-archetype), **hero squad-size expansion milestones** (the must-buy nodes tied to enemy-grid jumps), **new hero archetype unlocks** (below), "Veteran's Welcome" (start each run with a free rare Knight), cheaper hero hires, hero recruit-pool quality-of-life, Kingdom HP max / Kingdom defense ("Walls") / base HP regen, a scout report (see the next raid's composition).
 
 **M8 starter set (implemented, `UPGRADE_TREES` in `game.js` — all numbers placeholder pending M9):**
@@ -312,6 +314,10 @@ Two permanent, currency-funded trees spent into after each reset. Full planned s
 | Tree | Node | Effect per rank | Ranks | Costs (Legacy, rescaled in M9) |
 |---|---|---|---|---|
 | Military | Hall of Legends | unlocks Rare / Epic / Legendary heroes in the pool (the run-depth gate — see *Hero rarity ceiling*) | 3 | 50 / 750 / 5,000 |
+| Military | Paladin's Oath (M10) | unlocks the Paladin archetype | 1 | 250 |
+| Military | Shadow Guild (M10) | unlocks the Assassin archetype | 1 | 400 |
+| Military | War Banners (M10) | hero squad 2x3 → 3x4 → 4x4 (costs provisional until M11's enemy-grid expansion counterweight lands; final pricing M14) | 2 | 2,500 / 20,000 |
+| Economy | Steward's Ledger (M10) | unlocks townsfolk auto-hire (always-on in dev builds via `DEV_MODE`) | 1 | 150 |
 | Economy | Prosperous Trade | +25% gold income | 5 | 15 / 60 / 250 / 1,000 / 4,000 |
 | Economy | Royal Treasury | starting gold 50 → 250 / 1,000 / 4,000 / 15,000 | 4 | 10 / 40 / 150 / 500 |
 | Economy | Master Builders | +50% Builder HP regen | 3 | 25 / 100 / 400 |
@@ -334,13 +340,13 @@ Each doctrine makes a building type directly feed the army, so town composition 
 ### New hero archetypes (Military-tree unlocks, ~one per run for novelty)
 Sequenced so the zero-engine-work heroes arrive first:
 
-| Hero | Role | Engine work needed |
-|---|---|---|
-| Paladin | attack + heal hybrid | **none** — the multi-action system already supports it |
-| Assassin | backlineChance ~0.9, high power, fragile | none — just stats |
-| Battlemage | hits an entire enemy row | AoE action type |
-| Banneret | aura: adjacent allies gain power | buff system |
-| Frost Adept | attacks slow the target's cooldowns | debuff-on-hit |
+| Hero | Role | Engine work needed | Status |
+|---|---|---|---|
+| Paladin | attack + heal hybrid | **none** — the multi-action system already supports it | **implemented (M10)** |
+| Assassin | backlineChance ~0.9, high power, fragile | none — just stats | **implemented (M10)** |
+| Battlemage | hits an entire enemy row | AoE action type | M11 |
+| Banneret | aura: adjacent allies gain power | buff system | M11 |
+| Frost Adept | attacks slow the target's cooldowns | debuff-on-hit | M11 |
 
 ### Enemy tier mechanics (one tactical lesson per tier)
 Later tiers must be new problems, not just bigger numbers — each reuses an engine feature from the hero list:
@@ -464,7 +470,7 @@ a 100× battle must not fire 100× the particles and sounds).
 - [x] Milestone 9: **Economy & pacing pass** — loot cut (~170×), per-tier raid intervals + first-raid grace, per-tier wave counts + boss waves, tier advance by boss-kill, continuous 1.088/wave enemy curve, economy shrink (caps/slots/costs/incomes way down), rarity-weight gating, Legacy boss bonus + upgrade-cost rescale, save versioning; wall targets sim-verified via `tools/balance-sim.js` (real-1× confirmation happens in play)
 - [x] Milestone 9.5: **Hero rarity ceiling (Hall of Legends)** — fix for the run-1 min/max break found in the first M9 playtest (full ladder cleared with zero upgrades): hero rarity above Common is now a 3-rank Military-tree unlock (50/750/5,000 Legacy); sim-verified per-ceiling walls land on the difficulty arc; SAVE_VERSION → 3 (old saves discarded); browser smoke-tested (pool filtering, node purchase)
 - [x] Milestone 9.6: **Siege escalation** — anti-stalemate fix from the 2026-07-17 1× playtest (run 1 hit a true soft-lock at Bandit w3: enemy Medic out-healed reinforcement chip damage while rehires + Builder regen kept the Kingdom maxed — one endless battle, ~2 runs deeper than the arc target, 1,130 Legacy banked): past a 60s per-battle grace, enemy attack ramps +1%/s until the siege resolves; healer top-off on win (survivors leave the field at full HP); sim gained escalation, win-duration stats, and the reinforcement-grind model; SAVE_VERSION → 4 (old saves + broken-run Legacy discarded); browser smoke-tested (banner, overrun path, top-off, win path)
-- [ ] Milestone 10: **First new heroes** — Paladin + Assassin unlocks and the first squad-expansion milestone (no engine work needed)
+- [x] Milestone 10: **First new heroes** (wild/m10-m14 branch) — Paladin + Assassin archetypes behind Paladin's Oath / Shadow Guild Military nodes (pool filters by `unlockedHeroArchetypes()`); War Banners squad expansion (2x3 → 3x4 → 4x4, `resizeHeroSquad`, compact battle-grid UI, targeting generalized to N rows); Steward's Ledger Economy node makes townsfolk auto-hire a purchase (`DEV_MODE` keeps it free in dev builds). Sim finding: 12/16-slot squads overshoot the arc against *current* 4-5 unit enemy waves — M11's enemy-grid expansion is the designed counterweight; War Banners pricing finalized in M14. Browser-smoked (resize, unlock filtering, hybrid/backline behavior, 16-slot render)
 - [ ] Milestone 11: **Combat engine features** — AoE actions, buffs/debuffs, on-death hooks; enemy tier mechanics, boss units, wave composition variety, enemy grid expansion; **kingdom/villager targeting** (scheduled 2026-07-17: sapper-style enemies that hit the Kingdom — and possibly injure residents — while heroes still stand; see *Enemy tier mechanics*)
 - [ ] Milestone 12: **Doctrines** — building↔army synergy nodes
 - [ ] Milestone 13: **Final Siege** — 3-phase gauntlet, victory screen, endless mode
