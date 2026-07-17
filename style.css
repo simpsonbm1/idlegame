@@ -138,6 +138,13 @@ h1 {
     animation: siege-pulse 1.2s ease-in-out infinite;
 }
 
+.raid-status-escalation {
+    font-size: 0.8rem;
+    color: #e0a050;
+    font-style: italic;
+    margin-top: 4px;
+}
+
 @keyframes siege-pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }

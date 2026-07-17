@@ -55,10 +55,18 @@ const FIRST_RAID_GRACE = 75;
 
 // Bump when a rebalance makes old saves meaningless; mismatched saves are
 // discarded on load (fresh start).
-const SAVE_VERSION = 3;
+const SAVE_VERSION = 4;
 
 const BASE_ATTACK_INTERVAL = 2500;
 const DEFAULT_BACKLINE_CHANCE = 0.15;
+
+// Siege escalation: past the grace period, enemy attacks grow stronger every
+// second the battle drags on, so an unwinnable siege eventually overwhelms the
+// Kingdom instead of stalemating forever. (2026-07-17 playtest: enemy healers
+// + cheap rehires + Builder regen made wall waves a permanent stalemate inside
+// one endless battle — neither Repelled nor Overrun could ever occur.)
+const SIEGE_ESCALATION_GRACE = 60;  // game-seconds of battle before escalation begins
+const SIEGE_ESCALATION_RATE = 0.01; // +1% enemy attack power per second past the grace
 
 // Tiers form one continuous 55-wave ladder: each tier's powerMult picks up
 // where the previous tier's boss left off (defenseGrowth 1.088/wave, so the
@@ -590,8 +598,19 @@ function resolveHeal(healer, target) {
     target.hp = Math.min(target.maxHp, target.hp + healer.heal.power);
 }
 
+// Enemy attacks (and only enemy attacks — never heals, or the stalemate would
+// get worse, not better) scale up as the current battle drags on.
+function escalationMult(invasion) {
+    if (!invasion) return 1;
+    const past = (invasion.duration || 0) - SIEGE_ESCALATION_GRACE;
+    return past > 0 ? 1 + past * SIEGE_ESCALATION_RATE : 1;
+}
+
 function resolveAttack(attacker, defender) {
-    const dmg = Math.max(1, Math.round(attacker.attack.power * (1 - defender.defense / 100)));
+    const power = attacker.side === 'enemy'
+        ? attacker.attack.power * escalationMult(currentInvasion)
+        : attacker.attack.power;
+    const dmg = Math.max(1, Math.round(power * (1 - defender.defense / 100)));
     defender.hp -= dmg;
     if (defender.hp <= 0) {
         defender.hp = 0;
@@ -607,13 +626,15 @@ function squadAlive(squad) {
 // Kingdom itself — enemies attack Kingdom HP directly until it falls or the
 // raid is repelled some other way.
 function attackKingdom(attacker) {
-    const dmg = Math.max(1, Math.round(attacker.attack.power * (1 - KINGDOM_DEFENSE / 100)));
+    const power = attacker.attack.power * escalationMult(currentInvasion);
+    const dmg = Math.max(1, Math.round(power * (1 - KINGDOM_DEFENSE / 100)));
     kingdomHP = Math.max(0, kingdomHP - dmg);
 }
 
 // Advances combat by deltaMs. Each unit's attack and heal cooldowns tick down
 // independently.
 function combatTick(deltaMs) {
+    currentInvasion.duration = (currentInvasion.duration || 0) + deltaMs / 1000;
     const enemySide = currentInvasion.enemies;
     for (const unit of [...heroSquad, ...enemySide]) {
         if (!unit || !unit.alive) continue;
@@ -829,7 +850,8 @@ function startInvasion() {
 
     currentInvasion = {
         name: getInvasionName(raidTierIndex, tierWave),
-        enemies: generateEnemySquad(raidTierIndex, tierWave)
+        enemies: generateEnemySquad(raidTierIndex, tierWave),
+        duration: 0 // game-seconds of battle so far — drives siege escalation
     };
 }
 
@@ -837,6 +859,13 @@ function startInvasion() {
 // here) or Overrun (kingdomHP hit 0 — handled by endRun). The wave ladder
 // only climbs on wins; a lost wave re-attacks after the raid interval.
 function winInvasion() {
+    // Survivors leave the field fully healed. Menders don't tick between
+    // battles and startInvasion resets HP anyway, so wounded bars after a
+    // win were a display lie.
+    for (const hero of heroSquad) {
+        if (hero && hero.alive) hero.hp = hero.maxHp;
+    }
+
     const loot = getInvasionLoot(raidTierIndex, raidWinStreak);
     raidWinStreak++;
     const legacy = bankWaveLegacy(raidTierIndex, tierWave);
@@ -1366,6 +1395,10 @@ function renderRaidStatusBar() {
     if (currentInvasion) {
         html += `<div class="raid-status-name">${currentInvasion.name}</div>
             <div class="raid-status-timer">Battle in progress</div>`;
+        const esc = escalationMult(currentInvasion);
+        if (esc > 1) {
+            html += `<div class="raid-status-escalation">The siege escalates! Enemy attack +${Math.round((esc - 1) * 100)}%</div>`;
+        }
         if (!squadAlive(heroSquad)) {
             html += `<div class="raid-status-siege">The Kingdom is under siege!</div>`;
         }

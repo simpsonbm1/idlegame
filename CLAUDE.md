@@ -33,7 +33,7 @@ Plain HTML + CSS + JavaScript. No frameworks, no build step. Open `index.html` i
 - `index.html` — page structure and UI elements
 - `style.css` — medieval dark theme styling
 - `game.js` — all game logic
-- `tools/balance-sim.js` — Node balance simulator (`node tools/balance-sim.js`): models a greedy player at 1× with a mirror of game.js constants and a port of the combat engine; prints run timelines and squad-vs-wave win-rate tables. Used for the M9 tuning pass; rerun for any balance change (M14). **Keep its constant tables in sync with game.js.**
+- `tools/balance-sim.js` — Node balance simulator (`node tools/balance-sim.js`): models a greedy player at 1× with a mirror of game.js constants and a port of the combat engine; prints run timelines, squad-vs-wave win-rate tables, fair-fight win durations (validates the escalation grace), and a stalemate/grind table (endless siege + continuous rehires — the model that captures the real wall-grinding strategy the discrete win-rate table misses). Used for the M9/M9.6 tuning passes; rerun for any balance change (M14). **Keep its constant tables in sync with game.js.**
 
 ## Core mechanics
 
@@ -83,7 +83,7 @@ A second, separate pool works the same way for **hero recruiting** — see *Inva
 - **The autobattler is the primary mechanic**; the town economy exists to fuel it
 - **Single in-run currency: gold** (buildings, residents, and hero hiring all paid in gold — no separate "Spoils" combat currency). The meta currency (Legacy Points) exists only between runs
 - **A wave repeats until beaten** (losing a raid re-fights the same wave — no skipping ahead), and **meta-currency credit is first-ever-clear** with a small repeat trickle (~10–20%): each wave pays full value once across the whole campaign, so pushing new depth is the way to earn and restart-farming is pointless
-- **Battles are persistent sieges** — no end on squad wipe; hero hiring stays available mid-battle (pool keeps refreshing), and Kingdom HP soaks damage while no hero stands. Raids end only Repelled or Overrun (Kingdom HP 0 → forced restart)
+- **Battles are persistent sieges** — no end on squad wipe; hero hiring stays available mid-battle (pool keeps refreshing), and Kingdom HP soaks damage while no hero stands. Raids end only Repelled or Overrun (Kingdom HP 0 → forced restart) — and **sieges escalate** (see *Combat*), so every battle is guaranteed to eventually resolve one way or the other
 - RPG/dungeon elements are a possible future addition
 
 ## Current building roster (M9 shrink)
@@ -162,7 +162,8 @@ Each raid spawns a 2x3 enemy squad (brute + skirmisher front, caster + shaman ba
 - **Targeting** is weighted, not absolute: an attacker rolls its own `backlineChance` (`DEFAULT_BACKLINE_CHANCE = 0.15`, skirmishers are 0.4) to decide whether it goes after the front row or back row, then picks randomly within that row.
 - **Healers** (shamans, menders) always target the lowest-HP% wounded ally on their side; if nobody's wounded the heal is held for next tick.
 - Damage: `dmg = max(1, round(attackPower * (1 - defense / 100)))`.
-- A battle ends when the enemy squad is wiped (**Repelled** — `winInvasion`) or `kingdomHP` reaches 0 (**Overrun** — the run ends). A hero-squad wipe does *not* end the battle; the siege continues against Kingdom HP while the player can hire reinforcements mid-battle.
+- **Siege escalation (added 2026-07-17):** after `SIEGE_ESCALATION_GRACE` (60) game-seconds of a single battle, enemy **attack** power grows linearly by `SIEGE_ESCALATION_RATE` (+1%) per second — attacks only, never heals (boosting the enemy healer would deepen stalemates, not break them). Applies to hero damage and Kingdom damage alike (`escalationMult` in `resolveAttack`/`attackKingdom`, driven by `currentInvasion.duration`). The raid status bar shows "The siege escalates! Enemy attack +X%" once active. Fair fights never notice it (sim: median win 8–43s across the whole ladder); a battle the squad can't win now ends in an Overrun instead of stalemating forever.
+- A battle ends when the enemy squad is wiped (**Repelled** — `winInvasion`) or `kingdomHP` reaches 0 (**Overrun** — the run ends). A hero-squad wipe does *not* end the battle; the siege continues against Kingdom HP while the player can hire reinforcements mid-battle. On a win, surviving heroes are topped off to full HP (menders don't tick between battles and heroes respawn at full HP anyway — wounded bars after a win were a display lie).
 
 **Enemy scaling:** `generateEnemy` scales each archetype's base stats (`ENEMY_ARCHETYPES`) by `mult = tier.powerMult * tier.defenseGrowth^wave` for power stats, and `sqrt(mult)` for HP; boss units additionally multiply by the tier's `boss.powerMult` / `boss.hpMult`. Base stats were softened ~30% in M9 so the tutorial wave is winnable by a few commons — the ladder growth carries the difficulty.
 
@@ -243,7 +244,7 @@ The upgrade trees **are** the ratchet — there's no separate "tier unlock" flag
 - Clearing a tier's boss wave immediately advances to the next tier's wave 1 (wave counter and streak reset — boss-kill is the only tier-advance trigger; kingdom level plays no part).
 - **A wave repeats until beaten** (locked in, implemented in M8): the ladder only climbs on wins — `winInvasion` is the only place the wave advances, and it only runs when the enemy squad is wiped.
 - Bosses need no special rule — like any wave they repeat until killed, and killing one is what advances the tier. They're still the natural per-run walls because their stat block spikes above the tier's normal waves.
-- Repeated attempts at a wall aren't free: every stretch where no hero is standing drains Kingdom HP (see *Kingdom HP interplay* below), so a wall wave grants a limited number of attempts before the Age ends.
+- A wall wave resolves as an **escalating last stand**: reinforcement hires inside the one ongoing battle are the "attempts", and siege escalation guarantees the battle ends — Repelled if the wall cracks under the grind, Overrun (Age over) if it doesn't. Sim-checked with the grind model: money can push roughly one wave past a squad's honest wall, not tiers (pre-escalation, the 2026-07-17 playtest ground from the predicted Orc-boss wall all the way to Bandit w3).
 - **Wave composition varies within a tier**: squads fill more of the grid as waves climb (4 units early → full grid at the boss), with varied mixes (double-brute wave, skirmisher swarm, twin-healer wave). Waves feel distinct, and AoE / target-priority tools have something to answer.
 
 ### Enemy & hero grid expansion
@@ -257,7 +258,7 @@ The flow: enemies fight the hero squad; only once every hero is dead do they dam
 
 Consequences of this design:
 - A raid has exactly **two outcomes**: **Repelled** (enemy squad wiped — possibly after several mid-battle squad rebuilds) or **Overrun** (`kingdomHP` hits 0 → the run ends). The old "Survived" outcome is retired.
-- **No stalemate soft-lock**: income keeps flowing mid-battle at the full rate (the old 25% siege cap is removed), so even a broke player can eventually afford another reinforcement; if Builder regen can't hold the line while the player rebuilds, the kingdom falls — working as intended.
+- **No stalemate soft-lock — enforced by siege escalation** (the original "if Builder regen can't hold the line, the kingdom falls" assumption was falsified by the 2026-07-17 playtest: every wave's roster includes a healer, and at a wall the enemy healer out-healed the reinforcement trickle's chip damage while cheap rehires + Builder regen kept the Kingdom topped up — one endless battle with no exit but the manual reset button). Escalation (see *Combat*) breaks the lock structurally: a dragging siege ramps enemy attack until it either gets repelled or overruns the Kingdom. Income still flows mid-battle at the full rate, so reinforcement remains the recovery mechanism — it just can't sustain a forever-war anymore.
 - Gold reserves effectively act as extra lives (feeding replacements into a wall wave). Likely self-balancing — cheap commons die near-instantly to deep-tier enemies and hero costs scale with rarity — but watch it in playtests.
 
 Implementation state: fully working as of M8 — `hireHero` isn't gated on battle, `generateHero` initializes action cooldowns so `combatTick` picks new units up immediately, `heroPoolTimer` runs during combat, and dead heroes free their squad slot at the moment of death (browser-verified: a reinforcement was hired into a freed slot mid-battle after a wipe).
@@ -363,9 +364,10 @@ The in-run economy stays **gold-only** — no separate combat currency for hero 
   patient play bought Empire + Keeps and fielded 6 legendaries within run 1 (sim: 6 no-tree
   legendaries beat the Dark boss ~45%/attempt). The trees (×1.2–2.0) were dwarfed by in-run rarity
   (×10). **Fix implemented: the Hall of Legends hero rarity ceiling** (see *Heroes*) — epic/legendary
-  hero access is now a Military-tree meta-unlock. The complementary idea — make stalling itself cost
-  something via raids that chip the kingdom (sapper-type enemies) — remains open, a natural fit for
-  the M11 enemy-mechanics pass (see *Ideas under consideration* below).
+  hero access is now a Military-tree meta-unlock. The complementary "make stalling itself cost
+  something" lever landed in M9.6 as **siege escalation** (the 2026-07-17 playtest showed in-battle
+  stalling was still free — see *Kingdom HP interplay*); sapper-type enemies remain a possible M11
+  flavor mechanic but are no longer load-bearing for anti-stall.
 - [ ] Exact numbers throughout — wave counts, per-tier currency multiplier, boss bonus, `defenseGrowth`, loot values, Legacy wave values, upgrade costs — all placeholder until the M9/M14 playtests against the *Difficulty arc across runs* table.
 - [ ] Exact tier transitions where the enemy grid expands, and where the matching hero squad-expansion milestones sit in the Military tree.
 - [ ] Boss unit stat blocks and any per-boss unique abilities beyond the tier gimmick.
@@ -421,6 +423,7 @@ How the death-and-rebuild loop from *Progression loop redesign* is wired in `gam
 - [x] Milestone 8: **The run loop** — `kingdomHP` 0 → run-summary screen → currency banking (first-ever-clear credit via per-tier high-water mark) → upgrade-tree shop → reset to Hamlet; meta-state persistence; manual "Found a New Age" button; battle-end fix (waves repeat on loss — `tierWave++` is win-only); dead heroes free their squad slot at the moment of death so mid-battle reinforcement works after a full wipe. See *Run loop implementation (M8)*.
 - [x] Milestone 9: **Economy & pacing pass** — loot cut (~170×), per-tier raid intervals + first-raid grace, per-tier wave counts + boss waves, tier advance by boss-kill, continuous 1.088/wave enemy curve, economy shrink (caps/slots/costs/incomes way down), rarity-weight gating, Legacy boss bonus + upgrade-cost rescale, save versioning; wall targets sim-verified via `tools/balance-sim.js` (real-1× confirmation happens in play)
 - [x] Milestone 9.5: **Hero rarity ceiling (Hall of Legends)** — fix for the run-1 min/max break found in the first M9 playtest (full ladder cleared with zero upgrades): hero rarity above Common is now a 3-rank Military-tree unlock (50/750/5,000 Legacy); sim-verified per-ceiling walls land on the difficulty arc; SAVE_VERSION → 3 (old saves discarded); browser smoke-tested (pool filtering, node purchase)
+- [x] Milestone 9.6: **Siege escalation** — anti-stalemate fix from the 2026-07-17 1× playtest (run 1 hit a true soft-lock at Bandit w3: enemy Medic out-healed reinforcement chip damage while rehires + Builder regen kept the Kingdom maxed — one endless battle, ~2 runs deeper than the arc target, 1,130 Legacy banked): past a 60s per-battle grace, enemy attack ramps +1%/s until the siege resolves; healer top-off on win (survivors leave the field at full HP); sim gained escalation, win-duration stats, and the reinforcement-grind model; SAVE_VERSION → 4 (old saves + broken-run Legacy discarded); browser smoke-tested (banner, overrun path, top-off, win path)
 - [ ] Milestone 10: **First new heroes** — Paladin + Assassin unlocks and the first squad-expansion milestone (no engine work needed)
 - [ ] Milestone 11: **Combat engine features** — AoE actions, buffs/debuffs, on-death hooks; enemy tier mechanics, boss units, wave composition variety, enemy grid expansion
 - [ ] Milestone 12: **Doctrines** — building↔army synergy nodes

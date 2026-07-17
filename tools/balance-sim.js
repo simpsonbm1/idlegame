@@ -11,7 +11,16 @@ const CFG = {
     KINGDOM_DEFENSE: 15,
     BASE_ATTACK_INTERVAL: 2500,
     DEFAULT_BACKLINE_CHANCE: 0.15,
+    SIEGE_ESCALATION_GRACE: 60,  // game-seconds of battle before escalation begins
+    SIEGE_ESCALATION_RATE: 0.01, // +1% enemy attack power per second past the grace
 };
+
+// Enemy attack multiplier after s seconds of one battle (mirror of game.js
+// escalationMult — applies to enemy attacks only, never heals).
+function escMultAt(s) {
+    const past = s - CFG.SIEGE_ESCALATION_GRACE;
+    return past > 0 ? 1 + past * CFG.SIEGE_ESCALATION_RATE : 1;
+}
 
 // waveCount includes the boss wave (last index). powerMult chains from the
 // previous tier's boss multiplier; growth 1.088/wave, continuous ladder.
@@ -135,7 +144,8 @@ function dmg(power, defense) {
 }
 
 // Runs one game-second of combat. Returns kingdom damage dealt this tick.
-function combatTick(heroes, enemies, kingdomAlive) {
+// escMult scales enemy attack power only (siege escalation).
+function combatTick(heroes, enemies, kingdomAlive, escMult = 1) {
     let kingdomDmg = 0;
     for (const u of [...heroes, ...enemies]) {
         if (!u || !u.alive) continue;
@@ -147,9 +157,9 @@ function combatTick(heroes, enemies, kingdomAlive) {
                     if (t) { t.hp -= dmg(u.attack.power, t.defense); if (t.hp <= 0) { t.hp = 0; t.alive = false; } }
                 } else if (heroes.some(h => h && h.alive)) {
                     const t = pickTarget(u, heroes);
-                    if (t) { t.hp -= dmg(u.attack.power, t.defense); if (t.hp <= 0) { t.hp = 0; t.alive = false; } }
+                    if (t) { t.hp -= dmg(u.attack.power * escMult, t.defense); if (t.hp <= 0) { t.hp = 0; t.alive = false; } }
                 } else if (kingdomAlive()) {
-                    kingdomDmg += dmg(u.attack.power, CFG.KINGDOM_DEFENSE);
+                    kingdomDmg += dmg(u.attack.power * escMult, CFG.KINGDOM_DEFENSE);
                 }
                 u.attack.cooldown += CFG.BASE_ATTACK_INTERVAL / u.attack.speed;
             }
@@ -177,7 +187,7 @@ function simulateRun({ treeIncome = 1, treePower = 1, treeHp = 1, startGold = 50
     for (const id in BUILDINGS) costNow[id] = BUILDINGS[id].cost;
 
     let raids = false, tierIdx = 0, wave = 0, streak = 0, timer = 0;
-    let battle = null, heroes = [];
+    let battle = null, heroes = [], battleT = 0;
     let legacy = 0, waves = 0, hireCooldown = 0, t = 0;
     const log = [];
 
@@ -248,8 +258,9 @@ function simulateRun({ treeIncome = 1, treePower = 1, treeHp = 1, startGold = 50
         }
         if (raids) {
             if (battle) {
+                battleT++;
                 for (const h of heroes) if (!h.alive) heroes = heroes.filter(x => x.alive);
-                kingdomHP -= combatTick(heroes, battle, () => kingdomHP > 0);
+                kingdomHP -= combatTick(heroes, battle, () => kingdomHP > 0, escMultAt(battleT));
                 if (kingdomHP <= 0) {
                     log.push(`${fmt(t)}  OVERRUN at ${RAID_TIERS[tierIdx].name} wave ${wave + 1} -- RUN ENDS`);
                     return { t, tierIdx, wave, waves, legacy, income, log };
@@ -269,6 +280,7 @@ function simulateRun({ treeIncome = 1, treePower = 1, treeHp = 1, startGold = 50
                 timer--;
                 if (timer <= 0) {
                     battle = generateEnemySquad(tierIdx, wave);
+                    battleT = 0;
                     for (const h of heroes) { h.hp = h.maxHp; h.alive = true; if (h.attack) h.attack.cooldown = CFG.BASE_ATTACK_INTERVAL / h.attack.speed; if (h.heal) h.heal.cooldown = CFG.BASE_ATTACK_INTERVAL / h.heal.speed; }
                 }
             }
@@ -282,17 +294,49 @@ function fmt(s) { return `${String(Math.floor(s / 60)).padStart(3)}m${String(s %
 // ---------- Squad-vs-wave win-rate table (deeper-run sanity check) ----------
 function winRate(squadSpec, tierIdx, wave, trials = 40) {
     let wins = 0;
+    const winTimes = [];
     for (let i = 0; i < trials; i++) {
         const heroes = squadSpec.map(([k, r, tp, th]) => makeHero(k, r, tp, th));
         const enemies = generateEnemySquad(tierIdx, wave);
         let khp = CFG.KINGDOM_HP_MAX, ticks = 0;
         while (ticks++ < 600) {
-            khp -= combatTick(heroes, enemies, () => khp > 0);
+            khp -= combatTick(heroes, enemies, () => khp > 0, escMultAt(ticks));
             if (khp <= 0) break;
-            if (!enemies.some(e => e.alive)) { wins++; break; }
+            if (!enemies.some(e => e.alive)) { wins++; winTimes.push(ticks); break; }
         }
     }
-    return wins / trials;
+    winTimes.sort((a, b) => a - b);
+    return { rate: wins / trials, medWin: winTimes.length ? winTimes[Math.floor(winTimes.length / 2)] : null };
+}
+
+// ---------- Stalemate/grind check (the 2026-07-17 playtest scenario) ----------
+// One endless siege: a 6-slot squad continuously refilled from income while
+// the Kingdom regenerates behind it. Without escalation, a healer-led wave the
+// squad can't out-damage stalemates forever (the playtest soft-lock); with it,
+// the siege must resolve as WIN or OVERRUN.
+function grindBattle({ tierIdx, wave, rarityMult = 1, income = 400, regen = 6, hireDelay = 6, escalation = true, maxSeconds = 3600 }) {
+    const costMult = rarityMult === 1 ? 1 : rarityMult === 2.5 ? 3 : rarityMult === 5 ? 8 : 20;
+    const want = ['guardian', 'ranged', 'mender'];
+    // Real walls are hit with a full squad standing and a deep wallet — the
+    // previous wave was just won. Rehires then drip in against attrition.
+    let gold = 20000, khp = CFG.KINGDOM_HP_MAX, cd = 0, hired = 0;
+    let heroes = [0, 1, 2, 3, 4, 5].map(i => makeHero(want[i % want.length], rarityMult));
+    const enemies = generateEnemySquad(tierIdx, wave);
+    for (let t = 1; t <= maxSeconds; t++) {
+        gold += income;
+        khp = Math.min(CFG.KINGDOM_HP_MAX, khp + regen);
+        if (cd > 0) cd--;
+        heroes = heroes.filter(h => h.alive);
+        const key = want[hired % want.length];
+        const cost = HERO_ARCHETYPES[key].baseCost * costMult;
+        if (heroes.length < 6 && cd === 0 && gold >= cost) {
+            gold -= cost; heroes.push(makeHero(key, rarityMult)); hired++; cd = hireDelay;
+        }
+        khp -= combatTick(heroes, enemies, () => khp > 0, escalation ? escMultAt(t) : 1);
+        if (khp <= 0) return { outcome: 'OVERRUN', t, hired };
+        if (!enemies.some(e => e.alive)) return { outcome: 'WIN', t, hired };
+    }
+    return { outcome: 'STALEMATE', t: maxSeconds, hired };
 }
 
 // ---------- Report ----------
@@ -340,8 +384,45 @@ for (const [label, spec] of specs) {
         const t = RAID_TIERS[ti];
         for (const w of [0, Math.floor(t.waveCount / 2), t.waveCount - 1]) {
             const wr = winRate(spec, ti, w);
-            cells.push(`${t.name.split(' ')[0].slice(0, 4)}w${w + 1}${w === t.waveCount - 1 ? 'B' : ''}:${Math.round(wr * 100)}%`);
+            cells.push(`${t.name.split(' ')[0].slice(0, 4)}w${w + 1}${w === t.waveCount - 1 ? 'B' : ''}:${Math.round(wr.rate * 100)}%`);
         }
     }
     console.log(label.padEnd(20) + cells.join(' '));
+}
+
+console.log('\n=== Fair-fight win durations (median s; must sit under the ' + CFG.SIEGE_ESCALATION_GRACE + 's escalation grace) ===');
+const fairFights = [
+    ['3 commons vs Gobl w1',   [['guardian', 1, 1, 1], ['ranged', 1, 1, 1], ['mender', 1, 1, 1]], 0, 0],
+    ['6 commons vs Gobl boss', six(1, 1, 1), 0, 4],
+    ['6 commons vs Orc w4',    six(1, 1, 1), 1, 3],
+    ['6 rares vs Orc boss',    six(2.5, 1.2, 1.2), 1, 7],
+    ['6 rares vs Band w6',     six(2.5, 1.2, 1.2), 2, 5],
+    ['6 epics vs Band boss',   six(5, 1.5, 1.5), 2, 10],
+    ['6 epics vs Dark w7',     six(5, 1.5, 1.5), 3, 6],
+    ['6 legs vs Dark boss',    six(10, 1.8, 1.8), 3, 13],
+    ['6 legs vs Drag w9',      six(10, 1.8, 1.8), 4, 8],
+];
+for (const [label, spec, ti, w] of fairFights) {
+    const wr = winRate(spec, ti, w, 60);
+    console.log(`${label.padEnd(24)} win ${String(Math.round(wr.rate * 100)).padStart(3)}%  median win ${wr.medWin === null ? '  --' : String(wr.medWin).padStart(4)}s`);
+}
+
+console.log('\n=== Stalemate/grind check (endless siege + continuous rehires) ===');
+console.log('Playtest scenario: common-capped heroes, Empire-grade economy (400 g/s, 6 hp/s regen).');
+const grinds = [
+    ['Orc boss   (w8)',  1, 7],
+    ['Bandit w1',        2, 0],
+    ['Bandit w3',        2, 2],
+    ['Bandit w6',        2, 5],
+    ['Bandit boss (w11)', 2, 10],
+];
+for (const [label, ti, w] of grinds) {
+    const off = grindBattle({ tierIdx: ti, wave: w, escalation: false });
+    const on = grindBattle({ tierIdx: ti, wave: w, escalation: true });
+    console.log(`common vs ${label.padEnd(18)} esc OFF: ${off.outcome.padEnd(9)} ${fmt(off.t)} (${off.hired} hires) | esc ON: ${on.outcome.padEnd(9)} ${fmt(on.t)} (${on.hired} hires)`);
+}
+console.log('Rare-capped squad, same economy:');
+for (const [label, ti, w] of [['Bandit w6', 2, 5], ['Bandit boss (w11)', 2, 10], ['Dark w3', 3, 2]]) {
+    const on = grindBattle({ tierIdx: ti, wave: w, rarityMult: 2.5, escalation: true });
+    console.log(`rare   vs ${label.padEnd(18)} esc ON: ${on.outcome.padEnd(9)} ${fmt(on.t)} (${on.hired} hires)`);
 }
