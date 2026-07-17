@@ -28,6 +28,8 @@ let runWavesCleared = 0;
 let buyQuantity = 1;
 let autoRecruitRarity = null;
 let runTime = 0; // game-seconds since this Age began — the clock resident injuries expire against
+let finalSiegeCountdown = -1; // -1 inactive · 3..1 raids remaining · 0 the Final Siege is due
+let victoryPending = false;   // campaign won, victory screen up, world frozen until Endless
 const buildingExpanded = {};
 let gameSpeed = 1;
 let tickInterval = null;
@@ -188,6 +190,30 @@ const TIER_WAVES = [
     ]
 ];
 
+// --- The Final Siege (M13) ---
+// After the Dragon Empress falls (first time only), a herald announces the
+// Final Siege: 3 raids of prep, then a 3-phase gauntlet. One invasion, three
+// squads: heroes do NOT reset HP between phases (menders/Blessing showcase),
+// the escalation clock resets per phase, Kingdom HP is the carry-over buffer.
+const FINAL_SIEGE_COUNTDOWN_RAIDS = 3;
+const LESSONS_LEGACY = 25000; // once-per-campaign bonus for a LOST Final Siege attempt
+// Phase waves tuned in the sim (14/16/18): the gauntlet's difficulty comes
+// from being ONE battle — carried hero damage across phases — not from
+// out-statting the w17 boss the player just proved they could kill. Sim: the
+// endgame squad (16 legendaries + Realm doctrines) wins ~38%/attempt; without
+// doctrines 0% — run 9 loses (Lessons bonus), run 10 wins, per the arc.
+const FINAL_SIEGE_PHASES = [
+    { name: 'The Vanguard', wave: 14, comp: [
+        'brute 0 0', 'brute 0 1', 'brute 0 2', 'brute 0 3', 'skirmisher 1 0', 'skirmisher 1 3',
+        'caster 1 1', 'shaman 1 2', 'shaman 2 1', 'sapper 2 2'] },
+    { name: 'The Elite Guard', wave: 16, comp: [
+        'brute 0 0', 'brute 0 1', 'brute 0 2', 'caster 1 0', 'caster 1 3', 'shaman 1 1',
+        'shaman 1 2', 'sapper 2 0', 'sapper 2 3'] },
+    { name: 'The Empress Ascendant', wave: 18, comp: [
+        'BOSS 0 1', 'brute 0 0', 'brute 0 2', 'caster 1 0', 'caster 1 3', 'shaman 1 1',
+        'shaman 1 2', 'sapper 2 1', 'sapper 2 2'] }
+];
+
 const ENEMY_ARCHETYPES = {
     brute:      { base: { defense: 20, hp: 90, attack: { power: 10, speed: 0.7 } } },
     skirmisher: { base: { defense: 8,  hp: 55, attack: { power: 13, speed: 1.1 }, backlineChance: 0.4 } },
@@ -258,7 +284,10 @@ function defaultMeta() {
         // Per-tier high-water mark: number of waves ever credited at full value.
         waveCredit: RAID_TIERS.map(() => 0),
         upgrades: {},
-        fallHistory: []
+        fallHistory: [],
+        lessonsGranted: false, // Lessons of the Last Siege paid out (once per campaign)
+        victory: false,        // the Final Siege has been won — endless mode unlocked
+        gameSeconds: 0         // lifetime game-time across all Ages (victory-screen stat)
     };
 }
 
@@ -276,7 +305,10 @@ function loadMeta() {
         legacy: state.legacy ?? 0,
         waveCredit: RAID_TIERS.map((_, i) => (state.waveCredit || [])[i] ?? 0),
         upgrades: state.upgrades ?? {},
-        fallHistory: state.fallHistory ?? []
+        fallHistory: state.fallHistory ?? [],
+        lessonsGranted: state.lessonsGranted ?? false,
+        victory: state.victory ?? false,
+        gameSeconds: state.gameSeconds ?? 0
     };
 }
 
@@ -1046,7 +1078,11 @@ function generateHero(archetypeKey, rarity, row, col) {
 // traits); everything else is "archetype row col".
 function generateEnemySquad(tierIndex, wave) {
     const tier = RAID_TIERS[tierIndex];
-    const comp = TIER_WAVES[tierIndex][Math.min(wave, TIER_WAVES[tierIndex].length - 1)];
+    const comps = TIER_WAVES[tierIndex];
+    // Waves past the boss (Final Siege countdown, endless mode) reuse the last
+    // NON-boss composition while their stats keep scaling with the wave number.
+    const compIndex = wave < comps.length ? wave : comps.length - 2;
+    const comp = comps[compIndex];
     const squad = new Array(tier.grid.rows * tier.grid.cols).fill(null);
     for (const entry of comp) {
         const [key, r, c] = entry.split(' ');
@@ -1176,12 +1212,47 @@ function startInvasion() {
         if (hero.heal) hero.heal.cooldown = BASE_ATTACK_INTERVAL / hero.heal.speed;
     }
 
+    // The Final Siege is due — the gauntlet begins instead of a normal raid.
+    if (finalSiegeCountdown === 0) {
+        finalSiegeCountdown = -1;
+        spawnFinalSiegePhase(1);
+        return;
+    }
+
     const tier = RAID_TIERS[raidTierIndex];
     currentInvasion = {
         name: getInvasionName(raidTierIndex, tierWave),
         enemies: generateEnemySquad(raidTierIndex, tierWave),
         grid: { rows: tier.grid.rows, cols: tier.grid.cols },
         duration: 0 // game-seconds of battle so far — drives siege escalation
+    };
+}
+
+// Spawns a Final Siege phase into the CURRENT battle (phase 1 creates it).
+// Heroes keep their HP between phases; the escalation clock resets — each
+// phase is a fresh assault against an already-bloodied defense.
+function spawnFinalSiegePhase(phase) {
+    const def = FINAL_SIEGE_PHASES[phase - 1];
+    const tierIndex = RAID_TIERS.length - 1;
+    const tier = RAID_TIERS[tierIndex];
+    const squad = new Array(tier.grid.rows * tier.grid.cols).fill(null);
+    for (const entry of def.comp) {
+        const [key, r, c] = entry.split(' ');
+        const row = Number(r), col = Number(c);
+        const unit = key === 'BOSS'
+            ? generateEnemy(tierIndex, 'brute', row, col, def.wave, true)
+            : generateEnemy(tierIndex, key, row, col, def.wave);
+        squad[row * tier.grid.cols + col] = unit;
+    }
+    const blessingUsed = currentInvasion ? currentInvasion.blessingUsed : false;
+    currentInvasion = {
+        name: `The Final Siege — ${def.name}`,
+        enemies: squad,
+        grid: { rows: tier.grid.rows, cols: tier.grid.cols },
+        duration: 0,
+        finalSiege: true,
+        phase,
+        blessingUsed // once per gauntlet, not per phase
     };
 }
 
@@ -1204,13 +1275,21 @@ function winInvasion() {
     gold += loot;
 
     // Killing a tier's boss advances to the next tier's wave 1 (streak and
-    // wave counter reset). Past the last tier's boss, waves just keep
-    // climbing — placeholder until the Final Siege lands in M13.
+    // wave counter reset). Past the last tier's boss, waves keep climbing
+    // (Final Siege countdown, then endless mode).
     if (isBossWave(raidTierIndex, tierWave) && raidTierIndex < RAID_TIERS.length - 1) {
         raidTierIndex++;
         tierWave = 0;
         raidWinStreak = 0;
     } else {
+        // First-ever kill of the last tier's boss: the herald announces the
+        // Final Siege, arriving after a handful of ordinary raids.
+        if (isBossWave(raidTierIndex, tierWave) && raidTierIndex === RAID_TIERS.length - 1
+            && !meta.victory && finalSiegeCountdown === -1) {
+            finalSiegeCountdown = FINAL_SIEGE_COUNTDOWN_RAIDS;
+        } else if (finalSiegeCountdown > 0) {
+            finalSiegeCountdown--;
+        }
         tierWave++;
     }
 
@@ -1224,6 +1303,18 @@ function winInvasion() {
 // run-summary overlay with the upgrade shop.
 function endRun(reason) {
     const fellTo = currentInvasion ? currentInvasion.name : getInvasionName(raidTierIndex, tierWave);
+
+    // Lessons of the Last Siege (M13): a LOST Final Siege attempt pays a large
+    // one-time bonus — the failed attempt visibly funds the winning one.
+    let lessons = 0;
+    if (currentInvasion && currentInvasion.finalSiege && !meta.lessonsGranted) {
+        meta.lessonsGranted = true;
+        lessons = LESSONS_LEGACY;
+        meta.legacy += lessons;
+        runLegacyEarned += lessons;
+    }
+
+    meta.gameSeconds += runTime;
     kingdomFallRecord = { name: fellTo, level: kingdomLevel };
     meta.fallHistory.push({ age: meta.age, name: fellTo, level: kingdomLevel, waves: runWavesCleared, legacy: runLegacyEarned });
     runSummary = {
@@ -1232,7 +1323,8 @@ function endRun(reason) {
         fellTo,
         levelName: levels[kingdomLevel].name,
         waves: runWavesCleared,
-        legacy: runLegacyEarned
+        legacy: runLegacyEarned,
+        lessons
     };
     runEnded = true;
     currentInvasion = null;
@@ -1254,6 +1346,8 @@ function foundNewAge() {
     goldPerSecond = 0;
     kingdomHpRegen = 0;
     runTime = 0;
+    finalSiegeCountdown = -1;
+    victoryPending = false;
     kingdomLevel = getStartingLevel();
     kingdomHP = getKingdomHpMax();
     raidsStarted = false;
@@ -1290,6 +1384,28 @@ function foundNewAge() {
     updateUI();
 }
 
+// The Final Siege is broken — the campaign is won (M13). The world freezes on
+// the victory screen until the player chooses to rule on in endless mode.
+function campaignVictory() {
+    meta.victory = true;
+    meta.gameSeconds += runTime;
+    victoryPending = true;
+    currentInvasion = null;
+    invasionTimer = getRaidInterval();
+    saveMeta();
+    saveGame();
+    renderVictory();
+}
+
+// Endless mode: the run continues, raids keep climbing indefinitely, and
+// Found a New Age still works for fresh runs. There is no second Final Siege.
+function continueEndless() {
+    victoryPending = false;
+    document.getElementById('run-summary-overlay').classList.add('hidden');
+    saveGame();
+    updateUI();
+}
+
 function showNewAgeConfirm() {
     confirmingNewAge = true;
     updateUI();
@@ -1307,7 +1423,7 @@ function confirmNewAge() {
 function saveGame() {
     const state = {
         version: SAVE_VERSION,
-        gold, goldEarned, kingdomLevel, raidsStarted, raidTierIndex, tierWave, raidWinStreak, invasionTimer, currentInvasion, lastVictory, kingdomFallRecord, autoRecruitRarity, runTime,
+        gold, goldEarned, kingdomLevel, raidsStarted, raidTierIndex, tierWave, raidWinStreak, invasionTimer, currentInvasion, lastVictory, kingdomFallRecord, autoRecruitRarity, runTime, finalSiegeCountdown, victoryPending,
         runEnded, runSummary, runLegacyEarned, runWavesCleared, gameSpeed,
         recruitPool, poolTimer, nextRecruitId,
         kingdomHP, heroSquad, heroRecruitPool, heroPoolTimer, nextHeroRecruitId,
@@ -1339,6 +1455,8 @@ function loadGame() {
     kingdomFallRecord = state.kingdomFallRecord ?? null;
     autoRecruitRarity = state.autoRecruitRarity ?? null;
     runTime = state.runTime ?? 0;
+    finalSiegeCountdown = state.finalSiegeCountdown ?? -1;
+    victoryPending = state.victoryPending ?? false;
     runEnded = state.runEnded ?? false;
     runSummary = state.runSummary ?? null;
     runLegacyEarned = state.runLegacyEarned ?? 0;
@@ -1409,8 +1527,8 @@ function doResetGame() {
 
 function tick() {
     // The world is frozen while the run-summary screen is up — the next Age
-    // starts when the player founds it.
-    if (runEnded) return;
+    // starts when the player founds it. Same for the victory screen.
+    if (runEnded || victoryPending) return;
 
     runTime++;
     // Authoritative recompute each tick: picks up injury expiries automatically
@@ -1446,7 +1564,18 @@ function tick() {
                 endRun('overrun');
                 return;
             }
-            if (!squadAlive(currentInvasion.enemies)) winInvasion();
+            if (!squadAlive(currentInvasion.enemies)) {
+                if (currentInvasion.finalSiege) {
+                    if (currentInvasion.phase < FINAL_SIEGE_PHASES.length) {
+                        spawnFinalSiegePhase(currentInvasion.phase + 1);
+                    } else {
+                        campaignVictory();
+                        return;
+                    }
+                } else {
+                    winInvasion();
+                }
+            }
         } else {
             invasionTimer--;
             if (invasionTimer <= 0) startInvasion();
@@ -1735,7 +1864,7 @@ function renderRaidStatusBar() {
 
     if (currentInvasion) {
         html += `<div class="raid-status-name">${currentInvasion.name}</div>
-            <div class="raid-status-timer">Battle in progress</div>`;
+            <div class="raid-status-timer">${currentInvasion.finalSiege ? `Phase ${currentInvasion.phase} of ${FINAL_SIEGE_PHASES.length}` : 'Battle in progress'}</div>`;
         const esc = escalationMult(currentInvasion);
         if (esc > 1) {
             html += `<div class="raid-status-escalation">The siege escalates! Enemy attack +${Math.round((esc - 1) * 100)}%</div>`;
@@ -1744,9 +1873,12 @@ function renderRaidStatusBar() {
             html += `<div class="raid-status-siege">The Kingdom is under siege!</div>`;
         }
     } else if (raidsStarted) {
-        const nextName = getInvasionName(raidTierIndex, tierWave);
+        const nextName = finalSiegeCountdown === 0 ? 'THE FINAL SIEGE' : getInvasionName(raidTierIndex, tierWave);
         html += `<div class="raid-status-name">Next: ${nextName}</div>
             <div class="raid-status-timer">Arrives in ${formatTimer(invasionTimer)}</div>`;
+        if (finalSiegeCountdown > 0) {
+            html += `<div class="raid-status-siege">A herald arrives: the Final Siege approaches — ${finalSiegeCountdown} raid${finalSiegeCountdown === 1 ? '' : 's'} remain${finalSiegeCountdown === 1 ? 's' : ''}!</div>`;
+        }
     } else {
         html += `<div class="raid-status-name">No raids yet</div>`;
     }
@@ -1931,6 +2063,7 @@ function renderRunSummary() {
 
     let html = `<div class="summary-title">${s.reason === 'abandoned' ? `Age ${s.age} Concluded` : 'The Kingdom Has Fallen'}</div>
         <div class="summary-sub">${s.reason === 'abandoned' ? 'Abandoned during' : 'Fell to'} ${s.fellTo} at ${s.levelName} level</div>
+        ${s.lessons ? `<div class="summary-lessons">Lessons of the Last Siege: the failed assault taught the realm much. <strong>+${s.lessons.toLocaleString()} Legacy</strong></div>` : ''}
         <div class="summary-stats">
             <div class="summary-stat"><span class="summary-stat-value">${s.waves}</span> wave${s.waves === 1 ? '' : 's'} repelled this Age</div>
             <div class="summary-stat"><span class="summary-stat-value">+${s.legacy.toLocaleString()}</span> Legacy earned this Age</div>
@@ -1939,6 +2072,30 @@ function renderRunSummary() {
         <div class="summary-shop-heading">Spend Legacy on permanent upgrades — they carry into every future Age.</div>
         <div class="summary-trees">${renderUpgradeTree('economy')}${renderUpgradeTree('military')}</div>
         <button class="btn-new-age" onclick="foundNewAge()">Found a New Age &mdash; Age ${meta.age + 1}</button>`;
+
+    document.getElementById('run-summary-content').innerHTML = html;
+    overlay.classList.remove('hidden');
+}
+
+// Victory screen (M13): the campaign is won. Reuses the run-summary overlay.
+function renderVictory() {
+    if (!victoryPending) return;
+    const overlay = document.getElementById('run-summary-overlay');
+    const lifetimeLegacy = meta.fallHistory.reduce((sum, f) => sum + (f.legacy || 0), 0) + runLegacyEarned;
+    const hours = Math.floor(meta.gameSeconds / 3600);
+    const mins = Math.floor((meta.gameSeconds % 3600) / 60);
+    const fallLines = meta.fallHistory.map(f =>
+        `<div class="victory-age-line">Age ${f.age} — fell to ${f.name} (${f.waves} wave${f.waves === 1 ? '' : 's'})</div>`).join('');
+
+    const html = `<div class="summary-title summary-title--victory">The Kingdom Stands Eternal</div>
+        <div class="summary-sub">The Final Siege is broken. The Dragon Empress will not return.</div>
+        <div class="summary-stats">
+            <div class="summary-stat"><span class="summary-stat-value">${meta.age}</span> Age${meta.age === 1 ? '' : 's'} founded</div>
+            <div class="summary-stat"><span class="summary-stat-value">${lifetimeLegacy.toLocaleString()}</span> Legacy earned across the campaign</div>
+            <div class="summary-stat"><span class="summary-stat-value">${hours}h ${mins}m</span> of kingdom time</div>
+        </div>
+        ${fallLines ? `<div class="victory-history"><div class="summary-shop-heading">The Ages that came before:</div>${fallLines}</div>` : ''}
+        <button class="btn-new-age" onclick="continueEndless()">Rule in Peace &mdash; Endless Mode</button>`;
 
     document.getElementById('run-summary-content').innerHTML = html;
     overlay.classList.remove('hidden');
@@ -1973,4 +2130,5 @@ if (recruitPool.length === 0) refreshPool();
 if (kingdomLevel >= RAID_TRIGGER_LEVEL && heroRecruitPool.length === 0) refreshHeroPool();
 updateUI();
 renderRunSummary(); // reshow the run-summary screen if the game was closed mid-summary
+renderVictory();    // likewise the victory screen (closed mid-celebration)
 setGameSpeed(gameSpeed); // also starts the tick interval

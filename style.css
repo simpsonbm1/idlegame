@@ -186,6 +186,31 @@ h1 {
     opacity: 0.4;
 }
 
+/* Final Siege (M13): victory screen + Lessons bonus callout */
+.summary-title--victory {
+    color: #e8c96d;
+    text-shadow: 0 0 18px rgba(232, 201, 109, 0.35);
+}
+
+.summary-lessons {
+    text-align: center;
+    color: #b48ee0;
+    font-style: italic;
+    margin: 10px auto;
+    max-width: 480px;
+}
+
+.victory-history {
+    margin: 14px 0;
+    text-align: center;
+}
+
+.victory-age-line {
+    font-size: 0.85rem;
+    color: #9a8a5a;
+    margin: 2px 0;
+}
+
 /* Injured residents (sapper hits): income paused until they recover */
 .portrait--injured {
     filter: grayscale(0.8);

@@ -614,6 +614,70 @@ for (const [label, spec] of specs) {
     console.log(label.padEnd(20) + cells.join(' '));
 }
 
+// ---------- Final Siege gauntlet (M13 mirror) ----------
+// One battle, three phases at waves 18/19/20 of the Dragon tier: hero HP
+// carries between phases, the escalation clock resets per phase, blessing
+// fires once across the whole gauntlet. Kingdom HP is the carry-over buffer.
+const FINAL_SIEGE_PHASES = [
+    { wave: 14, comp: ['brute 0 0', 'brute 0 1', 'brute 0 2', 'brute 0 3', 'skirmisher 1 0', 'skirmisher 1 3', 'caster 1 1', 'shaman 1 2', 'shaman 2 1', 'sapper 2 2'] },
+    { wave: 16, comp: ['brute 0 0', 'brute 0 1', 'brute 0 2', 'caster 1 0', 'caster 1 3', 'shaman 1 1', 'shaman 1 2', 'sapper 2 0', 'sapper 2 3'] },
+    { wave: 18, comp: ['BOSS 0 1', 'brute 0 0', 'brute 0 2', 'caster 1 0', 'caster 1 3', 'shaman 1 1', 'shaman 1 2', 'sapper 2 1', 'sapper 2 2'] },
+];
+
+function siegePhaseSquad(phaseDef) {
+    const t = RAID_TIERS[4];
+    const mult = waveMult(4, phaseDef.wave);
+    const squad = [];
+    for (const entry of phaseDef.comp) {
+        const [key, r, c] = entry.split(' ');
+        const isBoss = key === 'BOSS';
+        const aKey = isBoss ? 'brute' : key;
+        const a = ENEMY_ARCHETYPES[aKey];
+        const pMult = mult * (isBoss ? t.boss.powerMult : 1);
+        const hMult = Math.sqrt(mult) * (isBoss ? t.boss.hpMult : 1);
+        const attack = a.attack ? { power: Math.round(a.attack.power * pMult), speed: a.attack.speed } : null;
+        const heal = a.heal ? { power: Math.round(a.heal.power * pMult), speed: a.heal.speed } : null;
+        const unit = makeUnit(isBoss ? t.boss.name : aKey, a.defense, Math.round(a.hp * hMult), Number(r), Number(c), 'enemy', attack, heal, a.backlineChance);
+        if (a.targetsKingdom) unit.targetsKingdom = true;
+        const traits = { ...(t.traits[aKey] || {}), ...(isBoss ? t.boss.traits : {}) };
+        if (traits.backlineChance !== undefined) unit.backlineChance = traits.backlineChance;
+        if (traits.enrage) unit.enrage = traits.enrage;
+        if (traits.reviveCharges) unit.reviveCharges = traits.reviveCharges;
+        if (traits.aura) unit.aura = traits.aura;
+        if (traits.aoe && unit.attack) unit.attack.aoe = traits.aoe;
+        squad.push(unit);
+    }
+    return squad;
+}
+
+// Endgame kingdom defaults: Reinforced Walls maxed (2000 HP) and a Realm-level
+// Builder corps (8 slots, uncapped rarity, Master Builders) ~25 hp/s regen.
+function finalSiegeRate(squadSpec, trials = 60, doctrines = null, regen = 25, khpMax = 2000) {
+    let wins = 0;
+    const saved = DOCTRINES;
+    if (doctrines) DOCTRINES = { ...saved, ...doctrines };
+    for (let i = 0; i < trials; i++) {
+        blessingUsed = false;
+        const heroes = squadSpec.map(([k, r, tp, th]) => makeHero(k, r, tp, th));
+        assignHeroCols(heroes);
+        let khp = khpMax, dead = false;
+        for (const phase of FINAL_SIEGE_PHASES) {
+            const enemies = siegePhaseSquad(phase);
+            let ticks = 0;
+            while (ticks++ < 600) {
+                khp = Math.min(khpMax, khp + regen);
+                khp -= combatTick(heroes, enemies, () => khp > 0, escMultAt(ticks), ticks);
+                if (khp <= 0) { dead = true; break; }
+                if (!enemies.some(e => e.alive)) break;
+            }
+            if (dead || ticks >= 600) { dead = true; break; }
+        }
+        if (!dead) wins++;
+    }
+    DOCTRINES = saved;
+    return wins / trials;
+}
+
 // M12 verification: doctrines must open the final boss for the endgame squad.
 // Realm-level doctrine values: 7 Smithies x1.5% = x1.105 attack, 6 Libraries
 // x1% = x1.06 speed, 4 Apothecaries x0.3% = 1.2%/s salves, blessing on.
@@ -628,6 +692,15 @@ for (const [label, spec, ti, w] of [
     const bare = winRate(spec, ti, w, 60);
     const doc = winRate(spec, ti, w, 60, REALM_DOCTRINES);
     console.log(`${label.padEnd(28)} no doctrines: ${String(Math.round(bare.rate * 100)).padStart(3)}%   with doctrines: ${String(Math.round(doc.rate * 100)).padStart(3)}%`);
+}
+
+console.log('\n=== M13 Final Siege gauntlet (3 phases, HP carries, blessing once) ===');
+for (const [label, spec, doc] of [
+    ['16 epic x1.7 + doctrines', sixteen(5, 1.7, 1.7), REALM_DOCTRINES],
+    ['16 leg x2.0, no doctrines', sixteen(10, 2, 2), null],
+    ['16 leg x2.0 + doctrines',  sixteen(10, 2, 2), REALM_DOCTRINES],
+]) {
+    console.log(`${label.padEnd(28)} win ${Math.round(finalSiegeRate(spec, 60, doc) * 100)}%`);
 }
 
 console.log('\n=== Fair-fight win durations (median s; must sit under the ' + CFG.SIEGE_ESCALATION_GRACE + 's escalation grace) ===');
