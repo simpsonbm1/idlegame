@@ -350,6 +350,7 @@ Later tiers must be new problems, not just bigger numbers — each reuses an eng
 - **Dark Army** — necromancers revive a fallen ally once (on-death hook); teaches kill order.
 - **Dragons** — breath attacks hit a whole row (AoE); teaches formation splitting.
 - **Bosses** — unique named unit + minions per tier (`BOSS_ARCHETYPES`-style table extending `generateEnemy`); the Final Siege boss adds phases.
+- **Sappers — kingdom/villager targeting (folded into M11 on 2026-07-17):** a sapper-style enemy unit that attacks the Kingdom (and possibly residents) *while heroes still stand*, instead of fighting the squad. Purpose: gives Builders a live role in every fight and keeps town management ongoing rather than "staff it and forget it" (no longer needed for anti-stall — siege escalation covers that). Working assumptions, final call at implementation: residents are **injured** (income paused until they recover), never killed — losing a legendary roll permanently would be brutal; sappers likely debut with the **Bandit Horde** (pillaging fits the fiction, and it stacks with their protect-the-backline lesson) and recur in later tiers' compositions. Engine cost is small: `attackKingdom` already exists — a sapper is an archetype whose attack routes there (plus the resident-injury system if residents are targetable).
 
 ### Gold & loot rebalance (single-currency decision, locked in)
 The in-run economy stays **gold-only** — no separate combat currency for hero hiring. For that to work, **raid gold loot must shrink drastically**: current values (200,000g for a goblin raid vs. a 2,500g Smithy) let one raid win pay for the entire midgame, collapsing the "town fuels the army" loop into "raids fund everything". Target: a raid win pays roughly **1–2 minutes of contemporaneous resident income**. The win-streak multiplier stays, on the much smaller base.
@@ -373,13 +374,11 @@ The in-run economy stays **gold-only** — no separate combat currency for hero 
 - [ ] Boss unit stat blocks and any per-boss unique abilities beyond the tier gimmick.
 - [x] UI for the run-end/reset summary screen and the two upgrade trees — implemented in M8 as a full-screen overlay (see *Run loop implementation (M8)*).
 
-### Ideas under consideration (raised 2026-07-13, not yet scheduled)
-- **The kingdom & villagers as rare combat targets:** some enemies occasionally target the Kingdom
-  (or even individual residents) *during* a battle, even while heroes stand — e.g. a "sapper"-style
-  enemy archetype, or a small chance per attack. Gives Builders a live role every fight, makes town
-  management ongoing rather than "staff it and forget it", and doubles as the anti-stalling lever in
-  the min/max fix above (fix b). Needs care: killing residents is harsh — maybe they're "injured"
-  (income paused) rather than lost.
+### Ideas under consideration (raised 2026-07-13)
+- **The kingdom & villagers as rare combat targets — SCHEDULED into M11 (2026-07-17):** now a
+  planned sapper enemy mechanic; details and working assumptions live under *Enemy tier mechanics*.
+  (Its original anti-stalling role is obsolete — siege escalation covers that; it survives on the
+  town-engagement rationale alone.)
 - **Per-building interactive minigames that automate later:** the classic incremental arc — each
   building has a small active mechanic (e.g. assemble horseshoes at the Smithy for a productivity
   boost) that an upgrade later automates at equal-or-better efficiency. (The auto-buy Economy node
@@ -412,6 +411,47 @@ How the death-and-rebuild loop from *Progression loop redesign* is wired in `gam
 
 (The original prestige design — Legacy Points from lifetime `goldEarned`, manual prestige at Realm level, automatic +5%/point bonuses — is fully superseded by the above.)
 
+## Game feel pass — visuals & sound (M15)
+
+**Rationale (added 2026-07-17):** M14 ends with a working gameplay arc and tuned mechanics — but
+that's a working *simulation*, not a working *game*. The incremental/autobattler genre lives on
+feedback: the game isn't done until it feels good to play. M15 is the dedicated juice pass.
+
+**Guiding principle:** every player action and every important game event gets an immediate,
+legible, satisfying response. Juice is information delivery, not decoration — a hit you can see
+and hear is a hit the player understands.
+
+This is a first-pass scope sketch; detailed design happens when M14 wraps. Constraints that hold
+regardless: plain HTML/CSS/JS with no build step (per the tech-stack decision), any assets
+committed to the repo, and everything must stay smooth at 100× dev speed (throttle/batch effects —
+a 100× battle must not fire 100× the particles and sounds).
+
+### Visuals (candidate scope)
+- **Combat juice:** floating damage/heal numbers, hit-flash on the struck unit, attack
+  lunge/recoil, death collapse/fade, heal glow. Escalation should *read* — the battle visibly
+  intensifies as the multiplier climbs (e.g. deepening tint on the enemy side).
+- **Kingdom stakes:** vignette/shake pulse when the Kingdom itself takes a hit; HP-bar damage
+  trail (ghost bar); the siege banner intensifying with escalation.
+- **Town feedback:** gold counter tick, "+N g/s" floater on hire, purchase flash, a real
+  level-up fanfare moment, recruit-pool refresh animation.
+- **Run drama:** Kingdom-fall transition into the run summary (the fall should land emotionally);
+  "Found a New Age" dawn transition; Legacy pop at wave clear.
+- **Portrait/sprite pass:** the letter-portraits get real pixel art (or a polished CSS take) —
+  the biggest pure-asset lift; scope decided at milestone start.
+
+### Sound (candidate scope)
+- **Web Audio API** — fits the no-build-step stack. Either tiny committed audio files or
+  procedurally synthesized chiptune-style SFX (zero asset files); decide at milestone start.
+- **Event coverage:** hits (light/heavy differentiated), unit death, heal, hero hire, building
+  buy, kingdom level-up, raid horn on arrival, an escalation heartbeat/drum that builds with the
+  multiplier, Repelled sting, Kingdom-fall sting, upgrade purchase, Final Siege victory fanfare.
+- **Discipline:** per-tick sound budget (throttled hard at dev speeds), master mute + volume
+  persisted in the save, and no audio before first user interaction (browser autoplay policy).
+- **Music:** stretch goal — one ambient town loop + one battle loop; decide at milestone start.
+
+### Feel-adjacent QoL
+- Reduced-motion / no-shake toggle alongside the volume controls.
+
 ## Milestone tracker
 - [x] Milestone 1: Gold counter ticking automatically
 - [x] Milestone 2: Cottage building — buy to earn gold/sec
@@ -425,10 +465,11 @@ How the death-and-rebuild loop from *Progression loop redesign* is wired in `gam
 - [x] Milestone 9.5: **Hero rarity ceiling (Hall of Legends)** — fix for the run-1 min/max break found in the first M9 playtest (full ladder cleared with zero upgrades): hero rarity above Common is now a 3-rank Military-tree unlock (50/750/5,000 Legacy); sim-verified per-ceiling walls land on the difficulty arc; SAVE_VERSION → 3 (old saves discarded); browser smoke-tested (pool filtering, node purchase)
 - [x] Milestone 9.6: **Siege escalation** — anti-stalemate fix from the 2026-07-17 1× playtest (run 1 hit a true soft-lock at Bandit w3: enemy Medic out-healed reinforcement chip damage while rehires + Builder regen kept the Kingdom maxed — one endless battle, ~2 runs deeper than the arc target, 1,130 Legacy banked): past a 60s per-battle grace, enemy attack ramps +1%/s until the siege resolves; healer top-off on win (survivors leave the field at full HP); sim gained escalation, win-duration stats, and the reinforcement-grind model; SAVE_VERSION → 4 (old saves + broken-run Legacy discarded); browser smoke-tested (banner, overrun path, top-off, win path)
 - [ ] Milestone 10: **First new heroes** — Paladin + Assassin unlocks and the first squad-expansion milestone (no engine work needed)
-- [ ] Milestone 11: **Combat engine features** — AoE actions, buffs/debuffs, on-death hooks; enemy tier mechanics, boss units, wave composition variety, enemy grid expansion
+- [ ] Milestone 11: **Combat engine features** — AoE actions, buffs/debuffs, on-death hooks; enemy tier mechanics, boss units, wave composition variety, enemy grid expansion; **kingdom/villager targeting** (scheduled 2026-07-17: sapper-style enemies that hit the Kingdom — and possibly injure residents — while heroes still stand; see *Enemy tier mechanics*)
 - [ ] Milestone 12: **Doctrines** — building↔army synergy nodes
 - [ ] Milestone 13: **Final Siege** — 3-phase gauntlet, victory screen, endless mode
 - [ ] Milestone 14: **Full-game balance playtest** against the *Difficulty arc across runs* table
+- [ ] Milestone 15: **Game feel — visuals & sound** — the juice pass that turns the mechanically-complete game (M14) into one that feels good to play: combat/UI feedback animations, floating numbers, kingdom-damage and run-transition drama, portrait/sprite art pass; Web Audio SFX (hits, hires, raid horn, escalation heartbeat, stingers) with mute/volume; reduced-motion toggle. Scope sketch in *Game feel pass — visuals & sound (M15)*
 
 ## Starting state
 - Player begins with 50 gold (enough to buy first Cottage at 10g + hire first Villager at 25g); Royal Treasury ranks raise this for later Ages
