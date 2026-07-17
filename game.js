@@ -115,14 +115,14 @@ const RAID_TIERS = [
         grid: { rows: 3, cols: 4 }, traits: { caster: { backlineChance: 0.7 } },
         boss: { name: 'Bandit King', powerMult: 1.8, hpMult: 4.0, traits: { backlineChance: 0.85 } },
         roster: { brute: 'Bandit Enforcer', skirmisher: 'Bandit Cutthroat', caster: 'Bandit Marksman', shaman: 'Bandit Medic',   sapper: 'Bandit Torchman' } },
-    { name: 'Dark Army',    powerMult: 7.6,  defenseGrowth: 1.088, waveCount: 14, raidInterval: 35, baseLoot: 120000, lootGrowth: 1.10,
+    { name: 'Undead Legion', powerMult: 7.6, defenseGrowth: 1.088, waveCount: 14, raidInterval: 35, baseLoot: 120000, lootGrowth: 1.10,
         grid: { rows: 3, cols: 4 }, traits: { caster: { reviveCharges: 1 } },
         boss: { name: 'Lich Commander', powerMult: 1.8, hpMult: 4.0, traits: { reviveCharges: 2 } },
         roster: { brute: 'Death Knight',    skirmisher: 'Shadow Reaver',    caster: 'Necromancer',     shaman: 'Bone Priest',    sapper: 'Grave Digger' } },
-    { name: 'Dragon Siege', powerMult: 24.7, defenseGrowth: 1.088, waveCount: 17, raidInterval: 30, baseLoot: 500000, lootGrowth: 1.10,
+    { name: 'Infernal Siege', powerMult: 24.7, defenseGrowth: 1.088, waveCount: 17, raidInterval: 30, baseLoot: 500000, lootGrowth: 1.10,
         grid: { rows: 4, cols: 4 }, traits: { caster: { aoe: 'row' } },
-        boss: { name: 'Dragon Empress', powerMult: 1.8, hpMult: 4.0, traits: { aoe: 'row', enrage: { speed: 1, power: 1.25 } } },
-        roster: { brute: 'Dragon Guard',    skirmisher: 'Wyrmling',         caster: 'Dragon Mage',     shaman: 'Dragonpriest',   sapper: 'Cinder Imp' } }
+        boss: { name: 'Demon Empress', powerMult: 1.8, hpMult: 4.0, traits: { aoe: 'row', enrage: { speed: 1, power: 1.25 } } },
+        roster: { brute: 'Pit Fiend',       skirmisher: 'Hellhound',        caster: 'Flamecaller',     shaman: 'Blood Acolyte',  sapper: 'Cinder Imp' } }
 ];
 
 // Hand-authored wave compositions ("archetype row col"; 'BOSS r c' is the
@@ -160,7 +160,7 @@ const TIER_WAVES = [
         ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'skirmisher 0 3', 'caster 1 0', 'caster 1 3', 'shaman 1 1', 'shaman 1 2', 'sapper 2 0', 'sapper 2 3'],
         ['BOSS 0 1', 'brute 0 0', 'brute 0 2', 'skirmisher 0 3', 'caster 1 0', 'caster 1 3', 'shaman 1 1', 'shaman 1 2', 'sapper 2 2']
     ],
-    [ // Dark Army (3x4) — necromancers raise the fallen: kill order matters
+    [ // Undead Legion (3x4) — necromancers raise the fallen: kill order matters
         ['brute 0 0', 'skirmisher 0 1', 'caster 1 0', 'shaman 1 1'],
         ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'caster 1 1', 'shaman 1 2'],
         ['brute 0 0', 'skirmisher 0 1', 'skirmisher 0 2', 'caster 1 0', 'caster 1 3', 'shaman 1 1'],
@@ -176,7 +176,7 @@ const TIER_WAVES = [
         ['brute 0 0', 'brute 0 1', 'brute 0 2', 'skirmisher 0 3', 'caster 1 0', 'shaman 1 1', 'caster 1 2', 'shaman 1 3', 'sapper 2 0', 'sapper 2 3'],
         ['BOSS 0 1', 'brute 0 0', 'brute 0 2', 'skirmisher 0 3', 'caster 1 0', 'caster 1 2', 'shaman 1 1', 'shaman 1 3', 'sapper 2 2']
     ],
-    [ // Dragon Siege (4x4) — mages breathe on whole rows: split your formation
+    [ // Infernal Siege (4x4) — flamecallers scour whole rows with hellfire: split your formation
         ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'caster 1 0', 'shaman 1 1'],
         ['brute 0 0', 'brute 0 1', 'skirmisher 0 2', 'skirmisher 0 3', 'caster 1 1', 'shaman 1 2'],
         ['skirmisher 0 0', 'skirmisher 0 1', 'skirmisher 0 2', 'skirmisher 0 3', 'skirmisher 1 0', 'skirmisher 1 3', 'caster 1 1', 'shaman 1 2'],
@@ -198,7 +198,7 @@ const TIER_WAVES = [
 ];
 
 // --- The Final Siege (M13) ---
-// After the Dragon Empress falls (first time only), a herald announces the
+// After the Demon Empress falls (first time only), a herald announces the
 // Final Siege: 3 raids of prep, then a 3-phase gauntlet. One invasion, three
 // squads: heroes do NOT reset HP between phases (menders/Blessing showcase),
 // the escalation clock resets per phase, Kingdom HP is the carry-over buffer.
@@ -2150,7 +2150,7 @@ function renderVictory() {
         `<div class="victory-age-line">Age ${f.age} — fell to ${f.name} (${f.waves} wave${f.waves === 1 ? '' : 's'})</div>`).join('');
 
     const html = `<div class="summary-title summary-title--victory">The Kingdom Stands Eternal</div>
-        <div class="summary-sub">The Final Siege is broken. The Dragon Empress will not return.</div>
+        <div class="summary-sub">The Final Siege is broken. The Demon Empress will not return.</div>
         <div class="summary-stats">
             <div class="summary-stat"><span class="summary-stat-value">${meta.age}</span> Age${meta.age === 1 ? '' : 's'} founded</div>
             <div class="summary-stat"><span class="summary-stat-value">${lifetimeLegacy.toLocaleString()}</span> Legacy earned across the campaign</div>

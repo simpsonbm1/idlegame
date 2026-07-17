@@ -36,12 +36,12 @@ const RAID_TIERS = [
     { name: 'Bandit Horde', powerMult: 3.0,  growth: 1.088, waveCount: 11, raidInterval: 40, baseLoot: 30000,  lootGrowth: 1.10,
       grid: { rows: 3, cols: 4 }, traits: { caster: { backlineChance: 0.7 } },
       boss: { name: 'Bandit King', powerMult: 1.8, hpMult: 4.0, traits: { backlineChance: 0.85 } } },
-    { name: 'Dark Army',    powerMult: 7.6,  growth: 1.088, waveCount: 14, raidInterval: 35, baseLoot: 120000, lootGrowth: 1.10,
+    { name: 'Undead Legion', powerMult: 7.6, growth: 1.088, waveCount: 14, raidInterval: 35, baseLoot: 120000, lootGrowth: 1.10,
       grid: { rows: 3, cols: 4 }, traits: { caster: { reviveCharges: 1 } },
       boss: { name: 'Lich Commander', powerMult: 1.8, hpMult: 4.0, traits: { reviveCharges: 2 } } },
-    { name: 'Dragon Siege', powerMult: 24.7, growth: 1.088, waveCount: 17, raidInterval: 30, baseLoot: 500000, lootGrowth: 1.10,
+    { name: 'Infernal Siege', powerMult: 24.7, growth: 1.088, waveCount: 17, raidInterval: 30, baseLoot: 500000, lootGrowth: 1.10,
       grid: { rows: 4, cols: 4 }, traits: { caster: { aoe: 'row' } },
-      boss: { name: 'Dragon Empress', powerMult: 1.8, hpMult: 4.0, traits: { aoe: 'row', enrage: { speed: 1, power: 1.25 } } } },
+      boss: { name: 'Demon Empress', powerMult: 1.8, hpMult: 4.0, traits: { aoe: 'row', enrage: { speed: 1, power: 1.25 } } } },
 ];
 
 // ~30% softer than live values: the tutorial wave must be winnable by a few
@@ -636,7 +636,7 @@ for (const [label, spec] of specs) {
 }
 
 // ---------- Final Siege gauntlet (M13 mirror) ----------
-// One battle, three phases at waves 18/19/20 of the Dragon tier: hero HP
+// One battle, three phases at waves 18/19/20 of the Infernal tier: hero HP
 // carries between phases, the escalation clock resets per phase, blessing
 // fires once across the whole gauntlet. Kingdom HP is the carry-over buffer.
 const FINAL_SIEGE_PHASES = [
@@ -710,10 +710,10 @@ const REALM_DOCTRINES = { attack: 1.105, speed: 1.06, salves: 0.012, blessing: t
 // M12 verification: doctrines must open the final boss for the endgame squad.
 console.log('\n=== M12 doctrine check (16-slot squads + Realm doctrines) ===');
 for (const [label, spec, ti, w] of [
-    ['16 epic x1.7 vs Dark boss',   sixteen(5, 1.7, 1.7), 3, 13],
-    ['16 epic x1.7 vs Drag w9',     sixteen(5, 1.7, 1.7), 4, 8],
-    ['16 leg x2.0 vs Drag w9',      sixteen(10, 2, 2), 4, 8],
-    ['16 leg x2.0 vs Drag w17 BOSS', sixteen(10, 2, 2), 4, 16],
+    ['16 epic x1.7 vs Undead boss',   sixteen(5, 1.7, 1.7), 3, 13],
+    ['16 epic x1.7 vs Inf w9',     sixteen(5, 1.7, 1.7), 4, 8],
+    ['16 leg x2.0 vs Inf w9',      sixteen(10, 2, 2), 4, 8],
+    ['16 leg x2.0 vs Inf w17 BOSS', sixteen(10, 2, 2), 4, 16],
 ]) {
     const bare = winRate(spec, ti, w, 60);
     const doc = winRate(spec, ti, w, 60, REALM_DOCTRINES);
@@ -743,11 +743,11 @@ const ARC_RUNS = [
     ['run 2',  'Orc w3-5',             fourC2R(1.15), null],
     ['run 3',  'Orc boss-Bandit w2',   six(2.5, 1.2, 1.2), null],
     ['run 4',  'Bandit w6-8',          twelve(2.5, 1.3, 1.3), { attack: 1.06 }],
-    ['run 5',  'Bandit boss-Dark w3',  twelve(5, 1.4, 1.4), { attack: 1.06 }],
-    ['run 6',  'Dark w7-10',           twelve(5, 1.5, 1.5), { attack: 1.06, speed: 1.05 }],
-    ['run 7',  'Dark boss-Dragon w4',  sixteen(5, 1.6, 1.6), { attack: 1.08, speed: 1.05, blessing: true }],
-    ['run 8',  'Dragon w9-13',         sixteen(10, 1.8, 1.8), { attack: 1.09, speed: 1.06, salves: 0.009, blessing: true }],
-    ['run 9',  'Dragon boss (w17)',    sixteen(10, 2, 2), REALM_DOCTRINES],
+    ['run 5',  'Bandit boss-Undead w3',  twelve(5, 1.4, 1.4), { attack: 1.06 }],
+    ['run 6',  'Undead w7-10',           twelve(5, 1.5, 1.5), { attack: 1.06, speed: 1.05 }],
+    ['run 7',  'Undead boss-Infernal w4', sixteen(5, 1.6, 1.6), { attack: 1.08, speed: 1.05, blessing: true }],
+    ['run 8',  'Infernal w9-13',       sixteen(10, 1.8, 1.8), { attack: 1.09, speed: 1.06, salves: 0.009, blessing: true }],
+    ['run 9',  'Infernal boss (w17)',  sixteen(10, 2, 2), REALM_DOCTRINES],
 ];
 let scanTier = 0, scanWave = 0;
 for (const [run, target, spec, doc] of ARC_RUNS) {
@@ -779,9 +779,9 @@ const fairFights = [
     ['6 rares vs Orc boss',    six(2.5, 1.2, 1.2), 1, 7],
     ['6 rares vs Band w6',     six(2.5, 1.2, 1.2), 2, 5],
     ['6 epics vs Band boss',   six(5, 1.5, 1.5), 2, 10],
-    ['6 epics vs Dark w7',     six(5, 1.5, 1.5), 3, 6],
-    ['6 legs vs Dark boss',    six(10, 1.8, 1.8), 3, 13],
-    ['6 legs vs Drag w9',      six(10, 1.8, 1.8), 4, 8],
+    ['6 epics vs Undead w7',     six(5, 1.5, 1.5), 3, 6],
+    ['6 legs vs Undead boss',    six(10, 1.8, 1.8), 3, 13],
+    ['6 legs vs Inf w9',      six(10, 1.8, 1.8), 4, 8],
 ];
 for (const [label, spec, ti, w] of fairFights) {
     const wr = winRate(spec, ti, w, 60);
@@ -803,7 +803,7 @@ for (const [label, ti, w] of grinds) {
     console.log(`common vs ${label.padEnd(18)} esc OFF: ${off.outcome.padEnd(9)} ${fmt(off.t)} (${off.hired} hires) | esc ON: ${on.outcome.padEnd(9)} ${fmt(on.t)} (${on.hired} hires)`);
 }
 console.log('Rare-capped squad, same economy:');
-for (const [label, ti, w] of [['Bandit w6', 2, 5], ['Bandit boss (w11)', 2, 10], ['Dark w3', 3, 2]]) {
+for (const [label, ti, w] of [['Bandit w6', 2, 5], ['Bandit boss (w11)', 2, 10], ['Undead w3', 3, 2]]) {
     const on = grindBattle({ tierIdx: ti, wave: w, rarityMult: 2.5, escalation: true });
     console.log(`rare   vs ${label.padEnd(18)} esc ON: ${on.outcome.padEnd(9)} ${fmt(on.t)} (${on.hired} hires)`);
 }
