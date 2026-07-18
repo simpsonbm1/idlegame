@@ -1726,11 +1726,21 @@ body.scene-open #scene-toggle { color: #e8c96d; border-color: #7a6428; }
                   pointer-events: none; opacity: 0; transition: opacity 0.6s;
                   background: linear-gradient(rgba(160,30,20,0.0), rgba(160,30,20,0.55) 70%); }
 
-/* left-stack chips: town square arrivals + hero muster */
-#scene-square-chip button { margin: 2px 2px 0 0; background: #2a2410; color: #c9a84c;
+/* left-stack chips: town square arrivals + hero muster; corner system chip */
+#scene-square-chip button, #scene-corner-chip button {
+    margin: 2px 2px 0 0; background: #2a2410; color: #c9a84c;
     border: 1px solid #5a4a1e; border-radius: 3px; font-family: inherit;
     font-size: 10px; padding: 1px 7px; cursor: pointer; }
 #scene-square-chip button.on { color: #7db4e8; border-color: #4a6a8a; }
+#scene-corner-chip { right: 12px; bottom: 10px; font-size: 11px; }
+#scene-corner-chip button.on { color: #e8c96d; border-color: #7a6428; }
+#scene-corner-chip button:disabled { opacity: 0.5; cursor: default; }
+
+/* formation drag: units and empty tiles as drop targets */
+.btile--drop { pointer-events: auto; }
+.sunit.drag-over .sprite, .sunit.drag-over .letter-chip {
+    filter: brightness(1.4) drop-shadow(0 0 8px rgba(233,196,106,0.9)); }
+.btile.drag-over { background: rgba(233,196,106,0.28); border-color: rgba(233,196,106,0.85); }
 #scene-hud .chip .row { position: relative; }   /* badge floats anchor here */
 #scene-raid-chip { left: 73%; top: 12px; transform: translateX(-50%); text-align: center;
                    min-width: 280px; max-width: 380px; }

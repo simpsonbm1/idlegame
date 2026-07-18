@@ -316,7 +316,8 @@ function defaultMeta() {
         lessonsGranted: false, // Lessons of the Last Siege paid out (once per campaign)
         victory: false,        // the Final Siege has been won — endless mode unlocked
         gameSeconds: 0,        // lifetime game-time across all Ages (victory-screen stat)
-        reduceMotion: false    // manual no-shake/no-float toggle (M15 Phase 2; additive field)
+        reduceMotion: false,   // manual no-shake/no-float toggle (M15 Phase 2; additive field)
+        sceneView: true        // M15 increment 4: the scene IS the game; classic is the escape hatch
     };
 }
 
@@ -339,7 +340,7 @@ function loadMeta() {
         victory: state.victory ?? false,
         gameSeconds: state.gameSeconds ?? 0,
         reduceMotion: state.reduceMotion ?? false,
-        sceneView: state.sceneView ?? false // M15 scene/classic choice (additive)
+        sceneView: state.sceneView ?? true // M15 scene/classic choice (default: scene)
     };
 }
 
@@ -3024,9 +3025,22 @@ function renderSceneHud() {
     // Structure only — no per-frame values in the memoized string (gold/gps/
     // legacy/HP and every countdown live in fixed spans updated by renderScene
     // each frame), so buttons are never rebuilt mid-click. canAfford flips rarely.
-    const levelBtn = next
-        ? `<button data-action="levelUpKingdom" ${gold >= next.cost ? '' : 'disabled'}>Become a ${next.name} — ${next.cost.toLocaleString()}g</button>`
-        : `<div style="color:#8a7f63;font-size:11px;margin-top:5px">Highest tier reached</div>`;
+    let levelBtn;
+    if (next) {
+        const unlockNames = next.unlocks.map(id => buildings[id].name).join(', ');
+        levelBtn = `${unlockNames ? `<div style="font-size:10px;color:#8a7f63">Unlocks: ${unlockNames}</div>` : ''}
+            <button data-action="levelUpKingdom" ${gold >= next.cost ? '' : 'disabled'}>Become a ${next.name} — ${next.cost.toLocaleString()}g</button>`;
+    } else {
+        levelBtn = `<div style="color:#8a7f63;font-size:11px;margin-top:5px">Highest tier reached</div>`;
+    }
+    // Manual run-ender (same confirm flow as the classic left panel)
+    if (raidsStarted && !runEnded) {
+        levelBtn += confirmingNewAge
+            ? `<div style="margin-top:6px;font-size:11px;color:#c06060">End this Age?
+                <button data-action="confirmNewAge" style="color:#e08080;border-color:#8a4040">Yes, end it</button>
+                <button data-action="cancelNewAge">Cancel</button></div>`
+            : `<button data-action="showNewAgeConfirm" style="margin-top:6px;opacity:0.8">Found a New Age</button>`;
+    }
 
     // Town Square chip: arrival countdowns + auto-hire (structure changes only
     // on unlock or auto-hire mode click — the ticking texts are volatile spans).
@@ -3041,10 +3055,35 @@ function renderSceneHud() {
         : '';
     const heroLine = kingdomLevel >= RAID_TRIGGER_LEVEL
         ? `<div class="row"><span class="lbl">Heroes</span> <span id="scene-hero-timer" style="font-size:11px"></span></div>`
-        : '';
+        : `<div class="row"><span class="lbl">Heroes</span> <span style="font-size:10px;color:#8a7f63">unlock at ${levels[RAID_TRIGGER_LEVEL].name}</span></div>`;
     const squareChip = `<div class="chip" id="scene-square-chip" style="left:14px;top:212px;min-width:150px;font-size:11px">
         <div class="row"><span class="lbl">Town Square</span> <span id="scene-pool-timer" style="font-size:11px"></span></div>
         ${autoHtml}${heroLine}</div>`;
+
+    // System corner: game speed, motion, reset — classic's admin controls,
+    // reusing the same actions and lock rules (Swift Seasons / DEV_MODE).
+    const unlockedSpeed = speedSelectorAvailable();
+    let speedBtns = PLAYER_SPEEDS.map(s => {
+        const locked = s > 1 && !unlockedSpeed;
+        return locked
+            ? `<button disabled title="Unlocks with Swift Seasons (Economy tree)">${s}×</button>`
+            : `<button class="${s === gameSpeed ? 'on' : ''}" data-action="setGameSpeed:${s}">${s}×</button>`;
+    }).join('');
+    if (DEV_MODE) speedBtns += DEV_SPEEDS.map(s =>
+        `<button class="${s === gameSpeed ? 'on' : ''}" data-action="setGameSpeed:${s}" style="color:#7a6428">${s}×</button>`).join('');
+    const motionBtns = SYSTEM_REDUCED_MOTION
+        ? `<button disabled class="on" title="Your system requests reduced motion">Reduced</button>`
+        : `<button class="${meta.reduceMotion ? '' : 'on'}" data-action="setReduceMotion:0">Full</button>
+           <button class="${meta.reduceMotion ? 'on' : ''}" data-action="setReduceMotion:1" title="No shake, flashes, or floating numbers">Reduced</button>`;
+    const resetBtns = confirmingReset
+        ? `<span style="color:#c06060">Reset all progress?</span>
+           <button data-action="doResetGame" style="color:#e08080">Yes</button>
+           <button data-action="cancelReset">No</button>`
+        : `<button data-action="showResetConfirm" title="Dev wipe: run AND meta">Reset</button>`;
+    const cornerChip = `<div class="chip" id="scene-corner-chip">
+        <span class="lbl">Speed</span> ${speedBtns}
+        <span class="lbl" style="margin-left:8px">Motion</span> ${motionBtns}
+        <span style="margin-left:8px">${resetBtns}</span></div>`;
 
     // Raid chip over the battlefield — mirrors renderRaidStatusBar's states.
     let raidChip = '';
@@ -3078,6 +3117,7 @@ function renderSceneHud() {
             ${levelBtn}
         </div>
         ${squareChip}
+        ${cornerChip}
         <div class="chip" id="hud-wall">
             <span class="lbl">Kingdom</span> <b id="scene-hp-text">—</b>
             <div class="bar"><div class="fill" id="scene-hp-fill"></div></div>
@@ -3187,6 +3227,15 @@ function sceneBattleSig(dims, enemyGrid, enemies) {
     return sig;
 }
 
+function unitStatStr(unit) {
+    const parts = [];
+    if (unit.attack) parts.push(`ATK ${unit.attack.power}`);
+    if (unit.heal) parts.push(`HLR ${unit.heal.power}`);
+    parts.push(`DEF ${unit.defense}%`);
+    if (unit.guard) parts.push(`GRD ×${unit.guard}`);
+    return parts.join(' · ');
+}
+
 function sceneBattleUnitHtml(unit, index, xPct, yPct, h, isHero) {
     const key = unitDomKey(unit);
     const boss = !isHero && unit.spriteKey && unit.spriteKey.startsWith('boss_');
@@ -3194,13 +3243,47 @@ function sceneBattleUnitHtml(unit, index, xPct, yPct, h, isHero) {
     const bits = sceneUnitBits(unitSpriteKey(unit), h, unit.name[0].toUpperCase(), isHero ? unit.rarity : null);
     const cls = 'sunit' + (isHero ? ' sunit--hero' : ' sunit--enemy') + (boss ? ' sunit--boss' : '');
     const action = isHero ? ` data-action="sceneHeroClick:${index}" data-hidx="${index}"` : '';
-    return `<div class="${cls}" data-ukey="${key}"${action}
+    // Enemies get their stat tooltip at build time; heroes get theirs in the
+    // per-frame update (folded into the armed/unarmed dismiss hint).
+    const title = isHero ? '' : ` title="${unit.name} — ${unitStatStr(unit)}"`;
+    return `<div class="${cls}" data-ukey="${key}"${action}${title}
         style="left:${xPct.toFixed(2)}%;top:${yPct.toFixed(2)}%;z-index:${Math.round(yPct * 4) + 1}">
         ${bits.html}
         <div class="plate" style="left:-75px;top:${(-h - 30).toFixed(0)}px">${unit.name}
             <div class="hp hp--${isHero ? 'hero' : 'enemy'}"><i></i></div></div>
         <span class="chillbadge" style="left:24px;top:${(-h - 8).toFixed(0)}px">❄</span>
     </div>`;
+}
+
+// Formation editing on the diorama: the same HTML5 drag pattern (and the same
+// swapHeroes state change) as the classic battle slots. Empty positions are
+// droppable via their ground tiles.
+function attachSceneDragHandlers(el, index) {
+    const unit = heroSquad[index];
+    if (unit && unit.alive) {
+        el.draggable = true;
+        el.addEventListener('dragstart', e => {
+            isDraggingHero = true;
+            if (armedHeroSlot === index) armedHeroSlot = null;
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', String(index));
+        });
+        el.addEventListener('dragend', () => {
+            isDraggingHero = false;
+            updateUI();
+        });
+    }
+    el.addEventListener('dragover', e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    });
+    el.addEventListener('dragenter', e => { e.preventDefault(); el.classList.add('drag-over'); });
+    el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+    el.addEventListener('drop', e => {
+        e.preventDefault();
+        el.classList.remove('drag-over');
+        swapHeroes(parseInt(e.dataTransfer.getData('text/plain'), 10), index);
+    });
 }
 
 function buildSceneBattle(el, dims, enemyGrid, enemies) {
@@ -3211,7 +3294,8 @@ function buildSceneBattle(el, dims, enemyGrid, enemies) {
     // ground tiles for every grid position (capacity reads even when empty)
     if (showHeroes) for (let r = 0; r < dims.rows; r++) for (let c = 0; c < dims.cols; c++) {
         const w = 66 + c * 8;
-        html += `<span class="btile btile--hero" style="left:${sceneHeroRowX(r)}%;top:${sceneLaneY(c, dims.cols)}%;width:${w}px;height:${Math.round(w * 0.3)}px;margin-left:${-w / 2}px;margin-top:${-Math.round(w * 0.15)}px;z-index:${sceneLaneY(c, dims.cols) * 4 - 2}"></span>`;
+        const tidx = r * dims.cols + c;
+        html += `<span class="btile btile--hero btile--drop" data-tidx="${tidx}" style="left:${sceneHeroRowX(r)}%;top:${sceneLaneY(c, dims.cols)}%;width:${w}px;height:${Math.round(w * 0.3)}px;margin-left:${-w / 2}px;margin-top:${-Math.round(w * 0.15)}px;z-index:${sceneLaneY(c, dims.cols) * 4 - 2}"></span>`;
     }
     for (let r = 0; r < enemyGrid.rows; r++) for (let c = 0; c < enemyGrid.cols; c++) {
         const w = 66 + c * 8;
@@ -3236,14 +3320,24 @@ function buildSceneBattle(el, dims, enemyGrid, enemies) {
         const key = Number(uel.dataset.ukey);
         sceneUnitElByKey.set(key, uel);
         const bind = byKey[key];
-        if (bind) sceneBattleLive.push({
-            el: uel, unit: bind.unit, hidx: bind.hidx,
-            hpFill: uel.querySelector('.hp i')
-        });
+        if (bind) {
+            sceneBattleLive.push({
+                el: uel, unit: bind.unit, hidx: bind.hidx,
+                hpFill: uel.querySelector('.hp i'),
+                statStr: unitStatStr(bind.unit)
+            });
+            if (bind.hidx >= 0) attachSceneDragHandlers(uel, bind.hidx);
+        }
+    });
+    // Empty hero positions accept drops via their ground tiles
+    el.querySelectorAll('.btile--drop').forEach(t => {
+        const tidx = Number(t.dataset.tidx);
+        if (!heroSquad[tidx]) attachSceneDragHandlers(t, tidx);
     });
 }
 
 function renderSceneBattle() {
+    if (isDraggingHero) return; // a rebuild would destroy the dragged element
     const el = document.getElementById('scene-battle');
     const dims = heroGridDims();
     const enemyGrid = currentInvasion ? currentInvasion.grid : RAID_TIERS[raidTierIndex].grid;
@@ -3262,7 +3356,7 @@ function renderSceneBattle() {
         if (b.hidx >= 0) {
             const armed = armedHeroSlot === b.hidx && Date.now() - armedHeroSlotTime < ARM_TIMEOUT_MS;
             b.el.classList.toggle('sunit--armed', armed);
-            const title = armed ? 'Click again to dismiss' : 'Click to dismiss';
+            const title = `${u.name} — ${b.statStr}\n${armed ? 'Click again to dismiss · drag to move' : 'Click to dismiss · drag to move'}`;
             if (b.el.title !== title) b.el.title = title;
         }
     }
@@ -3333,7 +3427,9 @@ function renderScenePlotDrawer() {
     // so baking it into the memo string can't thrash; a mid-click rebuild is
     // survivable anyway (delegated data-action dispatch).
     const info = buildingPurchaseInfo(scenePlotOpen);
-    const buildRow = `<div style="margin:2px 0 10px;display:flex;gap:10px;align-items:center">
+    const qtyRow = `<div style="margin:2px 0 4px;font-size:10px;color:#8a7f63">Buy:
+        ${[1, 5, 10, 'max'].map(q => `<button class="btn-qty ${buyQuantity === q ? 'btn-qty--active' : ''}" data-action="setBuyQuantity:${q}">×${q}</button>`).join('')}</div>`;
+    const buildRow = `${qtyRow}<div style="margin:2px 0 10px;display:flex;gap:10px;align-items:center">
         <button class="btn-upgrade" data-action="buyBuilding:${scenePlotOpen}" ${info.canAfford ? '' : 'disabled'}>Build</button>
         <span style="font-size:11px;color:#8a7f63">${info.costLabel}</span></div>`;
     setPanelHtml('scene-drawer-body',
