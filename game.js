@@ -2360,6 +2360,25 @@ const SPRITE_SOURCES = {
     boss_infernal: 'raw_boss_infernal.png'
 };
 
+// Hero rarity variants (spec entries 56–82, generated lazily in any order):
+// registered up front so a variant PNG dropped into assets/raw/ is live on
+// refresh; heroSpriteKey() falls back to the base archetype sprite until then.
+// 'common' included for the audit-demoted archetypes whose BASE art depicts a
+// higher tier (mender = rare, paladin = epic) and so get a plain common file.
+for (const a of ['guardian', 'fighter', 'ranged', 'mender', 'paladin', 'assassin', 'battlemage', 'banneret', 'frostadept']) {
+    for (const r of ['common', 'rare', 'epic', 'legendary']) {
+        SPRITE_SOURCES['hero_' + a + '_' + r] = 'raw_hero_' + a + '_' + r + '.png';
+    }
+}
+
+function keyMagentaPixels(p) {
+    for (let i = 0; i < p.length; i += 4) {
+        const r = p[i], g = p[i + 1], b = p[i + 2];
+        const m = Math.max(r, b);
+        if (m > 130 && g < 0.65 * m && Math.min(r, b) > 0.45 * m) p[i + 3] = 0;
+    }
+}
+
 function processSprite(img) {
     const c = document.createElement('canvas');
     c.width = img.width; c.height = img.height;
@@ -2367,11 +2386,7 @@ function processSprite(img) {
     ctx.drawImage(img, 0, 0);
     const data = ctx.getImageData(0, 0, c.width, c.height); // throws on file://
     const p = data.data;
-    for (let i = 0; i < p.length; i += 4) {
-        const r = p[i], g = p[i + 1], b = p[i + 2];
-        const m = Math.max(r, b);
-        if (m > 130 && g < 0.65 * m && Math.min(r, b) > 0.45 * m) p[i + 3] = 0;
-    }
+    keyMagentaPixels(p);
     let minX = c.width, minY = c.height, maxX = -1, maxY = -1;
     for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
         if (p[(y * c.width + x) * 4 + 3] > 8) {
@@ -2428,6 +2443,33 @@ function loadSprites() {
     }
 }
 
+// --- M15 T1 chrome: the generated frame texture becomes CSS border-image ---
+// Same runtime idea as the sprites: load the raw magenta-margin frame from
+// assets/raw/, key it transparent in memory, and hand the result to CSS as
+// the --chrome-frame variable. Panels opt in via body.chrome-ready, so on
+// file:// (canvas taint) or a missing file the flat CSS chrome remains.
+function loadChrome() {
+    const img = new Image();
+    img.onload = () => {
+        try {
+            const c = document.createElement('canvas');
+            c.width = img.width; c.height = img.height;
+            const ctx = c.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            const data = ctx.getImageData(0, 0, c.width, c.height); // throws on file://
+            keyMagentaPixels(data.data);
+            ctx.putImageData(data, 0, 0);
+            c.toBlob(blob => {
+                if (!blob) return;
+                document.documentElement.style.setProperty('--chrome-frame', `url(${URL.createObjectURL(blob)})`);
+                document.body.classList.add('chrome-ready');
+            }, 'image/png');
+        } catch (e) { /* file:// canvas taint — flat chrome remains */ }
+    };
+    img.onerror = () => {}; // not generated yet — flat chrome remains
+    img.src = 'assets/raw/raw_ui_frame.png';
+}
+
 // Portrait chip content: real sprite when its file exists, letter otherwise.
 function portraitInner(spriteKey, letter) {
     const s = sprites[spriteKey];
@@ -2435,8 +2477,14 @@ function portraitInner(spriteKey, letter) {
     return `<span class="portrait-letter">${letter}</span>`;
 }
 
+// Hero sprites: prefer the rarity variant when its file exists, else the base.
+function heroSpriteKey(archetypeKey, rarity) {
+    const variant = 'hero_' + archetypeKey + '_' + rarity;
+    return sprites[variant] ? variant : 'hero_' + archetypeKey;
+}
+
 function unitSpriteKey(unit) {
-    if (unit.side === 'hero') return unit.archetypeKey ? 'hero_' + unit.archetypeKey : null;
+    if (unit.side === 'hero') return unit.archetypeKey ? heroSpriteKey(unit.archetypeKey, unit.rarity) : null;
     return unit.spriteKey || null;
 }
 
@@ -2629,7 +2677,7 @@ function renderHeroRecruitPool() {
 
             html += `<div class="recruit-card recruit-card--${recruit.rarity}">
                 <div class="portrait portrait--${recruit.rarity}" data-type="${recruit.archetypeKey}">
-                    ${portraitInner('hero_' + recruit.archetypeKey, letter)}
+                    ${portraitInner(heroSpriteKey(recruit.archetypeKey, recruit.rarity), letter)}
                 </div>
                 <div class="recruit-info">
                     <div class="recruit-name">${recruit.name}</div>
@@ -2913,6 +2961,7 @@ function renderFrame(ts) {
 }
 
 loadSprites(); // async — sprites pop into portraits/slots as each file processes
+loadChrome();  // async — panel frame chrome pops in once the texture is keyed
 bindActionDispatch(); // delegated data-action dispatch — see UI_ACTIONS
 loadMeta();
 loadGame();

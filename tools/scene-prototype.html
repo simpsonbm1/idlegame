@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Scene prototype — the kingdom as one world</title>
+<style>
+  /* ==============================================================
+     SCENE PROTOTYPE — validates the layout inversion:
+     the world is the primary surface, panels demoted to drawers.
+     Left half: inside the walls (vista of buildings up top, the
+     hiring crowd in the square below). Right half: the battlefield
+     outside the gate. Fake game state throughout; real assets where
+     they exist (backdrop, 9 heroes, villager, goblin); buildings are
+     schematic placeholders — they define the next asset spec.
+     ============================================================== */
+  :root {
+    --gold: #c9a84c;
+    --gold-bright: #e8c96d;
+    --parchment: #d8cba8;
+    --dim: #8a7f63;
+    --ink: #171008;
+    --panel: rgba(24, 20, 10, 0.92);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #14110c; color: var(--parchment); font-family: Georgia, serif; }
+  img { image-rendering: pixelated; }
+
+  #stage { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+
+  /* ---------- the two world halves ---------- */
+  .half { position: absolute; top: 0; bottom: 0; overflow: hidden; }
+  #town-half   { left: 0; width: 46%; }
+  #battle-half { left: 46%; width: 54%; }
+  .bg { position: absolute; inset: 0; background-size: cover; background-repeat: no-repeat;
+        image-rendering: pixelated; }
+  /* Town side reuses the battlefield square MIRRORED so its wall lands on the
+     center seam — inside vs outside the same wall. Placeholder until a real
+     town-vista backdrop is generated. */
+  #town-half .bg { transform: scaleX(-1); background-position: 0% 58%; }
+  #battle-half .bg { background-position: 12% 58%; }
+  /* readability scrims: darker sky strip for HUDs, darker ground for nameplates */
+  .half::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(rgba(14,11,6,0.5), rgba(14,11,6,0.10) 22%,
+                                rgba(14,11,6,0.08) 62%, rgba(14,11,6,0.34));
+  }
+
+  /* the seam: wall meets wall; softens the mirror joint */
+  #seam { position: absolute; top: 0; bottom: 0; left: 46%; width: 130px;
+          transform: translateX(-50%); pointer-events: none; z-index: 40;
+          background: linear-gradient(90deg, transparent, rgba(10,8,4,0.5) 38% 62%, transparent); }
+
+  /* ---------- HUD chips (wood-toned, minimal) ---------- */
+  .chip {
+    position: absolute; z-index: 900; padding: 6px 12px;
+    background: var(--panel); border: 1px solid #4a3a18; border-radius: 4px;
+    font-size: 13px; line-height: 1.5; box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+  .chip b { color: var(--gold-bright); font-variant-numeric: tabular-nums; }
+  .chip .lbl { color: var(--dim); font-size: 10px; text-transform: uppercase; letter-spacing: 2px; }
+
+  #hud-econ { left: 14px; top: 12px; }
+  #hud-econ .row { display: flex; gap: 8px; align-items: baseline; }
+
+  #hud-level { left: 14px; top: 108px; }
+  #hud-level button {
+    display: block; margin-top: 4px; background: #2a2410; color: var(--gold);
+    border: 1px solid #5a4a1e; border-radius: 3px; font-family: inherit;
+    font-size: 12px; padding: 3px 10px; cursor: pointer;
+  }
+  #hud-level button:hover { background: #3a3014; color: var(--gold-bright); }
+
+  /* Kingdom HP lives on the wall */
+  #hud-wall { left: 46%; top: 33%; transform: translateX(-50%); text-align: center;
+              min-width: 190px; z-index: 901; }
+  #hud-wall .bar { height: 9px; background: #2a1512; border: 1px solid var(--ink);
+                   margin-top: 4px; }
+  #hud-wall .fill { height: 100%; width: 96%; background: linear-gradient(#7dc95e, #4e9636); }
+
+  #hud-raid { left: 68%; top: 12px; transform: translateX(-50%); text-align: center;
+              min-width: 300px; }
+  #hud-raid .title { color: var(--gold-bright); font-size: 15px; letter-spacing: 1px; }
+  #hud-raid .esc { color: #e0a050; font-style: italic; font-size: 12px; margin-top: 2px; }
+
+  #hud-corner { right: 12px; bottom: 10px; display: flex; gap: 6px; z-index: 900;
+                font-size: 11px; }
+  #hud-corner span { padding: 2px 8px; background: var(--panel); border: 1px solid #4a3a18;
+                     border-radius: 3px; color: var(--dim); }
+  #hud-corner span.on { color: var(--gold-bright); border-color: #7a6428; }
+
+  #proto-note { position: absolute; left: 12px; bottom: 10px; z-index: 900; font-size: 10px;
+                color: #6a6048; text-shadow: 1px 1px 0 var(--ink); }
+
+  /* ---------- town vista: building plots ---------- */
+  #vista { position: absolute; inset: 0; z-index: 30; }
+  .plot { position: absolute; transform: translateX(-50%); cursor: pointer;
+          text-align: center; }
+  .plot svg { display: block; margin: 0 auto; filter: drop-shadow(2px 4px 3px rgba(8,6,3,0.55)); }
+  .plot:hover svg { filter: drop-shadow(2px 4px 3px rgba(8,6,3,0.55)) brightness(1.18); }
+  .plot .count {
+    position: absolute; top: -6px; right: -12px; min-width: 20px; height: 20px;
+    line-height: 18px; border-radius: 50%; background: #b8942f; color: var(--ink);
+    border: 2px solid #6a5518; font-size: 10px; font-weight: bold;
+  }
+  .plot .tag {
+    position: absolute; left: 50%; transform: translateX(-50%); bottom: -18px;
+    white-space: nowrap; font-size: 11px; color: var(--gold-bright);
+    text-shadow: 1px 1px 0 var(--ink), -1px 1px 0 var(--ink), 1px -1px 0 var(--ink), -1px -1px 0 var(--ink);
+    opacity: 0; transition: opacity 0.12s;
+  }
+  .plot:hover .tag { opacity: 1; }
+  .plot.locked { cursor: default; opacity: 0.55; }
+  .plot.locked .ghost {
+    border: 2px dashed rgba(216, 203, 168, 0.4); border-radius: 4px;
+    padding: 6px 8px; font-size: 10px; color: var(--parchment);
+    background: rgba(14, 11, 6, 0.35); line-height: 1.5;
+  }
+  .plot.locked .ghost .nm { color: var(--gold); font-size: 11px; }
+
+  /* ---------- the square: recruits standing in the world ---------- */
+  #square-ui { left: 15%; bottom: 26%; transform: translateX(-50%); text-align: center;
+               z-index: 899; padding: 4px 10px; }
+  #square-ui .arrbar { width: 130px; height: 4px; background: #2a2410; margin: 4px auto 0; }
+  #square-ui .arrfill { height: 100%; background: var(--gold);
+                        animation: arrivals 10s linear infinite; }
+  @keyframes arrivals { from { width: 100%; } to { width: 0%; } }
+  #autohire { position: absolute; left: 15%; bottom: 22.5%; transform: translateX(-50%);
+              z-index: 899; display: flex; gap: 4px; font-size: 10px; }
+  #autohire span { padding: 1px 7px; background: var(--panel); border: 1px solid #4a3a18;
+                   border-radius: 3px; color: var(--dim); cursor: pointer; }
+  #autohire span.on { color: #7db4e8; border-color: #4a6a8a; }
+
+  /* ---------- units standing in the world (shared) ---------- */
+  .unit { position: absolute; transform: translateX(0); transition: transform 0.16s ease-out; }
+  .unit .sprite { position: absolute; bottom: 0; transform-origin: 50% 100%;
+                  animation: bob 2.6s ease-in-out infinite; transition: filter 0.15s; }
+  @keyframes bob { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.014); } }
+  .unit .shadow { position: absolute; background: rgba(10, 8, 4, 0.42); border-radius: 50%;
+                  filter: blur(2px); }
+  .unit .ring { position: absolute; border-radius: 50%; border: 2px solid transparent; }
+  .unit .plate { position: absolute; text-align: center; white-space: nowrap;
+                 transform: translateX(-50%); font-size: 11px; color: #f0d890;
+                 text-shadow: 1px 1px 0 var(--ink), -1px 1px 0 var(--ink),
+                              1px -1px 0 var(--ink), -1px -1px 0 var(--ink); }
+  .unit .plate .sub { font-size: 10px; color: var(--parchment); }
+  .unit .hp { width: 56px; height: 6px; background: #2a1512; border: 1px solid var(--ink);
+              margin: 2px auto 0; }
+  .unit .hp i { display: block; height: 100%; }
+  .hp-hero i  { background: linear-gradient(#7dc95e, #4e9636); }
+  .hp-enemy i { background: linear-gradient(#d95c4a, #a83a2c); }
+  .unit.hit .sprite { filter: brightness(1.9) saturate(1.5); }
+  .unit.lunge-r { transform: translateX(26px); }
+  .unit.lunge-l { transform: translateX(-26px); }
+
+  .recruit { cursor: pointer; }
+  .recruit:hover .sprite { filter: brightness(1.2); }
+  .recruit .hirehint { position: absolute; transform: translateX(-50%); font-size: 10px;
+                       padding: 1px 8px; background: var(--panel); border: 1px solid #7a6428;
+                       border-radius: 3px; color: var(--gold-bright); opacity: 0;
+                       transition: opacity 0.12s; pointer-events: none; }
+  .recruit:hover .hirehint { opacity: 1; }
+  .recruit.hired { transition: opacity 0.6s; opacity: 0; pointer-events: none; }
+
+  /* rarity ground rings */
+  .ring.common    { border-color: rgba(160, 160, 160, 0.55); }
+  .ring.rare      { border-color: rgba(90, 150, 220, 0.75); }
+  .ring.epic      { border-color: rgba(170, 100, 220, 0.8); }
+  .ring.legendary { border-color: rgba(232, 190, 80, 0.9); }
+
+  /* ---------- battlefield tiles ---------- */
+  .tile { position: absolute; pointer-events: none;
+          clip-path: polygon(14% 0, 100% 0, 86% 100%, 0 100%); }
+  .tile.hero  { background: rgba(233, 196, 106, 0.10); border-top: 1px solid rgba(233,196,106,0.35); }
+  .tile.enemy { background: rgba(216, 92, 74, 0.10);  border-top: 1px solid rgba(216,92,74,0.35); }
+  .tile.empty { background: rgba(233, 196, 106, 0.04); }
+
+  /* floating combat numbers */
+  .dfloat { position: absolute; z-index: 800; font-size: 15px; font-weight: bold;
+            transform: translateX(-50%); pointer-events: none;
+            text-shadow: 1px 1px 0 var(--ink), -1px 1px 0 var(--ink),
+                         1px -1px 0 var(--ink), -1px -1px 0 var(--ink);
+            animation: floatUp 0.9s ease-out forwards; }
+  @keyframes floatUp { from { opacity: 1; margin-bottom: 0; }
+                       to { opacity: 0; margin-bottom: 46px; } }
+  .dfloat.dmg  { color: #f0f0e8; }
+  .dfloat.dmg2 { color: #ffb0a0; }
+  .dfloat.heal { color: #8de07a; }
+  .dfloat.gold { color: var(--gold-bright); }
+
+  /* ---------- the drawer (chrome frame reused from T1) ---------- */
+  #drawer { position: absolute; left: 20px; top: 15%; width: 320px; max-height: 72%;
+            z-index: 950; border: 22px solid transparent; background: var(--panel);
+            display: none; flex-direction: column; }
+  #drawer.open { display: flex; }
+  #drawer h3 { font-size: 15px; color: var(--gold-bright); letter-spacing: 1px; }
+  #drawer .meta { font-size: 11px; color: var(--dim); margin: 2px 0 8px; }
+  #drawer .close { position: absolute; top: -14px; right: -12px; cursor: pointer;
+                   color: var(--dim); font-size: 15px; }
+  #drawer .close:hover { color: var(--gold-bright); }
+  #dw-list { overflow-y: auto; min-height: 0; }
+  .res-row { display: flex; align-items: center; gap: 8px; padding: 5px 2px;
+             border-top: 1px solid #33290f; font-size: 12px; }
+  .res-row .pchip { width: 34px; height: 34px; flex: none; border-radius: 3px;
+                    background-color: #2a2410; background-size: cover; background-position: top center;
+                    image-rendering: pixelated; border: 2px solid #555; }
+  .pchip.rare { border-color: #5a96dc; } .pchip.epic { border-color: #aa64dc; }
+  .pchip.common { border-color: #777; }  .pchip.legendary { border-color: #e8be50; }
+  .res-row .who { flex: 1; line-height: 1.4; }
+  .res-row .who .r { font-size: 10px; }
+  .r.common { color: #aaa; } .r.rare { color: #7db4e8; }
+  .r.epic { color: #c08ae8; } .r.legendary { color: #e8be50; }
+  .res-row .inc { color: var(--gold-bright); font-variant-numeric: tabular-nums; }
+  .res-row .x { color: var(--dim); cursor: pointer; padding: 0 4px; }
+  .res-row .x:hover { color: #e06060; }
+  .res-row.open-slot { color: var(--dim); font-style: italic; justify-content: center; }
+  #dw-list::-webkit-scrollbar { width: 7px; }
+  #dw-list::-webkit-scrollbar-track { background: rgba(15,12,6,0.5); }
+  #dw-list::-webkit-scrollbar-thumb { background: #4a3a18; border-radius: 4px; }
+
+  #status { position: absolute; z-index: 999; left: 50%; top: 50%; transform: translate(-50%,-50%);
+            color: var(--dim); font-size: 14px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="half" id="town-half"><div class="bg"></div></div>
+  <div class="half" id="battle-half"><div class="bg"></div></div>
+  <div id="seam"></div>
+
+  <div id="vista"></div>
+
+  <!-- HUD: economy + level with the town -->
+  <div class="chip" id="hud-econ">
+    <div class="row"><span class="lbl">Gold</span> <b id="gold-n">12,847</b></div>
+    <div class="row"><span class="lbl">Per second</span> <b>+38.2</b></div>
+    <div class="row"><span class="lbl">Legacy</span> <b style="color:#b48ae8">1,130</b></div>
+  </div>
+  <div class="chip" id="hud-level">
+    <span class="lbl">Kingdom · Age 3</span><br>
+    <span style="color:var(--gold-bright);font-size:15px">Town</span>
+    <button>Become a City — 20,000g</button>
+  </div>
+
+  <!-- Kingdom HP on the wall itself -->
+  <div class="chip" id="hud-wall">
+    <span class="lbl">Kingdom</span> <b>962 / 1,000</b>
+    <div class="bar"><div class="fill"></div></div>
+  </div>
+
+  <!-- raid status over the field -->
+  <div class="chip" id="hud-raid">
+    <div class="title">Goblin Raid — Wave 3</div>
+    <div class="esc">The siege escalates! Enemy attack +14%</div>
+  </div>
+
+  <!-- square UI near the crowd -->
+  <div class="chip" id="square-ui">
+    <span class="lbl">Town Square · new arrivals</span>
+    <div class="arrbar"><div class="arrfill"></div></div>
+  </div>
+  <div id="autohire">
+    <span>Off</span><span class="on">Common+</span><span>Rare+</span><span>Epic+</span><span>Legendary</span>
+  </div>
+
+  <div id="hud-corner">
+    <span class="on">1×</span><span>2×</span><span>4×</span><span>Motion: Full</span>
+  </div>
+  <div id="proto-note">SCENE PROTOTYPE — schematic buildings await generated art · town backdrop is the mirrored battlefield (placeholder)</div>
+
+  <!-- building residents drawer -->
+  <div id="drawer">
+    <span class="close" onclick="closeDrawer()">✕</span>
+    <h3 id="dw-title"></h3>
+    <div class="meta" id="dw-meta"></div>
+    <div id="dw-list"></div>
+  </div>
+
+  <div id="status">processing raws…</div>
+</div>
+
+<script>
+/* ---------- shared pipeline helpers (from pilot-scene.html) ---------- */
+function loadImage(src) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = () => rej(new Error('failed to load ' + src));
+    img.src = src;
+  });
+}
+function toCanvas(img) {
+  const c = document.createElement('canvas');
+  c.width = img.width; c.height = img.height;
+  c.getContext('2d').drawImage(img, 0, 0);
+  return c;
+}
+function keyMagenta(canvas) {
+  const ctx = canvas.getContext('2d');
+  const d = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const p = d.data;
+  for (let i = 0; i < p.length; i += 4) {
+    const r = p[i], g = p[i+1], b = p[i+2];
+    const m = Math.max(r, b);
+    if (m > 130 && g < 0.65 * m && Math.min(r, b) > 0.45 * m) p[i+3] = 0;
+  }
+  ctx.putImageData(d, 0, 0);
+}
+function trim(canvas) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const p = ctx.getImageData(0, 0, W, H).data;
+  let minX = W, minY = H, maxX = -1, maxY = -1;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (p[(y*W + x)*4 + 3] > 8) {
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }
+  }
+  const out = document.createElement('canvas');
+  out.width = maxX - minX + 1; out.height = maxY - minY + 1;
+  out.getContext('2d').drawImage(canvas, -minX, -minY);
+  return out;
+}
+function computeAnchor(c) {
+  const ctx = c.getContext('2d');
+  const W = c.width, H = c.height;
+  const p = ctx.getImageData(0, 0, W, H).data;
+  const bandTop = Math.floor(H * 0.88);
+  let sx = 0, n = 0;
+  for (let y = bandTop; y < H; y++) for (let x = 0; x < W; x++) {
+    if (p[(y*W + x)*4 + 3] > 8) { sx += x; n++; }
+  }
+  const ax = n ? sx / n : W / 2;
+  const half = W * 0.14;
+  let ay = H - 1;
+  outer:
+  for (let y = H - 1; y >= 0; y--) {
+    for (let x = Math.max(0, Math.floor(ax - half)); x < Math.min(W, Math.ceil(ax + half)); x++) {
+      if (p[(y*W + x)*4 + 3] > 8) { ay = y; break outer; }
+    }
+  }
+  return { ax, ay };
+}
+
+/* ---------- programmatic rarity rim (zero-generation option) ----------
+   Draws the sprite's silhouette in the rarity color as a 2px outer stroke,
+   then the sprite on top. Pipeline-applied — no extra art needed. */
+const RARITY_RIM = { rare: '#5a96dc', epic: '#aa64dc', legendary: '#e8be50' };
+const rimCache = {};
+function rimmed(spr, rarity) {
+  const color = RARITY_RIM[rarity];
+  if (!color) return spr;
+  const key = spr.url.slice(-24) + rarity;
+  if (rimCache[key]) return rimCache[key];
+  const pad = 3;
+  const c = document.createElement('canvas');
+  c.width = spr.canvas.width + pad * 2; c.height = spr.canvas.height + pad * 2;
+  const ctx = c.getContext('2d');
+  for (const [dx, dy] of [[-2,0],[2,0],[0,-2],[0,2],[-1,-1],[1,-1],[-1,1],[1,1]]) {
+    ctx.drawImage(spr.canvas, pad + dx, pad + dy);
+  }
+  ctx.globalCompositeOperation = 'source-in';
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.drawImage(spr.canvas, pad, pad);
+  const out = { canvas: c, url: c.toDataURL('image/png'), ax: spr.ax + pad, ay: spr.ay + pad };
+  rimCache[key] = out;
+  return out;
+}
+
+/* ---------- unit factory: a character standing in the world ----------
+   Seats the sprite's computed foot anchor at (feetX, feetY) inside `parent`
+   (coords in px, feetY measured from the TOP). Returns the wrapper. */
+function makeUnit(parent, spr, opts) {
+  const { feetX, feetY, h, name, sub, hpClass, hpPct, ring, mirror, recruit, hireCost } = opts;
+  const scale = h / spr.canvas.height;
+  const sw = spr.canvas.width * scale;
+  const ax = (mirror ? (spr.canvas.width - spr.ax) : spr.ax) * scale;
+  const ay = spr.ay * scale;
+
+  const u = document.createElement('div');
+  u.className = 'unit' + (recruit ? ' recruit' : '');
+  u.style.left = feetX + 'px';
+  u.style.top = feetY + 'px';
+  u.style.zIndex = Math.round(feetY);
+
+  const shadow = document.createElement('div');
+  shadow.className = 'shadow';
+  const shW = sw * 0.62;
+  shadow.style.cssText = `left:${-shW/2}px; top:${-7}px; width:${shW}px; height:15px;`;
+  u.appendChild(shadow);
+
+  if (ring) {
+    const rg = document.createElement('div');
+    rg.className = 'ring ' + ring;
+    const rw = sw * 0.7;
+    rg.style.cssText = `left:${-rw/2}px; top:${-9}px; width:${rw}px; height:18px;`;
+    u.appendChild(rg);
+  }
+
+  const img = document.createElement('img');
+  img.className = 'sprite';
+  img.src = spr.url;
+  img.style.height = (spr.canvas.height * scale) + 'px';
+  img.style.left = (-ax) + 'px';
+  img.style.bottom = (-(spr.canvas.height * scale - ay)) + 'px';
+  img.style.top = 'auto';
+  if (mirror) img.style.transform = 'scaleX(-1)';
+  img.style.animationDelay = (-Math.random() * 2.6).toFixed(2) + 's';
+  u.appendChild(img);
+
+  // sprite bottom offset: anchor sits `ay` from sprite top; place img so anchor = (0,0) of u
+  img.style.bottom = 'auto';
+  img.style.top = (-ay) + 'px';
+
+  const plate = document.createElement('div');
+  plate.className = 'plate';
+  plate.style.left = '0px';
+  plate.style.top = (-ay - 30) + 'px';
+  let html = name;
+  if (sub) html += `<div class="sub">${sub}</div>`;
+  plate.innerHTML = html;
+  if (hpClass) {
+    const hp = document.createElement('div');
+    hp.className = 'hp ' + hpClass;
+    hp.innerHTML = `<i style="width:${hpPct}%"></i>`;
+    plate.appendChild(hp);
+  }
+  u.appendChild(plate);
+
+  if (recruit) {
+    const hint = document.createElement('div');
+    hint.className = 'hirehint';
+    hint.style.left = '0px';
+    hint.style.top = (-ay - 52) + 'px';
+    hint.textContent = 'Hire — ' + hireCost;
+    u.appendChild(hint);
+    u.addEventListener('click', () => {
+      spawnFloat(parent, feetX, feetY - ay - 20, 'Hired!', 'gold');
+      u.classList.add('hired');
+    });
+  }
+
+  parent.appendChild(u);
+  u._imgEl = img;
+  u._feet = { x: feetX, y: feetY, ay };
+  return u;
+}
+
+function spawnFloat(parent, x, y, text, cls) {
+  const f = document.createElement('div');
+  f.className = 'dfloat ' + cls;
+  f.style.left = x + 'px';
+  f.style.top = y + 'px';
+  f.textContent = text;
+  parent.appendChild(f);
+  f.addEventListener('animationend', () => f.remove());
+}
+
+/* ---------- schematic placeholder buildings (SVG) ---------- */
+const C = { wall: '#8a7a5c', wallD: '#6b5d44', roof: '#7a3f2e', roofD: '#5c2f22',
+            wood: '#4a3826', glow: '#e8a850', stone: '#7d7a6e', dark: '#2a2118' };
+function svgOpen(w, h) {
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">`;
+}
+const BUILDING_ART = {
+  cottage: () => svgOpen(64, 54) +
+    `<rect x="8" y="26" width="48" height="28" fill="${C.wall}"/>
+     <rect x="8" y="26" width="48" height="4" fill="${C.wallD}"/>
+     <polygon points="4,28 32,6 60,28" fill="${C.roof}"/>
+     <polygon points="4,28 32,6 32,12 10,28" fill="${C.roofD}"/>
+     <rect x="26" y="36" width="12" height="18" fill="${C.wood}"/>
+     <rect x="44" y="34" width="8" height="8" fill="${C.glow}"/></svg>`,
+  tavern: () => svgOpen(84, 62) +
+    `<rect x="6" y="30" width="72" height="32" fill="${C.wall}"/>
+     <rect x="6" y="30" width="72" height="4" fill="${C.wallD}"/>
+     <polygon points="2,32 42,8 82,32" fill="${C.roof}"/>
+     <polygon points="2,32 42,8 42,14 8,32" fill="${C.roofD}"/>
+     <rect x="16" y="40" width="14" height="22" fill="${C.wood}"/>
+     <rect x="40" y="40" width="10" height="10" fill="${C.glow}"/>
+     <rect x="58" y="40" width="10" height="10" fill="${C.glow}"/>
+     <rect x="66" y="20" width="12" height="10" fill="${C.wood}"/>
+     <rect x="68" y="22" width="8" height="6" fill="${C.glow}"/></svg>`,
+  smithy: () => svgOpen(72, 60) +
+    `<rect x="6" y="30" width="60" height="30" fill="${C.stone}"/>
+     <rect x="6" y="30" width="60" height="4" fill="#66635a"/>
+     <polygon points="2,32 36,10 70,32" fill="${C.roofD}"/>
+     <rect x="52" y="6" width="10" height="20" fill="${C.stone}"/>
+     <rect x="50" y="4" width="14" height="4" fill="#66635a"/>
+     <rect x="16" y="40" width="16" height="20" fill="${C.dark}"/>
+     <rect x="18" y="44" width="12" height="12" fill="${C.glow}"/>
+     <rect x="44" y="42" width="12" height="8" fill="${C.wood}"/></svg>`,
+  workshop: () => svgOpen(68, 52) +
+    `<rect x="6" y="22" width="56" height="30" fill="${C.wood}"/>
+     <polygon points="2,24 34,6 66,24" fill="${C.wallD}"/>
+     <rect x="14" y="30" width="14" height="22" fill="${C.dark}"/>
+     <rect x="38" y="30" width="18" height="12" fill="${C.wall}"/>
+     <line x1="6" y1="22" x2="62" y2="52" stroke="${C.wallD}" stroke-width="3"/></svg>`,
+  library: () => svgOpen(60, 70) +
+    `<rect x="8" y="18" width="44" height="52" fill="${C.wall}"/>
+     <rect x="8" y="18" width="44" height="4" fill="${C.wallD}"/>
+     <polygon points="4,20 30,4 56,20" fill="${C.roof}"/>
+     <rect x="22" y="28" width="16" height="18" fill="${C.glow}"/>
+     <polygon points="22,28 30,20 38,28" fill="${C.glow}"/>
+     <rect x="24" y="52" width="12" height="18" fill="${C.wood}"/></svg>`,
+  keep: () => svgOpen(64, 76) +
+    `<rect x="12" y="20" width="40" height="56" fill="${C.stone}"/>
+     <rect x="12" y="20" width="40" height="5" fill="#66635a"/>
+     <rect x="8" y="10" width="10" height="14" fill="${C.stone}"/>
+     <rect x="27" y="10" width="10" height="14" fill="${C.stone}"/>
+     <rect x="46" y="10" width="10" height="14" fill="${C.stone}"/>
+     <rect x="24" y="52" width="16" height="24" fill="${C.dark}"/>
+     <rect x="28" y="30" width="8" height="10" fill="${C.dark}"/></svg>`,
+  apothecary: () => svgOpen(64, 58) +
+    `<rect x="8" y="26" width="48" height="32" fill="${C.wall}"/>
+     <polygon points="4,28 32,8 60,28" fill="#4f6b3a"/>
+     <rect x="24" y="38" width="12" height="20" fill="${C.wood}"/>
+     <circle cx="48" cy="22" r="7" fill="#6fae52"/>
+     <rect x="44" y="38" width="8" height="8" fill="${C.glow}"/></svg>`,
+  tower: () => svgOpen(52, 82) +
+    `<rect x="14" y="26" width="24" height="56" fill="${C.stone}"/>
+     <polygon points="8,28 26,4 44,28" fill="#5a4a8a"/>
+     <rect x="20" y="38" width="12" height="14" fill="${C.glow}"/>
+     <rect x="22" y="64" width="10" height="18" fill="${C.dark}"/></svg>`,
+  cathedral: () => svgOpen(76, 84) +
+    `<rect x="10" y="30" width="56" height="54" fill="${C.wall}"/>
+     <polygon points="6,32 38,6 70,32" fill="${C.roof}"/>
+     <rect x="34" y="2" width="8" height="12" fill="${C.gold || '#b8942f'}"/>
+     <circle cx="38" cy="40" r="9" fill="${C.glow}"/>
+     <rect x="30" y="58" width="16" height="26" fill="${C.wood}"/>
+     <polygon points="30,58 38,48 46,58" fill="${C.wood}"/></svg>`
+};
+
+/* fake town state: which buildings exist, their residents */
+const TOWN = [
+  { key: 'cottage', name: 'Cottage', count: 3, x: 22, y: 58, next: '480g',
+    slots: 6, residents: [
+      ['Villager', 'common', '1.8 g/s'], ['Villager', 'common', '2.4 g/s'],
+      ['Villager', 'rare', '5.2 g/s'], ['Villager', 'common', '2.1 g/s'],
+      ['Villager', 'epic', '11.4 g/s']] },
+  { key: 'tavern', name: 'Tavern', count: 2, x: 43, y: 50, next: '1,040g',
+    slots: 4, residents: [
+      ['Tavernkeeper', 'common', '4.9 g/s'], ['Tavernkeeper', 'rare', '12.5 g/s'],
+      ['Tavernkeeper', 'common', '6.1 g/s']] },
+  { key: 'smithy', name: 'Smithy', count: 1, x: 66, y: 57, next: '2,025g',
+    slots: 2, residents: [['Blacksmith', 'epic', '68 g/s']] },
+  { key: 'workshop', name: 'Workshop', count: 2, x: 31, y: 67, next: '729g',
+    slots: 4, residents: [
+      ['Builder', 'common', '0.4 hp/s'], ['Builder', 'rare', '1.1 hp/s'],
+      ['Builder', 'common', '0.6 hp/s']] },
+  { key: 'library', name: 'Library', count: 1, x: 57, y: 70, next: '8,100g',
+    slots: 2, residents: [['Scholar', 'rare', '96 g/s']] },
+  { key: 'keep', name: 'Keep', locked: 'Unlocks at Empire', x: 13, y: 45 },
+  { key: 'apothecary', name: 'Apothecary', locked: 'Unlocks at Empire', x: 80, y: 50 },
+  { key: 'tower', name: "Wizard's Tower", locked: 'Unlocks at Dynasty', x: 49, y: 42 },
+  { key: 'cathedral', name: 'Cathedral', locked: 'Unlocks at Realm', x: 71, y: 40 }
+];
+
+let villagerUrl = null; // for drawer chips
+function buildVista() {
+  const vista = document.getElementById('vista');
+  const half = document.getElementById('town-half');
+  const W = half.clientWidth, H = half.clientHeight;
+  for (const b of TOWN) {
+    const plot = document.createElement('div');
+    plot.className = 'plot' + (b.locked ? ' locked' : '');
+    // depth scale: higher on screen (smaller y%) = farther = smaller.
+    // Buildings must dwarf the people below — a cottage is ~1.5 villagers tall.
+    const depth = 1.25 + (b.y / 100) * 1.3;
+    plot.style.left = (b.x / 100 * W) + 'px';
+    plot.style.top = (b.y / 100 * H) + 'px';
+    plot.style.zIndex = Math.round(b.y * 4);
+    if (b.locked) {
+      plot.innerHTML = `<div class="ghost"><span class="nm">${b.name}</span><br>${b.locked}</div>`;
+    } else {
+      // count badge lives inside the scaled wrapper so it tracks the
+      // building's true corner (and shares its perspective scale)
+      plot.innerHTML =
+        `<div style="transform:scale(${depth.toFixed(2)});transform-origin:bottom center;position:relative">` +
+          BUILDING_ART[b.key]() +
+          `<span class="count">×${b.count}</span>` +
+        `</div>` +
+        `<span class="tag">${b.name} ×${b.count} · next ${b.next} · click for residents</span>`;
+      plot.addEventListener('click', () => openDrawer(b));
+    }
+    vista.appendChild(plot);
+  }
+}
+
+/* ---------- drawer ---------- */
+function openDrawer(b) {
+  const d = document.getElementById('drawer');
+  document.getElementById('dw-title').textContent = `${b.name} ×${b.count}`;
+  const open = b.slots - b.residents.length;
+  document.getElementById('dw-meta').textContent =
+    `${b.residents.length} / ${b.slots} residents · next ${b.name.toLowerCase()}: ${b.next}`;
+  const list = document.getElementById('dw-list');
+  list.innerHTML = '';
+  for (const [who, rarity, inc] of b.residents) {
+    const row = document.createElement('div');
+    row.className = 'res-row';
+    const chipBg = villagerUrl ? `style="background-image:url(${villagerUrl})"` : '';
+    row.innerHTML =
+      `<span class="pchip ${rarity}" ${chipBg}></span>` +
+      `<span class="who">${who}<br><span class="r ${rarity}">${rarity[0].toUpperCase() + rarity.slice(1)}</span></span>` +
+      `<span class="inc">${inc}</span><span class="x" title="Dismiss">✕</span>`;
+    list.appendChild(row);
+  }
+  for (let i = 0; i < open; i++) {
+    const row = document.createElement('div');
+    row.className = 'res-row open-slot';
+    row.textContent = 'Open slot — hire from the square';
+    list.appendChild(row);
+  }
+  d.classList.add('open');
+}
+function closeDrawer() { document.getElementById('drawer').classList.remove('open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+/* ---------- main ---------- */
+const SPRITE_FILES = {
+  knight: 'raw_hero_knight_v3.png',
+  fighter: 'raw_hero_fighter.png',
+  ranged: 'raw_hero_ranged.png',
+  mender: 'raw_hero_mender.png',
+  paladin: 'raw_hero_paladin.png',
+  villager: 'raw_town_villager.png',
+  goblin: 'raw_enemy_goblin_brute.png'
+};
+
+async function run() {
+  const status = document.getElementById('status');
+  try {
+    const [bgImg, frameImg, ...charImgs] = await Promise.all([
+      loadImage('../assets/raw/raw_bg_battlefield_v1.png'),
+      loadImage('../assets/raw/raw_ui_frame.png'),
+      ...Object.values(SPRITE_FILES).map(f => loadImage('../assets/raw/' + f))
+    ]);
+
+    // backdrops (both halves use the same square; town side mirrored)
+    for (const el of document.querySelectorAll('.bg')) {
+      el.style.backgroundImage = `url(${bgImg.src})`;
+    }
+    // AI Studio town candidate, if present: unmirrored (it brings its own
+    // enclosing walls, gate already on the right/seam edge); position favors
+    // the plaza-to-gate span of the wide 1.83:1 frame
+    try {
+      const townBg = await loadImage('../assets/raw/towncandidate1.png');
+      const tb = document.querySelector('#town-half .bg');
+      tb.style.backgroundImage = `url(${townBg.src})`;
+      tb.style.transform = 'none';
+      tb.style.backgroundPosition = '87% 40%';
+    } catch (e) { /* candidate absent — mirrored battlefield placeholder remains */ }
+    // AI Studio battlefield candidate: position favors the left span (wall
+    // scrap + arrival road) so the town's right-edge wall carries the seam
+    try {
+      const fieldBg = await loadImage('../assets/raw/battlefieldcandidate1.png');
+      const fb = document.querySelector('#battle-half .bg');
+      fb.style.backgroundImage = `url(${fieldBg.src})`;
+      fb.style.backgroundPosition = '5% 50%';
+    } catch (e) { /* candidate absent — v1 battlefield remains */ }
+
+    // frame chrome for the drawer
+    const frame = toCanvas(frameImg); keyMagenta(frame);
+    document.getElementById('drawer').style.borderImage =
+      `url(${frame.toDataURL('image/png')}) 27.3% round`;
+
+    // process characters
+    const sprites = {};
+    Object.keys(SPRITE_FILES).forEach((key, i) => {
+      const c = toCanvas(charImgs[i]); keyMagenta(c);
+      const t = trim(c);
+      const { ax, ay } = computeAnchor(t);
+      sprites[key] = { canvas: t, url: t.toDataURL('image/png'), ax, ay };
+    });
+    villagerUrl = sprites.villager.url;
+
+    buildVista();
+
+    /* ----- the square: recruits standing around ----- */
+    const town = document.getElementById('town-half');
+    const tw = town.clientWidth, th = town.clientHeight;
+    const groundY = f => th * f;
+    // townsfolk cluster (left)
+    const townsfolk = [
+      { x: 0.07, y: 0.86, ring: 'common', name: 'Villager', sub: '1–3 g/s · 25g', cost: '25g', m: false },
+      { x: 0.17, y: 0.915, ring: 'rare', name: 'Villager', sub: '2.5× · 75g', cost: '75g', m: true },
+      { x: 0.27, y: 0.875, ring: 'common', name: 'Villager', sub: '1–3 g/s · 25g', cost: '25g', m: false },
+      { x: 0.36, y: 0.93, ring: 'epic', name: 'Villager', sub: '5× · 200g', cost: '200g', m: false }
+    ];
+    for (const t of townsfolk) {
+      makeUnit(town, rimmed(sprites.villager, t.ring), {
+        feetX: t.x * tw, feetY: groundY(t.y), h: 74 + (t.y - 0.86) * 200,
+        name: t.name, sub: t.sub, ring: t.ring, mirror: t.m,
+        recruit: true, hireCost: t.cost
+      });
+    }
+    // hero recruits cluster (right, near the gate)
+    const heroPool = [
+      { spr: 'fighter', x: 0.60, y: 0.90, ring: 'common', name: 'Footman', sub: '1,100g', cost: '1,100g' },
+      { spr: 'ranged', x: 0.72, y: 0.865, ring: 'common', name: 'Archer', sub: '750g', cost: '750g' },
+      { spr: 'mender', x: 0.83, y: 0.92, ring: 'rare', name: 'Cleric', sub: '2,550g', cost: '2,550g' }
+    ];
+    for (const hr of heroPool) {
+      makeUnit(town, rimmed(sprites[hr.spr], hr.ring), {
+        feetX: hr.x * tw, feetY: groundY(hr.y), h: 86 + (hr.y - 0.86) * 200,
+        name: hr.name, sub: hr.sub, ring: hr.ring,
+        recruit: true, hireCost: hr.cost
+      });
+    }
+
+    /* ----- the battlefield: squads standing on tiles ----- */
+    const field = document.getElementById('battle-half');
+    const fw = field.clientWidth, fh = field.clientHeight;
+    // lanes: 0 = nearest viewer (bottom, largest) … 2 = farthest
+    const laneY = [0.90, 0.79, 0.695].map(f => f * fh);
+    const laneH = [130, 117, 106];
+    const laneTileW = [128, 114, 102];
+    const heroColX = [0.205, 0.36].map(f => f * fw);  // [back, front]
+    const enemyColX = [0.635, 0.80].map(f => f * fw); // [front, back]
+
+    function tileAt(x, y, w, cls) {
+      const t = document.createElement('div');
+      t.className = 'tile ' + cls;
+      t.style.cssText = `left:${x - w/2}px; top:${y - 20}px; width:${w}px; height:30px; z-index:${Math.round(y) - 2};`;
+      field.appendChild(t);
+    }
+
+    // hero squad: [col][lane] — col 0 back, col 1 front
+    const squad = [
+      [{ spr: 'ranged', name: 'Sharpshooter', hp: 78, rarity: 'rare' }, { spr: 'mender', name: 'Cleric', hp: 100 }, null],
+      [{ spr: 'fighter', name: 'Sellsword', hp: 64 }, { spr: 'knight', name: 'Knight', hp: 88 }, { spr: 'paladin', name: 'Highlord', hp: 95, rarity: 'legendary' }]
+    ];
+    const heroUnits = [];
+    squad.forEach((col, ci) => col.forEach((u, li) => {
+      tileAt(heroColX[ci], laneY[li], laneTileW[li], u ? 'hero' : 'hero empty');
+      if (!u) return;
+      heroUnits.push(makeUnit(field, rimmed(sprites[u.spr], u.rarity), {
+        feetX: heroColX[ci], feetY: laneY[li], h: laneH[li],
+        name: u.name, hpClass: 'hp-hero', hpPct: u.hp
+      }));
+    }));
+
+    // enemy squad: goblins (only enemy sprite generated yet)
+    const foes = [
+      [{ name: 'Goblin Brute', hp: 52, s: 1 }, { name: 'Goblin Brute', hp: 71, s: 1 }, { name: 'Goblin Brute', hp: 90, s: 0.94 }],
+      [null, { name: 'Goblin Warmaster', hp: 100, s: 1.28 }, { name: 'Goblin Brute', hp: 66, s: 0.9 }]
+    ];
+    const enemyUnits = [];
+    foes.forEach((col, ci) => col.forEach((u, li) => {
+      tileAt(enemyColX[ci], laneY[li], laneTileW[li], u ? 'enemy' : 'enemy empty');
+      if (!u) return;
+      enemyUnits.push(makeUnit(field, sprites.goblin, {
+        feetX: enemyColX[ci], feetY: laneY[li], h: laneH[li] * u.s,
+        name: u.name, hpClass: 'hp-enemy', hpPct: u.hp
+      }));
+    }));
+
+    /* ----- light battle animation loop ----- */
+    let flip = false;
+    setInterval(() => {
+      flip = !flip;
+      const atkPool = flip ? heroUnits : enemyUnits;
+      const defPool = flip ? enemyUnits : heroUnits;
+      const atk = atkPool[Math.floor(Math.random() * atkPool.length)];
+      const def = defPool[Math.floor(Math.random() * defPool.length)];
+      if (!atk || !def) return;
+      atk.classList.add(flip ? 'lunge-r' : 'lunge-l');
+      setTimeout(() => atk.classList.remove('lunge-r', 'lunge-l'), 180);
+      setTimeout(() => {
+        def.classList.add('hit');
+        const dmg = 4 + Math.floor(Math.random() * 22);
+        spawnFloat(field, def._feet.x, def._feet.y - def._feet.ay - 34,
+                   dmg, flip ? 'dmg' : 'dmg2');
+        setTimeout(() => def.classList.remove('hit'), 160);
+      }, 150);
+      // occasional heal on the hero side
+      if (!flip && Math.random() < 0.3) {
+        const h = heroUnits[Math.floor(Math.random() * heroUnits.length)];
+        if (h) spawnFloat(field, h._feet.x, h._feet.y - h._feet.ay - 34,
+                          '+' + (6 + Math.floor(Math.random() * 12)), 'heal');
+      }
+    }, 1150);
+
+    status.remove();
+  } catch (e) {
+    status.textContent = e.message + ' — serve over http, not file://';
+    status.style.color = '#d06050';
+  }
+}
+run();
+</script>
+</body>
+</html>

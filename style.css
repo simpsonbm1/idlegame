@@ -9,7 +9,15 @@ html, body {
 }
 
 body {
+    /* M15 T1: the painted battlefield is the page floor; a dark scrim keeps
+       the UI readable on top of it. Pure CSS — works even where the runtime
+       chrome keying can't (file://). Falls back to the flat color. */
     background-color: #1c1a0f;
+    background-image:
+        linear-gradient(rgba(20, 16, 8, 0.45), rgba(20, 16, 8, 0.62)),
+        url('assets/raw/raw_bg_battlefield_v1.png');
+    background-size: cover;
+    background-position: center 32%;
     color: #c9a84c;
     font-family: Georgia, 'Times New Roman', serif;
     padding: 0;
@@ -34,13 +42,14 @@ h1 {
     margin: 0;
     padding: 20px 0;
     border-bottom: 1px solid #5a4a1e;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.85); /* M15 T1: floats over the sky */
 }
 
 /* --- Three-column "battle at the gates" layout --- */
 
 #layout {
     display: grid;
-    grid-template-columns: 200px minmax(380px, 1fr) 560px;
+    grid-template-columns: 240px minmax(380px, 1fr) 560px; /* M15 T1: +40px for frame chrome */
     gap: 24px;
     flex: 1;
     min-height: 0;
@@ -487,6 +496,7 @@ h1 {
 
 .speed-buttons {
     display: flex;
+    flex-wrap: wrap; /* M15 T1: the framed admin column is narrower inside */
     gap: 4px;
     margin-top: 6px;
 }
@@ -1500,4 +1510,39 @@ body.reduce-motion #fx-dawn { display: none; }
         animation: none !important;
     }
     #fx-levelup-banner, #fx-fall-shroud, #fx-dawn { display: none; }
+}
+
+/* ============================================================
+   M15 T1 — atmosphere reskin: frame chrome
+   The backdrop lives on body (top of file). These rules only apply
+   once loadChrome() has keyed the frame texture and set --chrome-frame
+   (needs http; on file:// the flat panel chrome above stays).
+   Slice is a percentage so a regenerated frame at any resolution
+   still slices at the same proportions (pilot value: 280/1024).
+   ============================================================ */
+
+body.chrome-ready #admin-panel,
+body.chrome-ready #town-panel,
+body.chrome-ready #battle-panel {
+    background: rgba(24, 20, 10, 0.85);
+    border: 28px solid transparent;
+    border-image: var(--chrome-frame) 27.3% round;
+    border-radius: 0;
+}
+
+body.chrome-ready #admin-panel { padding: 4px 8px; overflow-x: hidden; }
+body.chrome-ready #town-panel { padding: 4px 10px; }
+
+/* Scrollbars match the chrome — the default bright bars break the scene. */
+* { scrollbar-width: thin; scrollbar-color: #4a3a18 rgba(15, 12, 6, 0.5); }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: rgba(15, 12, 6, 0.5); }
+::-webkit-scrollbar-thumb { background: #4a3a18; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #5a4a1e; }
+
+body.chrome-ready #run-summary-panel {
+    background: rgba(24, 20, 10, 0.96);
+    border: 44px solid transparent;
+    border-image: var(--chrome-frame) 27.3% round;
+    border-radius: 0;
 }

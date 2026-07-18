@@ -174,6 +174,20 @@ Tiers, in build order:
 - **T3 — living town vista:** building sprites at fixed predrawn positions, toggled by
   ownership, with count plaques (the mockup's "LV" tags pattern). Fixed positions — never
   free placement — is what keeps this affordable. After T1/T2.
+- **T4 — kingdom-prosperity progression (STRETCH, post-T3; user idea 2026-07-18):** the
+  town half visibly prospers as kingdom tiers are reached. The T3 building layer already
+  carries most of this fantasy (Hamlet = 3 cottages on bare ground; Realm = full
+  enclosure), so T4 is polish-on-polish — cheapest mechanism first:
+  1. Tier-gated **decoration sprites** through the building pipeline (wall banners,
+     market stalls, lamp posts, well→fountain, cobble patches) at fixed positions —
+     no engine work, ~10–15 small lazy generations; they key off kingdomLevel, which
+     resets each Age, so the New-Age return to bare ground strengthens for free.
+  2. **CSS grading + crowd density** per tier (warmth/saturation lift on the town half;
+     more plaza villagers) — zero assets.
+  3. Full **backdrop variants** only if 1+2 underdeliver, and then ONLY by editing the
+     accepted vista in place in Gemini ("this exact image, but…"), never fresh
+     generation — T3 building anchors are pixel positions and regenerated scenes drift
+     geometry. Bucket to ~3 states (frontier / town / imperial), not one per level.
 
 Asset count: ~47 characters (9 heroes, 25 enemies, 5 bosses, 8 townsfolk — rarity stays a
 CSS border, no art variants) + backdrops + chrome + portrait busts of the same characters.
