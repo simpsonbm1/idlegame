@@ -1546,3 +1546,114 @@ body.chrome-ready #run-summary-panel {
     border-image: var(--chrome-frame) 27.3% round;
     border-radius: 0;
 }
+
+/* ==================================================================
+   M15 SCENE VIEW (T2/T3 overhaul, incremental) — ported from
+   tools/scene-prototype.html, driven by real game state. Hidden until
+   the #scene-toggle flips it on; classic #layout stays the default.
+   Increment 1: continuous backdrop + town vista + HUD chips.
+   ================================================================== */
+#scene {
+    position: fixed; inset: 0; z-index: 500; overflow: hidden;
+    background: #14110c; image-rendering: pixelated;
+}
+#scene.hidden, #scene-drawer.hidden { display: none; }
+#scene-bg {
+    position: absolute; inset: 0; z-index: 0;
+    background-repeat: no-repeat; image-rendering: pixelated;
+}
+/* readability scrim: darker at top for HUD chips, faint mid, darker floor */
+#scene::after {
+    content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(rgba(14,11,6,0.5), rgba(14,11,6,0.10) 22%,
+                                rgba(14,11,6,0.08) 62%, rgba(14,11,6,0.34));
+}
+
+/* the work-in-progress toggle — always reachable, top-right */
+#scene-toggle {
+    position: fixed; top: 10px; right: 14px; z-index: 1200;
+    background: rgba(24,20,10,0.92); color: #c9a84c;
+    border: 1px solid #5a4a1e; border-radius: 4px; cursor: pointer;
+    font-family: Georgia, serif; font-size: 13px; padding: 5px 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+#scene-toggle:hover { background: rgba(42,36,16,0.95); color: #e8c96d; }
+body.scene-open #scene-toggle { color: #e8c96d; border-color: #7a6428; }
+
+#scene-note {
+    position: absolute; left: 12px; bottom: 10px; z-index: 30; font-size: 11px;
+    color: #8a7f63; text-shadow: 1px 1px 0 #171008; pointer-events: none;
+}
+
+/* ---------- town vista: building plots ---------- */
+#scene-vista { position: absolute; inset: 0; z-index: 20; }
+.plot { position: absolute; transform: translateX(-50%); cursor: pointer; text-align: center; }
+.plot .art { position: relative; transform-origin: bottom center;
+             filter: drop-shadow(2px 4px 3px rgba(8,6,3,0.55)); }
+.plot .art svg, .plot .art .bldg-sprite { display: block; margin: 0 auto; }
+.plot .bldg-sprite { background-repeat: no-repeat; background-size: contain;
+                     background-position: bottom center; image-rendering: pixelated; }
+.plot:hover .art { filter: drop-shadow(2px 4px 3px rgba(8,6,3,0.55)) brightness(1.16); }
+.plot .count {
+    position: absolute; top: -6px; right: -12px; min-width: 20px; height: 20px;
+    line-height: 18px; border-radius: 50%; background: #b8942f; color: #171008;
+    border: 2px solid #6a5518; font-size: 10px; font-weight: bold;
+}
+.plot .tag {
+    position: absolute; left: 50%; transform: translateX(-50%); bottom: -20px;
+    white-space: nowrap; font-size: 11px; color: #e8c96d;
+    text-shadow: 1px 1px 0 #171008, -1px 1px 0 #171008, 1px -1px 0 #171008, -1px -1px 0 #171008;
+    opacity: 0; transition: opacity 0.12s; pointer-events: none;
+}
+.plot:hover .tag { opacity: 1; }
+.plot.locked { cursor: default; opacity: 0.5; }
+.plot.locked .ghost {
+    border: 2px dashed rgba(216,203,168,0.4); border-radius: 4px; padding: 6px 8px;
+    font-size: 10px; color: #d8cba8; background: rgba(14,11,6,0.35); line-height: 1.5;
+}
+.plot.locked .ghost .nm { color: #c9a84c; font-size: 11px; }
+
+/* ---------- HUD chips (wood-toned, minimal) ---------- */
+#scene-hud { position: absolute; inset: 0; z-index: 25; pointer-events: none; }
+#scene-hud .chip {
+    position: absolute; pointer-events: auto; padding: 6px 12px;
+    background: rgba(24,20,10,0.92); border: 1px solid #4a3a18; border-radius: 4px;
+    font-size: 13px; line-height: 1.5; box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+#scene-hud .chip b { color: #e8c96d; font-variant-numeric: tabular-nums; }
+#scene-hud .chip .lbl { color: #8a7f63; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; }
+#scene-hud .chip .row { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; }
+#hud-econ  { left: 14px; top: 12px; min-width: 150px; }
+#hud-level { left: 14px; top: 112px; min-width: 150px; }
+#hud-level .kname { color: #e8c96d; font-size: 15px; }
+#hud-level button {
+    display: block; margin-top: 5px; background: #2a2410; color: #c9a84c;
+    border: 1px solid #5a4a1e; border-radius: 3px; font-family: inherit;
+    font-size: 12px; padding: 3px 10px; cursor: pointer;
+}
+#hud-level button:hover:not(:disabled) { background: #3a3014; color: #e8c96d; }
+#hud-level button:disabled { opacity: 0.5; cursor: default; }
+/* Kingdom HP seated on the painted wall (≈46% across) */
+#hud-wall { left: 46%; top: 30%; transform: translateX(-50%); text-align: center; min-width: 190px; }
+#hud-wall .bar { height: 9px; background: #2a1512; border: 1px solid #171008; margin-top: 4px; }
+#hud-wall .fill { height: 100%; background: linear-gradient(#7dc95e, #4e9636); transition: width 0.3s; }
+
+/* ---------- residents drawer (reuses classic slot portraits) ---------- */
+#scene-drawer {
+    position: absolute; left: 20px; top: 14%; width: 320px; max-height: 74%;
+    z-index: 40; padding: 16px 18px; display: flex; flex-direction: column;
+    background: rgba(24,20,10,0.96); border: 1px solid #5a4a1e; border-radius: 4px;
+    box-shadow: 0 6px 26px rgba(0,0,0,0.6);
+}
+body.chrome-ready #scene-drawer {
+    border: 22px solid transparent; border-image: var(--chrome-frame) 27.3% round; border-radius: 0;
+}
+#scene-drawer .scene-drawer-close {
+    position: absolute; top: 4px; right: 8px; cursor: pointer; color: #8a7f63; font-size: 16px; z-index: 2;
+}
+#scene-drawer .scene-drawer-close:hover { color: #e8c96d; }
+#scene-drawer h3 { font-size: 15px; color: #e8c96d; letter-spacing: 1px; }
+#scene-drawer .meta { font-size: 11px; color: #8a7f63; margin: 2px 0 10px; }
+#scene-drawer .dw-list { overflow-y: auto; min-height: 0; }
+#scene-drawer .dw-slots { display: flex; flex-wrap: wrap; gap: 8px; }
+#scene-drawer .dw-empty { color: #8a7f63; font-style: italic; font-size: 12px; padding: 6px 0; }

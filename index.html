@@ -84,6 +84,22 @@
         </div>
     </div>
 
+    <!-- M15 scene view (T2/T3 overhaul, built incrementally). Hidden until
+         toggled; the classic #layout above stays the working default until the
+         scene is fully playable. Increment 1: continuous backdrop + town vista
+         (buildings on fixed plots from real state) + HUD chips. -->
+    <div id="scene" class="hidden" aria-hidden="true">
+        <div id="scene-bg"></div>
+        <div id="scene-vista"></div>
+        <div id="scene-hud"></div>
+        <div id="scene-drawer" class="hidden">
+            <span class="scene-drawer-close" data-action="closeScenePlot" title="Close">✕</span>
+            <div id="scene-drawer-body"></div>
+        </div>
+        <div id="scene-note">Scene view — town vista preview · buildings appear as art is generated</div>
+    </div>
+    <button id="scene-toggle" data-action="toggleSceneView" title="Toggle the work-in-progress scene view">⛶ Scene view</button>
+
     <script src="game.js"></script>
 </body>
 </html>

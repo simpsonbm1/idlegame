@@ -37,6 +37,40 @@ live in-game render verified:
 - `raw/raw_hero_frostadept.png` — frost adept (ice-blue fur robes, crystal staff)
 - `raw/raw_town_villager.png` — villager (straw hat, vegetable basket)
 
+## Batch 3 — building sprites (2026-07-18)
+All generated via Antigravity (Gemini image generation) by Ben Simpson, from entries
+47–55 of `M15_ASSET_SPECS.md`, style-anchored to `raw_hero_knight_v3.png`. Solid magenta
+background, high-camera three-quarter view; consumed by the runtime pipeline via the
+`bldg_<id>` keys in `SPRITE_SOURCES` and shown on the M15 scene town vista. Files are
+JPEG bytes under a `.png` name (the series convention — the character sprites are the same).
+
+- `raw/raw_bldg_cottage.png` — peasant cottage
+- `raw/raw_bldg_tavern.png` — two-story tavern
+- `raw/raw_bldg_smithy.png` — stone smithy (the active sprite = the "smithy2" variant; see below)
+- `raw/raw_bldg_workshop.png` — carpenter's workshop
+- `raw/raw_bldg_library.png` — scholarly library
+- `raw/raw_bldg_keep.png` — stone keep tower
+- `raw/raw_bldg_apothecary.png` — herbalist's shop
+- `raw/raw_bldg_tower.png` — wizard's tower
+- `raw/raw_bldg_cathedral.png` — cathedral
+
+Smithy variants (3 generated; **option 2 chosen 2026-07-18** — most detailed, warmest,
+strongest forge, and pipeline-clean). Copied to `raw_bldg_smithy.png` as the active
+sprite; the three source variants are kept on disk for reference (user call — may revisit):
+- `raw/raw_bldg_smithy1.png` — option 1 (smoke plume runs off the top edge → a 24% smoke
+  column after keying, so the building seats ~a quarter smaller; retired, kept for reference)
+- `raw/raw_bldg_smithy2.png` — option 2 (chosen; identical bytes to the active `raw_bldg_smithy.png`)
+- `raw/raw_bldg_smithy3.png` — option 3 (no smoke, cold all-stone; alternate, kept for reference)
+
+## Batch 4 — Goblin Raid enemies, in progress (2026-07-18)
+Generated via Antigravity (Gemini image generation) by Ben Simpson, from entries 17–21 of
+`M15_ASSET_SPECS.md`, style-anchored to `raw_hero_knight_v3.png`. Wired automatically via
+existing `SPRITE_SOURCES` keys (battle slots). Remaining in the batch: shaman (19),
+sapper (20), boss Warmaster (21).
+
+- `raw/raw_enemy_goblin_skirmisher.png` — goblin skulker (hooded, twin crude daggers)
+- `raw/raw_enemy_goblin_caster.png` — goblin slinger (whirling sling, pebble pouch)
+
 ## Candidates under evaluation (delete or promote before shipping)
 - `raw/scenebothhalves.png` — **the accepted-direction continuous scene backdrop**
   (spec entry 85 resolution): one widescreen generation, town + wall/gatehouse +

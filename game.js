@@ -2371,6 +2371,13 @@ for (const a of ['guardian', 'fighter', 'ranged', 'mender', 'paladin', 'assassin
     }
 }
 
+// Building sprites (spec entries 47–55) for the M15 scene town vista: keyed by
+// building id, so a raw_bldg_<id>.png dropped into assets/raw/ is live on
+// refresh; renderVista() falls back to a schematic SVG per building until then.
+for (const id of ['cottage', 'tavern', 'smithy', 'library', 'workshop', 'keep', 'apothecary', 'tower', 'cathedral']) {
+    SPRITE_SOURCES['bldg_' + id] = 'raw_bldg_' + id + '.png';
+}
+
 function keyMagentaPixels(p) {
     for (let i = 0; i < p.length; i += 4) {
         const r = p[i], g = p[i + 1], b = p[i + 2];
@@ -2817,6 +2824,217 @@ function refreshVolatileUI() {
 
 // --- M15 Phase 0: the render loop ---
 // tick() is pure simulation; THIS is the only place the DOM gets painted.
+// ==================================================================
+// M15 SCENE VIEW (T2/T3 overhaul, incremental) — a real-state port of
+// tools/scene-prototype.html. Increment 1: continuous backdrop + town
+// vista (buildings on fixed plots, driven by real `buildings` state) +
+// HUD chips. Hidden until #scene-toggle flips it on; the classic
+// #layout stays the working default so the game is always playable.
+// Later increments: hiring crowd as world units, the battle diorama,
+// then retiring the panels. All new render goes through setPanelHtml
+// (memoized) and the volatile/structure split, per Phase 0.
+// ==================================================================
+let sceneOpen = false;
+
+function toggleSceneView() {
+    sceneOpen = !sceneOpen;
+    const scene = document.getElementById('scene');
+    scene.classList.toggle('hidden', !sceneOpen);
+    scene.setAttribute('aria-hidden', String(!sceneOpen));
+    document.body.classList.toggle('scene-open', sceneOpen);
+    document.getElementById('scene-toggle').textContent = sceneOpen ? '⛶ Classic view' : '⛶ Scene view';
+    if (sceneOpen) { layoutScene(); updateUI(); }
+}
+
+// Backdrop: the accepted continuous widescreen scene, cover-fit with the
+// painted wall (~x1318/2752) seated on the 46% seam. It's an opaque
+// painting, so no canvas keying is needed — this also works on file://.
+let sceneBgImg = null;
+const SCENE_WALL_FRAC = 1318 / 2752;   // wall center in the source image
+const TOWN_REGION_FRAC = 0.46;         // town half of the stage width
+function loadScene() {
+    const img = new Image();
+    img.onload = () => { sceneBgImg = img; if (sceneOpen) layoutScene(); };
+    img.onerror = () => {}; // absent — flat ground remains
+    img.src = 'assets/raw/scenebothhalves.png';
+}
+function layoutScene() {
+    const bg = document.getElementById('scene-bg');
+    if (!sceneBgImg || !bg) return;
+    const sw = window.innerWidth, sh = window.innerHeight;
+    const W = sceneBgImg.width, H = sceneBgImg.height;
+    const s = Math.max(sh / H, sw / W);              // cover-fit
+    let ox = sw * 0.46 - SCENE_WALL_FRAC * W * s;    // seat wall on 46%
+    ox = Math.min(0, Math.max(sw - W * s, ox));      // clamp: no edge gaps
+    bg.style.backgroundImage = `url(${sceneBgImg.src})`;
+    bg.style.backgroundSize = `${W * s}px ${H * s}px`;
+    bg.style.backgroundPosition = `${ox}px ${(sh - H * s) / 2}px`;
+}
+window.addEventListener('resize', () => { if (sceneOpen) layoutScene(); });
+
+// Fixed building plots (x,y in % of the town region = left 46% of the
+// stage). Fixed positions — never free placement — is what keeps the
+// vista affordable (spec T3). Positions carried over from the prototype.
+const BUILDING_PLOTS = {
+    cottage:    { x: 22, y: 58 }, tavern:  { x: 43, y: 50 }, smithy:    { x: 66, y: 57 },
+    workshop:   { x: 31, y: 67 }, library: { x: 57, y: 70 }, keep:      { x: 13, y: 45 },
+    apothecary: { x: 80, y: 50 }, tower:   { x: 49, y: 42 }, cathedral: { x: 71, y: 40 }
+};
+
+// Schematic SVG placeholders shown until raw_bldg_<id>.png lands (then
+// renderVista swaps in the real sprite). Ported from the prototype.
+const SBC = { wall: '#8a7a5c', wallD: '#6b5d44', roof: '#7a3f2e', roofD: '#5c2f22',
+              wood: '#4a3826', glow: '#e8a850', stone: '#7d7a6e', dark: '#2a2118', gold: '#b8942f' };
+function svgOpen(w, h) {
+    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg">`;
+}
+const BUILDING_ART = {
+    cottage: () => svgOpen(64, 54) +
+        `<rect x="8" y="26" width="48" height="28" fill="${SBC.wall}"/><rect x="8" y="26" width="48" height="4" fill="${SBC.wallD}"/>
+         <polygon points="4,28 32,6 60,28" fill="${SBC.roof}"/><polygon points="4,28 32,6 32,12 10,28" fill="${SBC.roofD}"/>
+         <rect x="26" y="36" width="12" height="18" fill="${SBC.wood}"/><rect x="44" y="34" width="8" height="8" fill="${SBC.glow}"/></svg>`,
+    tavern: () => svgOpen(84, 62) +
+        `<rect x="6" y="30" width="72" height="32" fill="${SBC.wall}"/><rect x="6" y="30" width="72" height="4" fill="${SBC.wallD}"/>
+         <polygon points="2,32 42,8 82,32" fill="${SBC.roof}"/><polygon points="2,32 42,8 42,14 8,32" fill="${SBC.roofD}"/>
+         <rect x="16" y="40" width="14" height="22" fill="${SBC.wood}"/><rect x="40" y="40" width="10" height="10" fill="${SBC.glow}"/>
+         <rect x="58" y="40" width="10" height="10" fill="${SBC.glow}"/><rect x="66" y="20" width="12" height="10" fill="${SBC.wood}"/></svg>`,
+    smithy: () => svgOpen(72, 60) +
+        `<rect x="6" y="30" width="60" height="30" fill="${SBC.stone}"/><rect x="6" y="30" width="60" height="4" fill="#66635a"/>
+         <polygon points="2,32 36,10 70,32" fill="${SBC.roofD}"/><rect x="52" y="6" width="10" height="20" fill="${SBC.stone}"/>
+         <rect x="16" y="40" width="16" height="20" fill="${SBC.dark}"/><rect x="18" y="44" width="12" height="12" fill="${SBC.glow}"/></svg>`,
+    workshop: () => svgOpen(68, 52) +
+        `<rect x="6" y="22" width="56" height="30" fill="${SBC.wood}"/><polygon points="2,24 34,6 66,24" fill="${SBC.wallD}"/>
+         <rect x="14" y="30" width="14" height="22" fill="${SBC.dark}"/><rect x="38" y="30" width="18" height="12" fill="${SBC.wall}"/></svg>`,
+    library: () => svgOpen(60, 70) +
+        `<rect x="8" y="18" width="44" height="52" fill="${SBC.wall}"/><rect x="8" y="18" width="44" height="4" fill="${SBC.wallD}"/>
+         <polygon points="4,20 30,4 56,20" fill="${SBC.roof}"/><rect x="22" y="28" width="16" height="18" fill="${SBC.glow}"/>
+         <rect x="24" y="52" width="12" height="18" fill="${SBC.wood}"/></svg>`,
+    keep: () => svgOpen(64, 76) +
+        `<rect x="12" y="20" width="40" height="56" fill="${SBC.stone}"/><rect x="12" y="20" width="40" height="5" fill="#66635a"/>
+         <rect x="8" y="10" width="10" height="14" fill="${SBC.stone}"/><rect x="27" y="10" width="10" height="14" fill="${SBC.stone}"/>
+         <rect x="46" y="10" width="10" height="14" fill="${SBC.stone}"/><rect x="24" y="52" width="16" height="24" fill="${SBC.dark}"/></svg>`,
+    apothecary: () => svgOpen(64, 58) +
+        `<rect x="8" y="26" width="48" height="32" fill="${SBC.wall}"/><polygon points="4,28 32,8 60,28" fill="#4f6b3a"/>
+         <rect x="24" y="38" width="12" height="20" fill="${SBC.wood}"/><circle cx="48" cy="22" r="7" fill="#6fae52"/></svg>`,
+    tower: () => svgOpen(52, 82) +
+        `<rect x="14" y="26" width="24" height="56" fill="${SBC.stone}"/><polygon points="8,28 26,4 44,28" fill="#5a4a8a"/>
+         <rect x="20" y="38" width="12" height="14" fill="${SBC.glow}"/><rect x="22" y="64" width="10" height="18" fill="${SBC.dark}"/></svg>`,
+    cathedral: () => svgOpen(76, 84) +
+        `<rect x="10" y="30" width="56" height="54" fill="${SBC.wall}"/><polygon points="6,32 38,6 70,32" fill="${SBC.roof}"/>
+         <rect x="34" y="2" width="8" height="12" fill="${SBC.gold}"/><circle cx="38" cy="40" r="9" fill="${SBC.glow}"/>
+         <rect x="30" y="58" width="16" height="26" fill="${SBC.wood}"/></svg>`
+};
+function buildingArtHtml(id) {
+    const s = sprites['bldg_' + id];
+    if (s) {
+        const h = 104, w = Math.round(h * (s.w / s.h));
+        return `<div class="bldg-sprite" style="width:${w}px;height:${h}px;background-image:url(${s.url})"></div>`;
+    }
+    return (BUILDING_ART[id] || BUILDING_ART.cottage)();
+}
+
+function renderVista() {
+    let html = '';
+    for (const id in BUILDING_PLOTS) {
+        const b = buildings[id];
+        if (!b) continue;
+        const p = BUILDING_PLOTS[id];
+        const leftPct = (p.x / 100) * TOWN_REGION_FRAC * 100; // % of stage width
+        const depth = 1.25 + (p.y / 100) * 1.3;               // nearer = larger
+        const z = Math.round(p.y * 4);
+        const pos = `left:${leftPct.toFixed(2)}%;top:${p.y}%;z-index:${z}`;
+
+        if (getBuildingCap(id) <= 0) {
+            const lvl = levels.find(l => l.caps[id] > 0);
+            html += `<div class="plot locked" style="${pos}">
+                <div class="ghost"><span class="nm">${b.name}</span><br>Unlocks at ${lvl ? lvl.name : '???'}</div></div>`;
+            continue;
+        }
+        const art = `<div class="art" style="transform:scale(${depth.toFixed(2)})">${buildingArtHtml(id)}`;
+        if (b.count === 0) {
+            html += `<div class="plot" style="${pos};opacity:0.4">${art}</div>
+                <span class="tag">${b.name} · build in the Town panel</span></div>`;
+            continue;
+        }
+        html += `<div class="plot" data-action="openScenePlot:${id}" style="${pos}">
+            ${art}<span class="count">×${b.count}</span></div>
+            <span class="tag">${b.name} ×${b.count} · click for residents</span></div>`;
+    }
+    setPanelHtml('scene-vista', html);
+}
+
+function renderSceneHud() {
+    const current = levels[kingdomLevel];
+    const next = levels[kingdomLevel + 1];
+    // Structure only — no per-frame values in the memoized string (gold/gps/
+    // legacy/HP live in fixed spans updated by renderScene each frame), so the
+    // level-up button is never rebuilt mid-click. canAfford flips rarely.
+    const levelBtn = next
+        ? `<button data-action="levelUpKingdom" ${gold >= next.cost ? '' : 'disabled'}>Become a ${next.name} — ${next.cost.toLocaleString()}g</button>`
+        : `<div style="color:#8a7f63;font-size:11px;margin-top:5px">Highest tier reached</div>`;
+    setPanelHtml('scene-hud',
+        `<div class="chip" id="hud-econ">
+            <div class="row"><span class="lbl">Gold</span> <b id="scene-gold">0</b></div>
+            <div class="row"><span class="lbl">Per sec</span> <b id="scene-gps">0</b></div>
+            <div class="row"><span class="lbl">Legacy</span> <b id="scene-legacy" style="color:#b48ae8">0</b></div>
+        </div>
+        <div class="chip" id="hud-level">
+            <span class="lbl">Kingdom · Age ${meta.age}</span><br>
+            <span class="kname">${current.name}</span>
+            ${levelBtn}
+        </div>
+        <div class="chip" id="hud-wall">
+            <span class="lbl">Kingdom</span> <b id="scene-hp-text">—</b>
+            <div class="bar"><div class="fill" id="scene-hp-fill"></div></div>
+        </div>`);
+}
+
+let scenePlotOpen = null;
+function openScenePlot(id) { scenePlotOpen = id; renderScenePlotDrawer(); document.getElementById('scene-drawer').classList.remove('hidden'); }
+function closeScenePlot() { scenePlotOpen = null; document.getElementById('scene-drawer').classList.add('hidden'); }
+function renderScenePlotDrawer() {
+    const b = buildings[scenePlotOpen];
+    if (!b) return;
+    const isHp = b.type === 'hpregen';
+    const totalSlots = b.count * b.slotsPerBuilding;
+    const sorted = b.residents.map((r, i) => ({ ...r, originalIndex: i })).sort((a, b) => a.income - b.income);
+    let slots = '';
+    for (const r of sorted) {
+        const letter = r.name ? r.name[0].toUpperCase() : '?';
+        const injured = isInjured(r);
+        const val = isHp ? `${r.income} hp/s` : `${r.income} g/s`;
+        const rinfo = rarityTiers[r.rarity] || rarityTiers.common;
+        slots += `<div class="portrait portrait--${r.rarity || 'common'}${injured ? ' portrait--injured' : ''}"
+            title="${r.name} (${rinfo.name}) — ${val}&#10;Click to dismiss" data-action="fireResident:${scenePlotOpen}:${r.originalIndex}">
+            ${injured ? '<span class="portrait-letter">✚</span>' : portraitInner('town_' + (r.typeId || 'villager'), letter)}
+            <span class="portrait-stat">${r.income}</span></div>`;
+    }
+    for (let i = b.residents.length; i < totalSlots; i++)
+        slots += `<div class="portrait portrait--empty" title="Empty slot"><span class="portrait-letter">·</span></div>`;
+    setPanelHtml('scene-drawer-body',
+        `<h3>${b.name} ×${b.count}</h3>
+         <div class="meta">${b.residents.length} / ${totalSlots} residents · hire from the Town Square</div>
+         <div class="dw-list"><div class="dw-slots">${slots || '<div class="dw-empty">No resident slots.</div>'}</div></div>`);
+}
+
+function sceneSetText(id, t) { const el = document.getElementById(id); if (el) el.textContent = t; }
+function renderScene() {
+    if (!sceneOpen) return;
+    renderSceneHud();
+    renderVista();
+    if (scenePlotOpen) renderScenePlotDrawer();
+    // Volatile numbers, updated in place each frame (kept out of memoized strings).
+    sceneSetText('scene-gold', Math.floor(displayedGold === null ? gold : displayedGold).toLocaleString());
+    sceneSetText('scene-gps', Math.round(goldPerSecond * econIncomeMult()).toLocaleString());
+    sceneSetText('scene-legacy', meta.legacy.toLocaleString());
+    const hpFill = document.getElementById('scene-hp-fill');
+    if (hpFill) {
+        const max = getKingdomHpMax();
+        hpFill.style.width = Math.max(0, Math.min(100, kingdomHP / max * 100)) + '%';
+        sceneSetText('scene-hp-text', Math.ceil(kingdomHP).toLocaleString() + ' / ' + max.toLocaleString());
+    }
+}
+
 // A requestAnimationFrame loop capped at RENDER_INTERVAL_MS repaints
 // everything: memoized panels only touch the DOM when content changed,
 // battle slots update in place, and the FX queue drains under its budget.
@@ -2851,6 +3069,7 @@ function renderAll() {
     renderRecruitPool();
     renderBuildings();
     renderHeroRecruitPool();
+    renderScene(); // M15 scene view (no-op unless toggled open)
 
     refreshVolatileUI();
 
@@ -2911,7 +3130,10 @@ const UI_ACTIONS = {
     buyUpgrade:      id => buyUpgrade(id),
     foundNewAge:     () => foundNewAge(),
     continueEndless: () => continueEndless(),
-    setReduceMotion: v => { meta.reduceMotion = v === '1'; saveMeta(); updateUI(); }
+    setReduceMotion: v => { meta.reduceMotion = v === '1'; saveMeta(); updateUI(); },
+    toggleSceneView: () => toggleSceneView(),
+    openScenePlot:   id => openScenePlot(id),
+    closeScenePlot:  () => closeScenePlot()
 };
 
 function runUiAction(actionStr) {
@@ -2962,6 +3184,7 @@ function renderFrame(ts) {
 
 loadSprites(); // async — sprites pop into portraits/slots as each file processes
 loadChrome();  // async — panel frame chrome pops in once the texture is keyed
+loadScene();   // async — M15 scene backdrop; the scene view is opt-in via #scene-toggle
 bindActionDispatch(); // delegated data-action dispatch — see UI_ACTIONS
 loadMeta();
 loadGame();
