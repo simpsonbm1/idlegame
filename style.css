@@ -1638,6 +1638,128 @@ body.scene-open #scene-toggle { color: #e8c96d; border-color: #7a6428; }
 #hud-wall .bar { height: 9px; background: #2a1512; border: 1px solid #171008; margin-top: 4px; }
 #hud-wall .fill { height: 100%; background: linear-gradient(#7dc95e, #4e9636); transition: width 0.3s; }
 
+/* ---------- world units (crowd + battle) — increment 2/3 ---------- */
+#scene-crowd, #scene-battle { position: absolute; inset: 0; z-index: 21; }
+#scene-crowd { pointer-events: none; }   /* units re-enable their own */
+#scene-battle { pointer-events: none; }
+#scene-fx { position: absolute; inset: 0; z-index: 60; pointer-events: none; }
+#scene-fx .fx-float { position: absolute; }
+
+/* A unit standing in the world: wrapper anchored at the FEET point.
+   No transform on the wrapper — the fx-lunge classes animate transform
+   and would fight a centering translate. Children are px-offset instead. */
+.sunit { position: absolute; pointer-events: auto; }
+.sunit .shadow { position: absolute; background: rgba(10,8,4,0.42); border-radius: 50%;
+                 filter: blur(2px); pointer-events: none; }
+.sunit .ring { position: absolute; border-radius: 50%; border: 2px solid transparent;
+               pointer-events: none; }
+.sunit .ring--common    { border-color: rgba(160,160,160,0.55); }
+.sunit .ring--rare      { border-color: rgba(90,150,220,0.75); }
+.sunit .ring--epic      { border-color: rgba(170,100,220,0.8); }
+.sunit .ring--legendary { border-color: rgba(232,190,80,0.9); }
+.sunit .sprite { position: absolute; image-rendering: pixelated;
+                 animation: sunit-bob 2.6s ease-in-out infinite;
+                 transform-origin: 50% 100%; transition: filter 0.15s; }
+@keyframes sunit-bob { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.014); } }
+.sunit .letter-chip { position: absolute; width: 34px; height: 40px; line-height: 40px;
+                 text-align: center; font-size: 19px; color: #d8cba8;
+                 background: rgba(24,20,10,0.85); border: 1px solid #4a3a18; border-radius: 4px; }
+.sunit .plate { position: absolute; width: 150px; text-align: center; white-space: nowrap;
+                font-size: 11px; color: #f0d890; pointer-events: none; line-height: 1.35;
+                text-shadow: 1px 1px 0 #171008, -1px 1px 0 #171008, 1px -1px 0 #171008, -1px -1px 0 #171008; }
+.sunit .plate .sub { font-size: 10px; color: #d8cba8; }
+.sunit .plate .cost { font-size: 10px; color: #e8c96d; }
+.sunit .hp { width: 56px; height: 6px; background: #2a1512; border: 1px solid #171008;
+             margin: 2px auto 0; }
+.sunit .hp i { display: block; height: 100%; }
+.sunit .hp--hero i  { background: linear-gradient(#7dc95e, #4e9636); }
+.sunit .hp--enemy i { background: linear-gradient(#d95c4a, #a83a2c); }
+
+/* recruits: hoverable, hireable */
+.sunit--recruit { cursor: pointer; }
+.sunit--recruit:hover .sprite, .sunit--recruit:hover .letter-chip { filter: brightness(1.22); }
+.sunit .hint { position: absolute; width: 150px; text-align: center; font-size: 10px;
+               pointer-events: none; opacity: 0; transition: opacity 0.12s; }
+.sunit .hint span { padding: 1px 8px; background: rgba(24,20,10,0.92);
+               border: 1px solid #7a6428; border-radius: 3px; color: #e8c96d; }
+.sunit--recruit:hover .hint { opacity: 1; }
+.sunit--cant { opacity: 0.55; }
+.sunit--cant .hint span { border-color: #4a3a18; color: #8a7f63; }
+
+/* battle units: armed-to-dismiss + state tints */
+.sunit--hero { cursor: pointer; }
+.sunit--armed .sprite { filter: brightness(1.25) drop-shadow(0 0 6px rgba(224,80,64,0.9)); }
+.sunit--dead .sprite, .sunit--dead .letter-chip { filter: grayscale(1) brightness(0.5); }
+.sunit--chilled .sprite { filter: sepia(0.4) hue-rotate(170deg) saturate(2.2) brightness(0.95); }
+.sunit .chillbadge { position: absolute; font-size: 12px; pointer-events: none; display: none; }
+.sunit--chilled .chillbadge { display: block; }
+.sunit--boss .plate { font-size: 12.5px; color: #ffb0a0; }
+
+/* scene overrides for the shared FX classes: flash the SPRITE, not the
+   wrapper box (the classic rules animate background-color on a card). */
+.sunit.fx-hit { animation: none; }
+.sunit.fx-hit .sprite, .sunit.fx-hit .letter-chip { animation: sunit-hit 0.25s ease-out; }
+@keyframes sunit-hit { 0% { filter: brightness(2.1) saturate(1.6); } 100% { filter: none; } }
+.sunit.fx-heal-glow { animation: none; }
+.sunit.fx-heal-glow .sprite, .sunit.fx-heal-glow .letter-chip { animation: sunit-heal 0.5s ease-out; }
+@keyframes sunit-heal { 0% { filter: brightness(1.6) drop-shadow(0 0 7px rgba(120,220,110,0.95)); } 100% { filter: none; } }
+.sunit.fx-revive { animation: none; }
+.sunit.fx-revive .sprite, .sunit.fx-revive .letter-chip { animation: sunit-revive 0.9s ease-out; }
+@keyframes sunit-revive { 0% { filter: brightness(2.4) drop-shadow(0 0 12px rgba(232,190,80,1)); } 100% { filter: none; } }
+.sunit.fx-death-anim { animation: none; }
+.sunit.fx-death-anim .sprite, .sunit.fx-death-anim .letter-chip { animation: sunit-die 0.5s ease-out forwards; }
+@keyframes sunit-die { 0% { filter: brightness(2.2); } 100% { filter: grayscale(1) brightness(0.4); opacity: 0.35; } }
+
+/* scene death ghost: a detached sprite copy fading out where the hero fell */
+.sghost { position: absolute; image-rendering: pixelated; pointer-events: none;
+          animation: sghost-fade 1.1s ease-out forwards; }
+@keyframes sghost-fade { 0% { opacity: 0.9; } 100% { opacity: 0; transform: translateY(-26px); } }
+
+/* battlefield ground tiles */
+.btile { position: absolute; border-radius: 50%; pointer-events: none;
+         border: 1px solid transparent; }
+.btile--hero  { background: rgba(233,196,106,0.09); border-color: rgba(233,196,106,0.3); }
+.btile--enemy { background: rgba(216,92,74,0.09);  border-color: rgba(216,92,74,0.3); }
+
+/* escalation wash over the battlefield half */
+#scene-esc-wash { position: absolute; top: 0; bottom: 0; left: 46%; right: 0; z-index: 2;
+                  pointer-events: none; opacity: 0; transition: opacity 0.6s;
+                  background: linear-gradient(rgba(160,30,20,0.0), rgba(160,30,20,0.55) 70%); }
+
+/* left-stack chips: town square arrivals + hero muster */
+#scene-square-chip button { margin: 2px 2px 0 0; background: #2a2410; color: #c9a84c;
+    border: 1px solid #5a4a1e; border-radius: 3px; font-family: inherit;
+    font-size: 10px; padding: 1px 7px; cursor: pointer; }
+#scene-square-chip button.on { color: #7db4e8; border-color: #4a6a8a; }
+#scene-hud .chip .row { position: relative; }   /* badge floats anchor here */
+#scene-raid-chip { left: 73%; top: 12px; transform: translateX(-50%); text-align: center;
+                   min-width: 280px; max-width: 380px; }
+#scene-raid-chip .rname { color: #e8c96d; font-size: 15px; letter-spacing: 1px; }
+#scene-raid-chip .resc { color: #e0a050; font-style: italic; font-size: 12px; }
+#scene-raid-chip .rsiege { color: #e06050; font-size: 12px; animation: siegePulse 1.1s ease-in-out infinite; }
+#scene-raid-chip .rvict { color: #9dc97e; font-size: 11.5px; margin-top: 2px; }
+@keyframes siegePulse { 50% { opacity: 0.45; } }
+
+/* scene-scoped z bumps so body-level FX read above the full-screen scene */
+body.scene-open #fx-vignette { z-index: 1150; }
+body.scene-open #fx-levelup-banner { z-index: 1150; }
+/* The run-summary / victory overlay must eclipse the scene (z 500) exactly as
+   it eclipses the classic layout — otherwise the frozen, ended run stays
+   interactive underneath it (found live 2026-07-18: heroes hired into an
+   ended Age because the scene covered the summary). Above the toggle too. */
+body.scene-open #run-summary-overlay { z-index: 1250; }
+
+@media (prefers-reduced-motion: reduce) {
+    .sunit .sprite { animation: none; }
+    .sunit.fx-hit .sprite, .sunit.fx-heal-glow .sprite, .sunit.fx-revive .sprite,
+    .sunit.fx-death-anim .sprite, .sghost { animation: none; }
+    #scene-raid-chip .rsiege { animation: none; }
+}
+body.reduce-motion .sunit .sprite { animation: none; }
+body.reduce-motion .sunit.fx-hit .sprite, body.reduce-motion .sunit.fx-heal-glow .sprite,
+body.reduce-motion .sunit.fx-revive .sprite, body.reduce-motion .sunit.fx-death-anim .sprite { animation: none; }
+body.reduce-motion #scene-raid-chip .rsiege { animation: none; }
+
 /* ---------- residents drawer (reuses classic slot portraits) ---------- */
 #scene-drawer {
     position: absolute; left: 20px; top: 14%; width: 320px; max-height: 74%;

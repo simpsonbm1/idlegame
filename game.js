@@ -338,7 +338,8 @@ function loadMeta() {
         lessonsGranted: state.lessonsGranted ?? false,
         victory: state.victory ?? false,
         gameSeconds: state.gameSeconds ?? 0,
-        reduceMotion: state.reduceMotion ?? false
+        reduceMotion: state.reduceMotion ?? false,
+        sceneView: state.sceneView ?? false // M15 scene/classic choice (additive)
     };
 }
 
@@ -2226,61 +2227,112 @@ function drainFx() {
     }
     fxQueue.length = 0;
 
+    // Scene routing: when the scene view is open, the same events also land on
+    // the scene's world units (sceneUnitElByKey) and chips. Classic targets
+    // keep receiving theirs — they stay rendered (covered, not display:none),
+    // so their animations still run and self-remove. Geometry capture rule
+    // holds for the scene too: buildSceneBattle runs later in this same frame.
+    const sceneEl = key => {
+        if (!sceneOpen) return null;
+        const el = sceneUnitElByKey.get(key);
+        return el && el.isConnected ? el : null;
+    };
+
     // Deaths first: ghosts must capture slot geometry BEFORE this frame's
     // squad render rebuilds the structure (drainFx runs at the top of
     // renderAll for exactly this reason).
     for (const fx of deaths) {
         const slot = slotElByKey.get(fx.key);
-        if (!slot || !slot.isConnected) continue;
-        if (fx.side === 'hero') spawnDeathGhost(slot, fx.name);
-        else flashClass(slot, 'fx-death-anim');
+        if (slot && slot.isConnected) {
+            if (fx.side === 'hero') spawnDeathGhost(slot, fx.name);
+            else flashClass(slot, 'fx-death-anim');
+        }
+        const su = sceneEl(fx.key);
+        if (su) {
+            if (fx.side === 'hero') spawnSceneGhost(su);
+            else flashClass(su, 'fx-death-anim');
+        }
     }
     for (const fx of revives) {
         flashClass(slotElByKey.get(fx.key), 'fx-revive');
+        flashClass(sceneEl(fx.key), 'fx-revive');
     }
     for (const [key, side] of lunges) {
         const slot = slotElByKey.get(key);
         if (slot && slot.isConnected) flashClass(slot, side === 'hero' ? 'fx-lunge-right' : 'fx-lunge-left');
+        flashClass(sceneEl(key), side === 'hero' ? 'fx-lunge-right' : 'fx-lunge-left');
     }
     for (const [key, amount] of dmg) {
         const slot = slotElByKey.get(key);
-        if (!slot || !slot.isConnected) continue;
-        flashClass(slot, 'fx-hit');
-        spawnFloatAt(slot, '-' + Math.round(amount).toLocaleString(), 'fx-float--dmg');
+        if (slot && slot.isConnected) {
+            flashClass(slot, 'fx-hit');
+            spawnFloatAt(slot, '-' + Math.round(amount).toLocaleString(), 'fx-float--dmg');
+        }
+        const su = sceneEl(key);
+        if (su) {
+            flashClass(su, 'fx-hit');
+            spawnSceneFloatAt(su, '-' + Math.round(amount).toLocaleString(), 'fx-float--dmg');
+        }
     }
     for (const [key, amount] of heal) {
         const slot = slotElByKey.get(key);
-        if (!slot || !slot.isConnected) continue;
-        flashClass(slot, 'fx-heal-glow');
-        spawnFloatAt(slot, '+' + Math.round(amount).toLocaleString(), 'fx-float--heal');
+        if (slot && slot.isConnected) {
+            flashClass(slot, 'fx-heal-glow');
+            spawnFloatAt(slot, '+' + Math.round(amount).toLocaleString(), 'fx-float--heal');
+        }
+        const su = sceneEl(key);
+        if (su) {
+            flashClass(su, 'fx-heal-glow');
+            spawnSceneFloatAt(su, '+' + Math.round(amount).toLocaleString(), 'fx-float--heal');
+        }
     }
     if (kingdomHit > 0) {
         flashClass(document.getElementById('kingdom-hp'), 'fx-kingdom-hit');
-        flashClass(document.getElementById('game'), 'fx-shake');
+        flashClass(document.getElementById(sceneOpen ? 'scene' : 'game'), 'fx-shake');
         flashClass(fxVignette(), 'fx-vignette-pulse');
+        if (sceneOpen) flashClass(document.getElementById('hud-wall'), 'fx-kingdom-hit');
     }
-    if (injury) flashClass(document.getElementById('town-buildings'), 'fx-injury-flash');
+    if (injury) {
+        flashClass(document.getElementById('town-buildings'), 'fx-injury-flash');
+        if (sceneOpen) flashClass(document.getElementById('scene-vista'), 'fx-injury-flash');
+    }
     const raidBar = document.getElementById('raid-status-bar');
-    if (raidStart) flashClass(raidBar, 'fx-raid-slam');
+    if (raidStart) {
+        flashClass(raidBar, 'fx-raid-slam');
+        // The scene raid chip is rebuilt later this frame (state flipped to
+        // battle) — flash it AFTER the panels settle, like the built-flash.
+        if (sceneOpen) postRenderFlashes.push({ selector: '#scene-raid-chip', cls: 'fx-raid-slam' });
+    }
     if (repelledLoot > 0) {
         flashClass(raidBar, 'fx-repelled-flash');
         spawnFloatAt(raidBar, '+' + Math.round(repelledLoot).toLocaleString() + 'g', 'fx-float--loot');
+        if (sceneOpen) {
+            postRenderFlashes.push({ selector: '#scene-raid-chip', cls: 'fx-repelled-flash' });
+            const chip = document.getElementById('scene-raid-chip');
+            if (chip) spawnSceneFloatAt(chip, '+' + Math.round(repelledLoot).toLocaleString() + 'g', 'fx-float--loot');
+        }
     }
     if (legacyGain > 0) {
         const legacyEl = document.getElementById('legacy-display');
         spawnBadgeFloat(legacyEl && legacyEl.parentElement, '+' + legacyGain.toLocaleString(), 'fx-float--legacy');
+        const sceneLegacy = document.getElementById('scene-legacy');
+        if (sceneOpen && sceneLegacy) spawnBadgeFloat(sceneLegacy.parentElement, '+' + legacyGain.toLocaleString(), 'fx-float--legacy');
     }
     if (hireGold > 0) {
         const gpsEl = document.getElementById('gps-display');
         spawnBadgeFloat(gpsEl && gpsEl.parentElement, `+${Math.round(hireGold * 10) / 10} g/s`, 'fx-float--gps');
+        const sceneGps = document.getElementById('scene-gps');
+        if (sceneOpen && sceneGps) spawnBadgeFloat(sceneGps.parentElement, `+${Math.round(hireGold * 10) / 10} g/s`, 'fx-float--gps');
     }
     if (hireHp > 0) {
         spawnBadgeFloat(document.getElementById('kingdom-hp'), `+${Math.round(hireHp * 10) / 10} hp/s`, 'fx-float--gps');
+        if (sceneOpen) spawnBadgeFloat(document.getElementById('hud-wall'), `+${Math.round(hireHp * 10) / 10} hp/s`, 'fx-float--gps');
     }
     // Building flash targets memoized-panel content: queue for AFTER the
     // panel render this frame (the rebuild would wipe a class set here).
     for (const id of builtIds) {
         postRenderFlashes.push({ selector: `.btn-building[data-building-id="${id}"]`, cls: 'fx-built' });
+        if (sceneOpen) postRenderFlashes.push({ selector: `#scene-vista .plot[data-bldg="${id}"]`, cls: 'fx-built' });
     }
     if (levelUpLabel) spawnLevelUpBanner(levelUpLabel);
 }
@@ -2309,6 +2361,7 @@ function spawnLevelUpBanner(levelName) {
 // access is blocked on file:// and the loader degrades to letters there.
 const SPRITE_MAX_H = 160;
 const sprites = {}; // key -> { url, w, h, ax, ay } (foot anchor in output px)
+let spriteLoadBlocked = false; // file:// canvas taint — scene shows a serve-over-http notice
 
 const SPRITE_SOURCES = {
     hero_guardian: 'raw_hero_knight_v3.png',
@@ -2443,7 +2496,7 @@ function loadSprites() {
                     if (!blob) return;
                     sprites[key] = { url: URL.createObjectURL(blob), w: s.w, h: s.h, ax: s.ax, ay: s.ay };
                 }, 'image/png');
-            } catch (e) { /* file:// canvas taint — letter portraits remain */ }
+            } catch (e) { spriteLoadBlocked = true; /* file:// canvas taint — letter portraits remain */ }
         };
         img.onerror = () => {}; // not generated yet — letter portraits remain
         img.src = 'assets/raw/' + SPRITE_SOURCES[key];
@@ -2843,6 +2896,8 @@ function toggleSceneView() {
     scene.setAttribute('aria-hidden', String(!sceneOpen));
     document.body.classList.toggle('scene-open', sceneOpen);
     document.getElementById('scene-toggle').textContent = sceneOpen ? '⛶ Classic view' : '⛶ Scene view';
+    meta.sceneView = sceneOpen; // persisted choice (additive meta field)
+    saveMeta();
     if (sceneOpen) { layoutScene(); updateUI(); }
 }
 
@@ -2952,13 +3007,13 @@ function renderVista() {
         }
         const art = `<div class="art" style="transform:scale(${depth.toFixed(2)})">${buildingArtHtml(id)}`;
         if (b.count === 0) {
-            html += `<div class="plot" style="${pos};opacity:0.4">${art}</div>
-                <span class="tag">${b.name} · build in the Town panel</span></div>`;
+            html += `<div class="plot" data-action="openScenePlot:${id}" data-bldg="${id}" style="${pos};opacity:0.4">${art}</div>
+                <span class="tag">${b.name} · click to build</span></div>`;
             continue;
         }
-        html += `<div class="plot" data-action="openScenePlot:${id}" style="${pos}">
+        html += `<div class="plot" data-action="openScenePlot:${id}" data-bldg="${id}" style="${pos}">
             ${art}<span class="count">×${b.count}</span></div>
-            <span class="tag">${b.name} ×${b.count} · click for residents</span></div>`;
+            <span class="tag">${b.name} ×${b.count} · click to manage</span></div>`;
     }
     setPanelHtml('scene-vista', html);
 }
@@ -2967,11 +3022,50 @@ function renderSceneHud() {
     const current = levels[kingdomLevel];
     const next = levels[kingdomLevel + 1];
     // Structure only — no per-frame values in the memoized string (gold/gps/
-    // legacy/HP live in fixed spans updated by renderScene each frame), so the
-    // level-up button is never rebuilt mid-click. canAfford flips rarely.
+    // legacy/HP and every countdown live in fixed spans updated by renderScene
+    // each frame), so buttons are never rebuilt mid-click. canAfford flips rarely.
     const levelBtn = next
         ? `<button data-action="levelUpKingdom" ${gold >= next.cost ? '' : 'disabled'}>Become a ${next.name} — ${next.cost.toLocaleString()}g</button>`
         : `<div style="color:#8a7f63;font-size:11px;margin-top:5px">Highest tier reached</div>`;
+
+    // Town Square chip: arrival countdowns + auto-hire (structure changes only
+    // on unlock or auto-hire mode click — the ticking texts are volatile spans).
+    const autoOptions = [
+        { value: null, label: 'Off' }, { value: 'common', label: 'Common+' },
+        { value: 'rare', label: 'Rare+' }, { value: 'epic', label: 'Epic+' },
+        { value: 'legendary', label: 'Legendary' }
+    ];
+    const autoHtml = autoRecruitAvailable()
+        ? `<div style="margin-top:3px">${autoOptions.map(o =>
+            `<button class="${autoRecruitRarity === o.value ? 'on' : ''}" data-action="setAutoRecruit:${o.value === null ? 'null' : o.value}">${o.label}</button>`).join('')}</div>`
+        : '';
+    const heroLine = kingdomLevel >= RAID_TRIGGER_LEVEL
+        ? `<div class="row"><span class="lbl">Heroes</span> <span id="scene-hero-timer" style="font-size:11px"></span></div>`
+        : '';
+    const squareChip = `<div class="chip" id="scene-square-chip" style="left:14px;top:212px;min-width:150px;font-size:11px">
+        <div class="row"><span class="lbl">Town Square</span> <span id="scene-pool-timer" style="font-size:11px"></span></div>
+        ${autoHtml}${heroLine}</div>`;
+
+    // Raid chip over the battlefield — mirrors renderRaidStatusBar's states.
+    let raidChip = '';
+    if (currentInvasion) {
+        raidChip = `<div class="chip" id="scene-raid-chip">
+            <div class="rname">${currentInvasion.name}</div>
+            <div style="font-size:11px;color:#8a7f63">${currentInvasion.finalSiege ? `Phase ${currentInvasion.phase} of ${FINAL_SIEGE_PHASES.length}` : 'Battle in progress'}</div>
+            ${escalationMult(currentInvasion) > 1 ? `<div class="resc" id="scene-esc-line"></div>` : ''}
+            ${!squadAlive(heroSquad) ? `<div class="rsiege">The Kingdom is under siege!</div>` : ''}
+            ${lastVictory ? `<div class="rvict">Repelled: ${lastVictory.name} +${lastVictory.loot.toLocaleString()}g${lastVictory.legacy ? ` · +${lastVictory.legacy.toLocaleString()} Legacy` : ''}</div>` : ''}
+        </div>`;
+    } else if (raidsStarted) {
+        const nextName = finalSiegeCountdown === 0 ? 'THE FINAL SIEGE' : getInvasionName(raidTierIndex, tierWave);
+        raidChip = `<div class="chip" id="scene-raid-chip">
+            <div class="rname">Next: ${nextName}</div>
+            <div style="font-size:11px;color:#8a7f63">Arrives in <span id="scene-raid-timer"></span></div>
+            ${finalSiegeCountdown > 0 ? `<div class="rsiege">A herald arrives: the Final Siege approaches — ${finalSiegeCountdown} raid${finalSiegeCountdown === 1 ? '' : 's'} remain${finalSiegeCountdown === 1 ? 's' : ''}!</div>` : ''}
+            ${lastVictory ? `<div class="rvict">Repelled: ${lastVictory.name} +${lastVictory.loot.toLocaleString()}g${lastVictory.legacy ? ` · +${lastVictory.legacy.toLocaleString()} Legacy` : ''}</div>` : ''}
+        </div>`;
+    }
+
     setPanelHtml('scene-hud',
         `<div class="chip" id="hud-econ">
             <div class="row"><span class="lbl">Gold</span> <b id="scene-gold">0</b></div>
@@ -2983,10 +3077,233 @@ function renderSceneHud() {
             <span class="kname">${current.name}</span>
             ${levelBtn}
         </div>
+        ${squareChip}
         <div class="chip" id="hud-wall">
             <span class="lbl">Kingdom</span> <b id="scene-hp-text">—</b>
             <div class="bar"><div class="fill" id="scene-hp-fill"></div></div>
-        </div>`);
+        </div>
+        ${raidChip}`);
+}
+
+// ---------- world units: a character standing at a feet point ----------
+// Wrapper div anchored at the feet (left/top %); sprite/letter, shadow, and
+// rarity ring are px-offset children computed from the sprite's foot anchor.
+// No transform on the wrapper, so the shared fx-lunge classes animate safely.
+function sceneUnitBits(sKey, h, letter, rarity) {
+    const s = sprites[sKey];
+    let inner, sw;
+    if (s) {
+        const scale = h / s.h;
+        sw = s.w * scale;
+        inner = `<img class="sprite" src="${s.url}" style="height:${h.toFixed(0)}px;left:${(-s.ax * scale).toFixed(1)}px;top:${(-s.ay * scale).toFixed(1)}px">`;
+    } else {
+        sw = 40;
+        inner = `<span class="letter-chip" style="left:-17px;top:-42px">${letter}</span>`;
+    }
+    const shW = Math.max(26, sw * 0.62);
+    let html = `<span class="shadow" style="left:${(-shW / 2).toFixed(1)}px;top:-7px;width:${shW.toFixed(0)}px;height:14px"></span>`;
+    if (rarity) {
+        const rw = Math.max(34, sw * 0.72);
+        html += `<span class="ring ring--${rarity}" style="left:${(-rw / 2).toFixed(1)}px;top:-9px;width:${rw.toFixed(0)}px;height:18px"></span>`;
+    }
+    return { html: html + inner, sw };
+}
+
+// ---------- increment 2: the hiring crowd ----------
+// Recruits stand in the town square as world units. Memoized via setPanelHtml:
+// the string carries pool identity + sprite readiness (blob URLs appear in it),
+// so it rebuilds exactly on pool change / hire / sprite load. Affordability is
+// a volatile class toggled per frame — never part of the string.
+const TOWN_CROWD_SPOTS = [[0.06, 0.865], [0.16, 0.915], [0.26, 0.878], [0.35, 0.935], [0.12, 0.955]];
+const HERO_CROWD_SPOTS = [[0.56, 0.87], [0.67, 0.905], [0.78, 0.868], [0.88, 0.92], [0.62, 0.95]];
+
+function renderSceneCrowd() {
+    let html = '';
+    recruitPool.forEach((recruit, i) => {
+        const spot = TOWN_CROWD_SPOTS[i % TOWN_CROWD_SPOTS.length];
+        const x = spot[0] * TOWN_REGION_FRAC * 100, y = spot[1] * 100;
+        const h = 74 + (spot[1] - 0.84) * 170;
+        const type = recruitTypes[recruit.typeId];
+        const tier = rarityTiers[recruit.rarity];
+        const b = buildings[recruit.buildingId];
+        const isHp = b.type === 'hpregen';
+        const valueLabel = isHp
+            ? `${Math.max(0.1, Math.round(type.incomeMin * tier.incomeMult * 10) / 10)}-${Math.max(0.1, Math.round(type.incomeMax * tier.incomeMult * 10) / 10)} hp/s`
+            : `${Math.max(1, Math.floor(type.incomeMin * tier.incomeMult))}-${Math.floor(type.incomeMax * tier.incomeMult)} g/s`;
+        let hint = `Hire — ${recruit.cost.toLocaleString()}g`;
+        if (getBuildingCap(recruit.buildingId) <= 0) hint = `Needs ${b.name}`;
+        else if (b.residents.length >= b.count * b.slotsPerBuilding) hint = 'No open slots';
+        const bits = sceneUnitBits('town_' + recruit.typeId, h, recruit.name[0].toUpperCase(), recruit.rarity);
+        html += `<div class="sunit sunit--recruit" data-action="hireRecruit:${recruit.id}" data-recruit-id="${recruit.id}"
+            style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%;z-index:${Math.round(y * 4)}">
+            ${bits.html}
+            <div class="plate" style="left:-75px;top:6px">${recruit.name}
+                <div class="sub" style="color:${tier.color}">${tier.name} · ${valueLabel}</div>
+                <div class="cost">${recruit.cost.toLocaleString()}g</div></div>
+            <div class="hint" style="left:-75px;top:${(-h - 26).toFixed(0)}px"><span>${hint}</span></div>
+        </div>`;
+    });
+    if (kingdomLevel >= RAID_TRIGGER_LEVEL) {
+        const hasSlot = heroSquad.some(s => s === null);
+        heroRecruitPool.forEach((recruit, i) => {
+            const spot = HERO_CROWD_SPOTS[i % HERO_CROWD_SPOTS.length];
+            const x = spot[0] * TOWN_REGION_FRAC * 100, y = spot[1] * 100;
+            const h = 82 + (spot[1] - 0.84) * 170;
+            const tier = rarityTiers[recruit.rarity];
+            const hint = hasSlot ? `Hire — ${recruit.cost.toLocaleString()}g` : 'Squad full';
+            const bits = sceneUnitBits(heroSpriteKey(recruit.archetypeKey, recruit.rarity), h, recruit.name[0].toUpperCase(), recruit.rarity);
+            html += `<div class="sunit sunit--recruit" data-action="hireHero:${recruit.id}" data-hero-id="${recruit.id}"
+                style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%;z-index:${Math.round(y * 4)}">
+                ${bits.html}
+                <div class="plate" style="left:-75px;top:6px">${recruit.name}
+                    <div class="sub" style="color:${tier.color}">${tier.name}</div>
+                    <div class="cost">${recruit.cost.toLocaleString()}g</div></div>
+                <div class="hint" style="left:-75px;top:${(-h - 26).toFixed(0)}px"><span>${hint}</span></div>
+            </div>`;
+        });
+    }
+    setPanelHtml('scene-crowd', html);
+}
+
+// ---------- increment 3: the battle diorama ----------
+// Game grid → field geometry: a unit's game ROW picks its screen column
+// (hero front row nearest the enemies, and vice versa), its game COL picks
+// the depth lane (top lane = col 0, farther = higher + smaller). All in
+// stage-% so the layout survives resizes.
+function sceneHeroRowX(r)  { return 62 - r * 5; }     // r0 front … r3 rear (toward wall)
+function sceneEnemyRowX(r) { return 74 + r * 5.5; }   // r0 front … r3 rear (toward treeline)
+function sceneLaneY(c, n)  { return (n >= 4 ? [63, 73, 83, 92] : [67, 78, 90])[c]; }
+function sceneLaneH(c)     { return 90 + c * 13; }
+
+const sceneUnitElByKey = new Map(); // unit._domKey -> scene wrapper (FX routing)
+const sceneBattleLive = [];         // per-unit bindings for the per-frame update
+
+function sceneBattleSig(dims, enemyGrid, enemies) {
+    let sig = dims.rows + 'x' + dims.cols + '|' + enemyGrid.rows + 'x' + enemyGrid.cols
+        + '|' + (kingdomLevel >= RAID_TRIGGER_LEVEL ? 1 : 0) + '|';
+    for (const u of heroSquad) sig += u ? unitDomKey(u) + (sprites[unitSpriteKey(u)] ? 's' : 'l') + ',' : 'e,';
+    sig += '/';
+    for (const u of enemies) sig += u ? unitDomKey(u) + (sprites[unitSpriteKey(u)] ? 's' : 'l') + ',' : 'e,';
+    return sig;
+}
+
+function sceneBattleUnitHtml(unit, index, xPct, yPct, h, isHero) {
+    const key = unitDomKey(unit);
+    const boss = !isHero && unit.spriteKey && unit.spriteKey.startsWith('boss_');
+    if (boss) h = Math.min(155, h * 1.28);
+    const bits = sceneUnitBits(unitSpriteKey(unit), h, unit.name[0].toUpperCase(), isHero ? unit.rarity : null);
+    const cls = 'sunit' + (isHero ? ' sunit--hero' : ' sunit--enemy') + (boss ? ' sunit--boss' : '');
+    const action = isHero ? ` data-action="sceneHeroClick:${index}" data-hidx="${index}"` : '';
+    return `<div class="${cls}" data-ukey="${key}"${action}
+        style="left:${xPct.toFixed(2)}%;top:${yPct.toFixed(2)}%;z-index:${Math.round(yPct * 4) + 1}">
+        ${bits.html}
+        <div class="plate" style="left:-75px;top:${(-h - 30).toFixed(0)}px">${unit.name}
+            <div class="hp hp--${isHero ? 'hero' : 'enemy'}"><i></i></div></div>
+        <span class="chillbadge" style="left:24px;top:${(-h - 8).toFixed(0)}px">❄</span>
+    </div>`;
+}
+
+function buildSceneBattle(el, dims, enemyGrid, enemies) {
+    for (const k of sceneUnitElByKey.keys()) sceneUnitElByKey.delete(k);
+    sceneBattleLive.length = 0;
+    let html = '';
+    const showHeroes = kingdomLevel >= RAID_TRIGGER_LEVEL;
+    // ground tiles for every grid position (capacity reads even when empty)
+    if (showHeroes) for (let r = 0; r < dims.rows; r++) for (let c = 0; c < dims.cols; c++) {
+        const w = 66 + c * 8;
+        html += `<span class="btile btile--hero" style="left:${sceneHeroRowX(r)}%;top:${sceneLaneY(c, dims.cols)}%;width:${w}px;height:${Math.round(w * 0.3)}px;margin-left:${-w / 2}px;margin-top:${-Math.round(w * 0.15)}px;z-index:${sceneLaneY(c, dims.cols) * 4 - 2}"></span>`;
+    }
+    for (let r = 0; r < enemyGrid.rows; r++) for (let c = 0; c < enemyGrid.cols; c++) {
+        const w = 66 + c * 8;
+        html += `<span class="btile btile--enemy" style="left:${sceneEnemyRowX(r)}%;top:${sceneLaneY(c, enemyGrid.cols)}%;width:${w}px;height:${Math.round(w * 0.3)}px;margin-left:${-w / 2}px;margin-top:${-Math.round(w * 0.15)}px;z-index:${sceneLaneY(c, enemyGrid.cols) * 4 - 2}"></span>`;
+    }
+    if (showHeroes) heroSquad.forEach((unit, index) => {
+        if (!unit) return;
+        const r = Math.floor(index / dims.cols), c = index % dims.cols;
+        html += sceneBattleUnitHtml(unit, index, sceneHeroRowX(r), sceneLaneY(c, dims.cols), sceneLaneH(c), true);
+    });
+    enemies.forEach((unit, index) => {
+        if (!unit) return;
+        const r = Math.floor(index / enemyGrid.cols), c = index % enemyGrid.cols;
+        html += sceneBattleUnitHtml(unit, index, sceneEnemyRowX(r), sceneLaneY(c, enemyGrid.cols), sceneLaneH(c), false);
+    });
+    el.innerHTML = html;
+    // wire refs for FX routing + per-frame updates (unit objects mutate in place)
+    const byKey = {};
+    if (showHeroes) heroSquad.forEach((u, i) => { if (u) byKey[unitDomKey(u)] = { unit: u, hidx: i }; });
+    enemies.forEach(u => { if (u) byKey[unitDomKey(u)] = { unit: u, hidx: -1 }; });
+    el.querySelectorAll('.sunit[data-ukey]').forEach(uel => {
+        const key = Number(uel.dataset.ukey);
+        sceneUnitElByKey.set(key, uel);
+        const bind = byKey[key];
+        if (bind) sceneBattleLive.push({
+            el: uel, unit: bind.unit, hidx: bind.hidx,
+            hpFill: uel.querySelector('.hp i')
+        });
+    });
+}
+
+function renderSceneBattle() {
+    const el = document.getElementById('scene-battle');
+    const dims = heroGridDims();
+    const enemyGrid = currentInvasion ? currentInvasion.grid : RAID_TIERS[raidTierIndex].grid;
+    const enemies = currentInvasion ? currentInvasion.enemies : [];
+    const sig = sceneBattleSig(dims, enemyGrid, enemies);
+    if (el._sceneSig !== sig) {
+        el._sceneSig = sig;
+        buildSceneBattle(el, dims, enemyGrid, enemies);
+    }
+    // per-frame in-place updates
+    for (const b of sceneBattleLive) {
+        const u = b.unit;
+        if (b.hpFill) b.hpFill.style.width = Math.max(0, (u.hp / u.maxHp) * 100) + '%';
+        b.el.classList.toggle('sunit--dead', !u.alive);
+        b.el.classList.toggle('sunit--chilled', chilled(u));
+        if (b.hidx >= 0) {
+            const armed = armedHeroSlot === b.hidx && Date.now() - armedHeroSlotTime < ARM_TIMEOUT_MS;
+            b.el.classList.toggle('sunit--armed', armed);
+            const title = armed ? 'Click again to dismiss' : 'Click to dismiss';
+            if (b.el.title !== title) b.el.title = title;
+        }
+    }
+}
+
+// ---------- scene FX (drainFx routes here when the scene is open) ----------
+function sceneFxLayer() { return document.getElementById('scene-fx'); }
+
+function spawnSceneFloatAt(unitEl, text, cls) {
+    if (reducedMotion()) return;
+    const layer = sceneFxLayer();
+    if (!layer || layer.querySelectorAll('.fx-float').length >= FX_MAX_FLOATS) return;
+    const target = unitEl.querySelector('.sprite, .letter-chip') || unitEl;
+    const lr = layer.getBoundingClientRect();
+    const tr = target.getBoundingClientRect();
+    const f = document.createElement('div');
+    f.className = 'fx-float ' + cls;
+    f.textContent = text;
+    f.style.left = (tr.left - lr.left + tr.width / 2) + 'px';
+    f.style.top = (tr.top - lr.top - 6) + 'px';
+    removeOnAnimationDone(f);
+    layer.appendChild(f);
+}
+
+function spawnSceneGhost(unitEl) {
+    if (reducedMotion()) return;
+    const layer = sceneFxLayer();
+    if (!layer) return;
+    const img = unitEl.querySelector('.sprite');
+    if (!img) { spawnSceneFloatAt(unitEl, '☠', 'fx-float--dmg'); return; }
+    const lr = layer.getBoundingClientRect();
+    const ir = img.getBoundingClientRect();
+    const g = document.createElement('img');
+    g.className = 'sghost';
+    g.src = img.src;
+    g.style.left = (ir.left - lr.left) + 'px';
+    g.style.top = (ir.top - lr.top) + 'px';
+    g.style.width = ir.width + 'px';
+    g.style.height = ir.height + 'px';
+    removeOnAnimationDone(g);
+    layer.appendChild(g);
 }
 
 let scenePlotOpen = null;
@@ -3011,9 +3328,18 @@ function renderScenePlotDrawer() {
     }
     for (let i = b.residents.length; i < totalSlots; i++)
         slots += `<div class="portrait portrait--empty" title="Empty slot"><span class="portrait-letter">·</span></div>`;
+    // Build row: same purchase-info source as the classic buildings panel.
+    // canAfford flips at most once between purchases (gold rises monotonically),
+    // so baking it into the memo string can't thrash; a mid-click rebuild is
+    // survivable anyway (delegated data-action dispatch).
+    const info = buildingPurchaseInfo(scenePlotOpen);
+    const buildRow = `<div style="margin:2px 0 10px;display:flex;gap:10px;align-items:center">
+        <button class="btn-upgrade" data-action="buyBuilding:${scenePlotOpen}" ${info.canAfford ? '' : 'disabled'}>Build</button>
+        <span style="font-size:11px;color:#8a7f63">${info.costLabel}</span></div>`;
     setPanelHtml('scene-drawer-body',
         `<h3>${b.name} ×${b.count}</h3>
          <div class="meta">${b.residents.length} / ${totalSlots} residents · hire from the Town Square</div>
+         ${buildRow}
          <div class="dw-list"><div class="dw-slots">${slots || '<div class="dw-empty">No resident slots.</div>'}</div></div>`);
 }
 
@@ -3022,7 +3348,10 @@ function renderScene() {
     if (!sceneOpen) return;
     renderSceneHud();
     renderVista();
+    renderSceneCrowd();
+    renderSceneBattle();
     if (scenePlotOpen) renderScenePlotDrawer();
+
     // Volatile numbers, updated in place each frame (kept out of memoized strings).
     sceneSetText('scene-gold', Math.floor(displayedGold === null ? gold : displayedGold).toLocaleString());
     sceneSetText('scene-gps', Math.round(goldPerSecond * econIncomeMult()).toLocaleString());
@@ -3033,6 +3362,38 @@ function renderScene() {
         hpFill.style.width = Math.max(0, Math.min(100, kingdomHP / max * 100)) + '%';
         sceneSetText('scene-hp-text', Math.ceil(kingdomHP).toLocaleString() + ' / ' + max.toLocaleString());
     }
+
+    // Countdowns (fixed spans in the memoized chips)
+    sceneSetText('scene-pool-timer', `arrivals in ${Math.max(0, POOL_REFRESH_INTERVAL - poolTimer)}s`);
+    sceneSetText('scene-hero-timer', `new in ${Math.max(0, HERO_POOL_REFRESH_INTERVAL - heroPoolTimer)}s`);
+    sceneSetText('scene-raid-timer', formatTimer(invasionTimer));
+    if (currentInvasion && escalationMult(currentInvasion) > 1) {
+        sceneSetText('scene-esc-line', `The siege escalates! Enemy attack +${Math.round((escalationMult(currentInvasion) - 1) * 100)}%`);
+    }
+
+    // Crowd affordability — volatile class, never part of the memo string
+    document.querySelectorAll('#scene-crowd [data-recruit-id]').forEach(el => {
+        const r = recruitPool.find(x => x.id === Number(el.dataset.recruitId));
+        if (r) el.classList.toggle('sunit--cant', !canHireRecruit(r));
+    });
+    const heroHasSlot = heroSquad.some(s => s === null);
+    document.querySelectorAll('#scene-crowd [data-hero-id]').forEach(el => {
+        const r = heroRecruitPool.find(x => x.id === Number(el.dataset.heroId));
+        if (r) el.classList.toggle('sunit--cant', !(gold >= r.cost && heroHasSlot));
+    });
+
+    // Escalation wash over the battlefield half
+    const wash = document.getElementById('scene-esc-wash');
+    if (wash) {
+        const esc = currentInvasion ? escalationMult(currentInvasion) : 1;
+        const op = esc > 1 ? Math.min(0.5, (esc - 1) * 0.8).toFixed(2) : '0';
+        if (wash.style.opacity !== op) wash.style.opacity = op;
+    }
+
+    // file:// notice — placeholders should never look like a broken wire
+    sceneSetText('scene-note', spriteLoadBlocked
+        ? '⚠ Art needs http — double-click start-game-server.bat (file:// blocks sprite processing)'
+        : 'Scene view — work in progress');
 }
 
 // A requestAnimationFrame loop capped at RENDER_INTERVAL_MS repaints
@@ -3133,7 +3494,20 @@ const UI_ACTIONS = {
     setReduceMotion: v => { meta.reduceMotion = v === '1'; saveMeta(); updateUI(); },
     toggleSceneView: () => toggleSceneView(),
     openScenePlot:   id => openScenePlot(id),
-    closeScenePlot:  () => closeScenePlot()
+    closeScenePlot:  () => closeScenePlot(),
+    // Scene battle hero click: same shared armed-to-dismiss state as the
+    // classic battle slots (arming in one view shows in the other).
+    sceneHeroClick:  i => {
+        const index = Number(i);
+        const armed = armedHeroSlot === index && Date.now() - armedHeroSlotTime < ARM_TIMEOUT_MS;
+        if (armed) {
+            armedHeroSlot = null;
+            fireHero(index);
+        } else {
+            armedHeroSlot = index;
+            armedHeroSlotTime = Date.now();
+        }
+    }
 };
 
 function runUiAction(actionStr) {
@@ -3191,6 +3565,7 @@ loadGame();
 resizeHeroSquad(); // no-save startups still need the squad sized to War Banners rank
 if (recruitPool.length === 0) refreshPool();
 if (kingdomLevel >= RAID_TRIGGER_LEVEL && heroRecruitPool.length === 0) refreshHeroPool();
+if (meta.sceneView) toggleSceneView(); // restore the persisted scene/classic choice
 updateUI();
 renderRunSummary(); // reshow the run-summary screen if the game was closed mid-summary
 renderVictory();    // likewise the victory screen (closed mid-celebration)
