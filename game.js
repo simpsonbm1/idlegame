@@ -2930,11 +2930,20 @@ window.addEventListener('resize', () => { if (sceneOpen) layoutScene(); });
 
 // Fixed building plots (x,y in % of the town region = left 46% of the
 // stage). Fixed positions — never free placement — is what keeps the
-// vista affordable (spec T3). Positions carried over from the prototype.
+// vista affordable (spec T3). Laid out for scenebothhalves.png: the
+// painted plaza + road form a belt across the town's midline (~y 50-78),
+// so buildings live on the upper grass band (back rows, smaller with
+// depth) and the bottom-left pocket (cottage — the first building the
+// player ever buys gets the near-camera spot). Nothing stands on the
+// plaza, the road, or the crowd zone (y 84+).
 const BUILDING_PLOTS = {
-    cottage:    { x: 22, y: 58 }, tavern:  { x: 43, y: 50 }, smithy:    { x: 66, y: 57 },
-    workshop:   { x: 31, y: 67 }, library: { x: 57, y: 70 }, keep:      { x: 13, y: 45 },
-    apothecary: { x: 80, y: 50 }, tower:   { x: 49, y: 42 }, cathedral: { x: 71, y: 40 }
+    // back row, along the north wall (smaller with depth)
+    keep:      { x: 8,  y: 26 }, library: { x: 22, y: 24 }, tower:    { x: 36, y: 22 },
+    cathedral: { x: 52, y: 24 }, apothecary: { x: 68, y: 27 },
+    // mid row, upper grass above the plaza — cottage leftmost (the first
+    // building every run buys reads first); all bases clear of the belt
+    cottage:   { x: 12, y: 41 }, tavern:  { x: 32, y: 39 }, smithy:   { x: 52, y: 41 },
+    workshop:  { x: 66, y: 43 }
 };
 
 // Schematic SVG placeholders shown until raw_bldg_<id>.png lands (then
@@ -2996,7 +3005,9 @@ function renderVista() {
         if (!b) continue;
         const p = BUILDING_PLOTS[id];
         const leftPct = (p.x / 100) * TOWN_REGION_FRAC * 100; // % of stage width
-        const depth = 1.25 + (p.y / 100) * 1.3;               // nearer = larger
+        // nearer = larger; the upper band holds four buildings side by side,
+        // so the back rows scale down harder than the old prototype curve
+        const depth = 0.85 + (p.y / 100) * 1.75;
         const z = Math.round(p.y * 4);
         const pos = `left:${leftPct.toFixed(2)}%;top:${p.y}%;z-index:${z}`;
 
@@ -3008,7 +3019,9 @@ function renderVista() {
         }
         const art = `<div class="art" style="transform:scale(${depth.toFixed(2)})">${buildingArtHtml(id)}`;
         if (b.count === 0) {
-            html += `<div class="plot" data-action="openScenePlot:${id}" data-bldg="${id}" style="${pos};opacity:0.4">${art}</div>
+            // Ghost-preview: desaturated, NOT washed out — a fresh save shows
+            // several of these at once and stacked transparency read as a bug.
+            html += `<div class="plot plot--unbuilt" data-action="openScenePlot:${id}" data-bldg="${id}" style="${pos}">${art}</div>
                 <span class="tag">${b.name} · click to build</span></div>`;
             continue;
         }
@@ -3154,7 +3167,8 @@ function sceneUnitBits(sKey, h, letter, rarity) {
 // the string carries pool identity + sprite readiness (blob URLs appear in it),
 // so it rebuilds exactly on pool change / hire / sprite load. Affordability is
 // a volatile class toggled per frame — never part of the string.
-const TOWN_CROWD_SPOTS = [[0.06, 0.865], [0.16, 0.915], [0.26, 0.878], [0.35, 0.935], [0.12, 0.955]];
+// Spread wide with alternating depth so five nameplates never stack.
+const TOWN_CROWD_SPOTS = [[0.05, 0.86], [0.15, 0.905], [0.25, 0.868], [0.35, 0.915], [0.45, 0.878]];
 const HERO_CROWD_SPOTS = [[0.56, 0.87], [0.67, 0.905], [0.78, 0.868], [0.88, 0.92], [0.62, 0.95]];
 
 function renderSceneCrowd() {

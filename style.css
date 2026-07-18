@@ -1606,7 +1606,14 @@ body.scene-open #scene-toggle { color: #e8c96d; border-color: #7a6428; }
     opacity: 0; transition: opacity 0.12s; pointer-events: none;
 }
 .plot:hover .tag { opacity: 1; }
-.plot.locked { cursor: default; opacity: 0.5; }
+/* Unbuilt-but-unlocked: near-full color at rest — the "click to build" tag
+   and missing count badge carry the signal; a fresh save shows several of
+   these at once and any strong wash makes the whole town read as broken. */
+.plot--unbuilt .art svg, .plot--unbuilt .art .bldg-sprite {
+    filter: saturate(0.85) brightness(0.93); opacity: 0.92; }
+.plot--unbuilt:hover .art svg, .plot--unbuilt:hover .art .bldg-sprite {
+    filter: brightness(1.06); opacity: 1; }
+.plot.locked { cursor: default; opacity: 0.6; }
 .plot.locked .ghost {
     border: 2px dashed rgba(216,203,168,0.4); border-radius: 4px; padding: 6px 8px;
     font-size: 10px; color: #d8cba8; background: rgba(14,11,6,0.35); line-height: 1.5;
@@ -1683,7 +1690,11 @@ body.scene-open #scene-toggle { color: #e8c96d; border-color: #7a6428; }
 .sunit .hint span { padding: 1px 8px; background: rgba(24,20,10,0.92);
                border: 1px solid #7a6428; border-radius: 3px; color: #e8c96d; }
 .sunit--recruit:hover .hint { opacity: 1; }
-.sunit--cant { opacity: 0.55; }
+/* Can't hire (cost / no slots / building missing): a whisper of a dim — the
+   hover hint explains WHY, so the sprite keeps its color. On a fresh save the
+   entire crowd is in this state; any strong wash drains the whole town. */
+.sunit--cant .sprite, .sunit--cant .letter-chip { filter: saturate(0.8) brightness(0.9); }
+.sunit--cant .plate { opacity: 0.8; }
 .sunit--cant .hint span { border-color: #4a3a18; color: #8a7f63; }
 
 /* battle units: armed-to-dismiss + state tints */
