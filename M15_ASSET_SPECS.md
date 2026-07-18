@@ -9,10 +9,23 @@ Already done, skipped in the list: guardian hero (`raw_hero_knight_v3.png`), gob
 (`raw_enemy_goblin_brute.png`). Portraits are cropped from these sprites by the pipeline —
 no separate portrait generations needed.
 
-**Batch priority (updated 2026-07-18, after the scene-prototype sign-off):** the scene
+**Generator routing (corrected 2026-07-18 evening):** two routes exist —
+**Antigravity** (the STRONG model: made every character sprite and the original
+battlefield; ~10 images/5h, **1:1 aspect only**) and the **Gemini web app** (weak model,
+barely rate-limited: made the current town/battlefield candidates and the wall segment —
+"workable in the right light" at best). Backdrops and characters go to Antigravity;
+spend its window on whatever is most blocking. The web app is a fallback for low-stakes
+fills only.
+
+**Batch priority (updated 2026-07-18 evening, after the seam experiments):** the scene
 layout (see `tools/scene-prototype.html`) changed what unblocks what. Recommended order:
-1. **Section: World — town vista + buildings (entries 46–55)** — the layout overhaul is
-   blocked on these; everything else already has a working fallback.
+1. **The scene pair (entry 85, Antigravity)** — two 1:1 squares that join AT the wall.
+   Supersedes the old two-half entries (46/83) and the wall sprite (84): every seam
+   problem this project has hit — style clash between halves from different models,
+   wall-salvage projection mismatches — came from marrying mismatched images at a line
+   of open ground. The pair fixes both causes: same strong model for both halves (the
+   second generated with the first attached), and the joint falls ON the painted wall,
+   which hides it. Then buildings (47–55).
 2. Remaining enemies in tier order (17–45) — battle variety for the current game.
 3. Townsfolk (10–16).
 4. **Hero rarity variants (56–82) — deliberately last and lazy**: the game falls back to the
@@ -165,72 +178,119 @@ curling horns, glowing ember-orange accents)
     horns, great wings folded behind her, wreathed in ember-orange hellfire, holding a
     blazing scepter; about 88% of image height.
 
-## World — town vista & buildings (added 2026-07-18; HIGHEST priority — the scene layout is blocked on these)
+## World — the scene pair & buildings (updated 2026-07-18 evening; HIGHEST priority)
 
-**Backdrop rule change for entries 46/83 only:** no magenta, no single character — full
-scene squares. **Attach BOTH the knight anchor AND the battlefield backdrop image**
-(`raw_bg_battlefield_v1.png`) — same style, palette, and overcast light.
+**Backdrop rule change for entry 85 only:** no magenta, no single character — full scene
+paintings. **Generate in ANTIGRAVITY** (1:1 only, so the scene is two squares joining AT
+the wall). Attach only what each sub-entry says — references demonstrably bleed landmarks
+into new generations, so the layout is fully described in words instead.
 
-**Camera decision (2026-07-18): high angle, piloted by entry 46.** At eye level the
-horizon sits ~43% up the frame, capping all standing room to the lower half — 16-unit
-late-game squads plus 9 building plots don't fit (measured in the scene prototype). The
-vista is therefore generated at a steep high-angle view (strategy-game map, not eye-level
-vista); the battlefield companion (entry 83) is HELD until the vista's camera passes
-judgment in `tools/scene-prototype.html`.
+**Camera (locked 2026-07-18):** steep high angle, strategy-map-from-a-watchtower — at eye
+level the horizon caps all standing room to the lower half of the frame; 16-unit late-game
+squads plus 9 building plots don't fit (measured in the scene prototype).
 
-46. `raw_bg_town_vista.png` — **CAMERA PILOT — generate 2–3 candidates, keep the best.**
-    The grounds INSIDE a medieval kingdom's walls, same 16-bit pixel art style and muted
-    overcast palette as the attached battlefield painting, but seen from HIGH ABOVE at a
-    steep three-quarter angle, like a strategy-game map viewed from a watchtower: open
-    ground fills at least the bottom four-fifths of the image, with only a narrow band of
-    distant mountains and sky across the very top. The kingdom's stone wall ENCLOSES the
-    grounds — most prominent along the ENTIRE RIGHT EDGE top to bottom with its wooden
-    gate midway up, and continuing around the top and left edges of the grounds. Broad
-    flat stretches of trampled grass and packed dirt, a dirt road running from the gate
-    toward the lower left, a broad cobbled plaza with a stone well in the center-to-lower
-    portion, a few scattered trees and bushes near the walls. **Aside from those trees,
-    the ground must be EMPTY — absolutely no buildings, tents, market stalls, carts,
-    people, or animals** (the game places building sprites as the player builds; a new
-    kingdom must start as bare walled ground). Muted, desaturated colors so characters
-    and UI stand out on top. No text, no UI, no borders.
+46. **SUPERSEDED by entry 85a** (the town square, redesigned to carry the wall at its
+    right edge). `towncandidate1.png` (web app) stays on disk as reference only.
 
-83. `raw_bg_battlefield_v2.png` — **camera CONFIRMED 2026-07-18 (AI Studio candidates
-    passed the prototype pairing test); regenerate only to refine.** (Numbered out of
-    sequence to avoid renumbering; belongs immediately after 46.) The battlefield OUTSIDE
-    the same wall: attach the accepted entry-46 image as an additional reference and match
-    its camera angle, palette, and light exactly. **The reference is for style, palette,
-    and camera ONLY — do NOT copy its landmarks: no well, no plaza, no copied road layout**
-    (lesson from the first attempt, which reproduced the town well mid-battlefield).
-    Trampled open field, scattered battle debris, dense treeline down the right side, a
-    narrow band of the same distant mountains and sky across the very top (matches the
-    vista's top edge across the seam), a worn road emerging from the treeline upper-right
-    and crossing toward the lower left — the road the raids arrive down. Empty of
-    creatures; no text, no UI, no borders. Prefer portrait-ish aspect (~2:3) in AI Studio.
-    **Wall: pending the wall-as-sprite decision** — if the seam wall becomes its own
-    layered sprite (recommended: gate can open, wall can show damage/upgrades), this image
-    needs NO wall at all, just plain ground at its left edge; otherwise the wall runs the
-    entire left edge, gate midway. (v1 stays as the live panel-UI page backdrop.)
+83. **SUPERSEDED by entry 85b** (the battlefield square, which now starts at the wall's
+    base instead of marrying open ground). `battlefieldcandidate1.png` stays as reference.
 
-84. `raw_wall_gatehouse.png` — **the wall-as-sprite (seam layer; added 2026-07-18).**
-    Attach `towncandidate1.png` as the reference. Tall portrait aspect (9:16). Prompt:
-    a single tall section of a medieval kingdom's stone wall with a central gatehouse, in
-    exactly the same 16-bit fantasy pixel art style, palette, and high three-quarter
-    viewing angle as the wall in the attached reference image — use the reference ONLY
-    for the art style, palette, camera angle, and the wall's stone construction; do not
-    copy anything else from it (no ground, no grass, no well, no trees). The wall runs
-    straight and vertical from the very top of the image to the very bottom, seen from
-    that same high angle: battlemented walkway on top, left-hand face visible. Midway
-    along it stands a larger fortified gatehouse with two short square towers and heavy
-    CLOSED wooden double doors visible on the left face. The wall sections above and
-    below the gatehouse are plain, straight, and uniformly repeating (so they can be
-    extended by tiling). Stone intact, no banners. The background must be plain flat
-    solid magenta (#FF00FF) everywhere around the wall — no ground plane at all, no
-    grass, no shadow, no sky. The wall fills the full image height and roughly the middle
-    third of the width. No text, no watermark, no frame, no other objects.
-    **Follow-up variants (same chat, edit-in-place, low priority):** "exactly the same
-    image, but the wooden doors stand open showing a dark passage" (raid-arrival state);
-    "exactly the same image, but battle-damaged — cracked stone, crumbled battlements"
-    (low-Kingdom-HP state; T4 upgrades likewise later).
+84. **SUPERSEDED by entry 85** (no wall-as-sprite seam layer: the wall and gate are painted
+    into the town square in correct perspective). The `townwall.png` salvage experiments
+    proved composited wall pieces clash in projection even when the style matches. Gate
+    open/damage states, if ever wanted, become edit-in-place variants of 85a (T4).
+
+85. **RESOLVED 2026-07-18 by `scenebothhalves.png`** — a single continuous widescreen
+    generation (town + wall/gatehouse mid-frame + battlefield, road through the gate,
+    detail density matching the characters) made the pair approach below unnecessary.
+    The prototype loads it full-stage; the pair rig below survives only as fallback
+    and as the record of the sketch-reference + measured-color-grade techniques.
+    **THE scene pair — town square + battlefield square (Antigravity).** Final filenames
+    `raw_bg_scene_town.png` / `raw_bg_scene_field.png`; save candidates as
+    `scenetown1.png` / `scenefield1.png` (`2`, …) — `tools/scene-prototype.html`
+    auto-loads them, town square right-aligned and field square left-aligned so they meet
+    at the seam. The joint falls ON the town square's painted right-edge wall, so the two
+    images never have to agree across open ground — only the mountain-band height and the
+    road through the gate cross the joint. **Order: generate 85a first, judge it in the
+    prototype, THEN 85b with the accepted 85a attached.**
+    **LAYOUT SKETCHES (added 2026-07-18 after prose-only attempts kept drifting on
+    geometry — the generator respects reference images far more than prose):** each
+    sub-entry attaches its annotated layout mockup — `assets/reference/
+    mockup_town_square.png` / `mockup_field_square.png`, regenerable via
+    `tools/make-scene-mockups.ps1`. The prompt must tell the model the sketch is a
+    PLACEMENT plan only: don't copy its flat colors, don't render its text/arrows.
+
+    **85a — the town square** (attach the knight anchor ONLY). Attempt-1 lesson
+    (2026-07-18): "steep three-quarter angle" produced true vanishing-point perspective —
+    a diagonal east wall with exterior ground already visible bottom-right, which
+    re-complicates the join; the projection must be named explicitly. Attempt-2 lesson:
+    flat oblique landed, but the gatehouse spawned freestanding in the courtyard joined
+    to the east wall by a stub — a gate embedded in an edge-parallel wall would be
+    half-cropped, so the model pulls it inward to show the whole structure. Fix via
+    EDIT-IN-PLACE on the otherwise-good attempt (flush the gatehouse against the east
+    wall as a slightly-protruding barbican, extend the road to it, extend the west wall
+    to the bottom edge — it visibly terminated mid-frame). Attempts 3–5 lesson: the
+    model anchors hard on its composition (edits regenerate near-identical output) and
+    insists on an INSET east wall with an exterior strip beyond it — ACCEPTED (attempt 5
+    = `scenetown1.png`): gate embedded, road passes through and exits the frame, walls
+    screen-axis aligned. Known flaw: below the gatehouse the wall turns EAST off-frame
+    instead of continuing south, so the image's lower-right is town interior.
+    **STANDING USER RULE (2026-07-18, set after two failed salvage attempts): no
+    pipeline pixel-surgery on generated art — an image either works as delivered or
+    gets regenerated. Whole-image CSS cropping/positioning is fine; compositing,
+    clone-stamping, and patching are not.** The prototype therefore renders the square
+    AS GIVEN, gatehouse outer face (x 956/1024) on the seam; below the gate the seam
+    joint is ground-to-ground under the seam shadow. If that reads poorly once 85b is
+    in place, the fallback is ONE model-side edit ask on this image ("extend the east
+    wall from the gatehouse straight down to the bottom edge of the image"), never a
+    pipeline patch. The exterior pocket previews the ground tone and road height
+    (road exits at ~40% down) that 85b must continue at its left edge.
+    **Prompt (attach the knight anchor + `mockup_town_square.png`):**
+    A square scene painting: the grounds inside a medieval kingdom's stone walls. One
+    attached image is a LAYOUT SKETCH — a rough schematic with flat colors, text labels,
+    and arrows. Follow its placement EXACTLY: every wall, the gatehouse, the road, the
+    plaza and well, and the trees go precisely where the sketch puts them, at the same
+    sizes. The sketch is only a plan: do NOT copy its flat drawing style, and do NOT
+    render any of its text, labels, or arrows into the painting. Render everything as
+    retro 16-bit fantasy pixel art in exactly the style of the other attached image
+    (the knight sprite) — same palette approach, chunky pixel scale, thick dark
+    outlines — but muted and slightly desaturated overall so bright character sprites
+    drawn on top of it stand out. Key constraints repeated from the sketch: flat
+    oblique projection like a classic 16-bit RPG town map (no vanishing-point
+    perspective); the east wall runs PERFECTLY VERTICAL along the entire right edge,
+    top to bottom, no bends; the fortified gatehouse with heavy CLOSED wooden double
+    doors sits midway down it; only a narrow band of distant mountains and sky across
+    the very top; and the grounds are otherwise COMPLETELY EMPTY — no buildings,
+    tents, market stalls, carts, people, or animals. One light source from the upper
+    left. No text, no UI, no borders.
+
+    **85b — the battlefield square** (attach the ACCEPTED 85a = `scenetown2.png`, the
+    knight anchor, AND `mockup_field_square.png`). First-attempt lessons
+    (scenebattle2.png, 2026-07-18): it drew a forbidden wall+buildings strip on its
+    left edge, went full desert-tan against the town's olive grass, mismatched the
+    mountain style, and put the road at 37% vs the town gate's 50% — so the prompt now
+    names the town painting as the explicit color authority and the sketch carries the
+    corrected road height. Prompt:
+    A second square painting that will be placed IMMEDIATELY TO THE RIGHT of the
+    attached town scene: the open battlefield just outside that town's wall. One
+    attached image is a LAYOUT SKETCH — a rough schematic with flat colors, text
+    labels, and arrows. Follow its placement EXACTLY: the road, the treeline, and the
+    trampled patches go precisely where the sketch puts them. The sketch is only a
+    plan: do NOT copy its flat drawing style, and do NOT render any of its text,
+    labels, or arrows into the painting. The attached TOWN PAINTING is the color and
+    style authority: use EXACTLY its palette — the same green of its grass, the same
+    stone gray, the same sky color, and the same mountain shapes and colors continuing
+    at the same height across the very top — plus its flat oblique projection and
+    upper-left light, so the two images join seamlessly side by side. The battlefield
+    ground is that same green grass, heavily trampled with mud patches — NOT desert,
+    NOT brown dirt. Key constraints repeated from the sketch: the town's wall stands
+    just beyond this image's LEFT edge — draw NO wall, NO buildings, nothing built,
+    only trampled ground at the wall's base; the dirt road enters from the left edge
+    50% of the way down — level with the town gate — and bends toward a dense treeline
+    in the upper right (the road enemy raids arrive down); sparse battle debris (a
+    broken arrow, a rock or two); and NOTHING else — no creatures, no structures, and
+    none of the town image's landmarks (no well, no plaza). No text, no UI, no
+    borders.
 
 **Building sprite rules (entries 47–55):** back to solid magenta (#FF00FF) background, one
 building per image, whole building visible with clear margin, filling about 85% of the image
@@ -239,8 +299,8 @@ matching the high camera of the vista** — angled toward the lower-left (door a
 visible), lit from the upper left, standing on bare ground with **no ground, path, fence,
 or vegetation around the base** (feet-on-magenta, like the characters). Same pixel scale,
 thick outlines, and palette family as the attached knight; mid-to-bright values. These sit
-directly on the town-vista painting, so silhouettes must read at roughly twice a character's
-height.
+directly on the town half of the scene painting (entry 85), so silhouettes must read at
+roughly twice a character's height.
 
 47. `raw_bldg_cottage.png` — a humble one-room peasant cottage: rough fieldstone base,
     wattle-and-daub walls, thatched roof, plank door, one warm lit window.

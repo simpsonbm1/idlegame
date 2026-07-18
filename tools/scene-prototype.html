@@ -46,10 +46,20 @@
                                 rgba(14,11,6,0.08) 62%, rgba(14,11,6,0.34));
   }
 
-  /* the seam: wall meets wall; softens the mirror joint */
-  #seam { position: absolute; top: 0; bottom: 0; left: 46%; width: 130px;
+  /* The seam is a REAL DIVIDER, not a blend: a framed band separating the two
+     halves into vignettes, so backdrop continuity (roads/mountains/grass
+     across the joint) is no longer required — framed panels may differ. This
+     band is also the mount point for the future wall/gate sprite and already
+     carries the Kingdom HP chip. */
+  #seam { position: absolute; top: 0; bottom: 0; left: 46%; width: 54px;
           transform: translateX(-50%); pointer-events: none; z-index: 40;
-          background: linear-gradient(90deg, transparent, rgba(10,8,4,0.5) 38% 62%, transparent); }
+          background: linear-gradient(90deg, #171008, #2c2412 30% 70%, #171008);
+          border-left: 3px solid #4a3a18; border-right: 3px solid #4a3a18;
+          box-shadow: 0 0 22px rgba(8,6,3,0.85); }
+  /* faint stonework ticks so the band reads as structure, not dead space */
+  #seam::before { content: ''; position: absolute; inset: 0;
+          background: repeating-linear-gradient(180deg,
+            transparent 0 26px, rgba(216,203,168,0.07) 26px 28px); }
 
   /* ---------- HUD chips (wood-toned, minimal) ---------- */
   .chip {
@@ -306,6 +316,27 @@ function keyMagenta(canvas) {
   }
   ctx.putImageData(d, 0, 0);
 }
+/* Fringe cleanup for AI Studio raws: anti-aliased edges leave pink pixels the
+   binary keyer misses. Strongly magenta leftovers go transparent; mildly
+   magenta-tinged edge pixels get their r/b excess clamped to gray. Warm stone
+   and wood (r>g>b with g between) have negative excess and are untouched. */
+function despillMagenta(canvas) {
+  const ctx = canvas.getContext('2d');
+  const d = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const p = d.data;
+  for (let i = 0; i < p.length; i += 4) {
+    if (p[i+3] === 0) continue;
+    const g = p[i+1];
+    const excess = Math.min(p[i], p[i+2]) - g;
+    if (excess > 60) { p[i+3] = 0; continue; }
+    if (excess > 12) {
+      p[i]   = Math.min(p[i],   g + 12);
+      p[i+2] = Math.min(p[i+2], g + 12);
+    }
+  }
+  ctx.putImageData(d, 0, 0);
+}
+
 function trim(canvas) {
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
@@ -643,24 +674,149 @@ async function run() {
     for (const el of document.querySelectorAll('.bg')) {
       el.style.backgroundImage = `url(${bgImg.src})`;
     }
-    // AI Studio town candidate, if present: unmirrored (it brings its own
-    // enclosing walls, gate already on the right/seam edge); position favors
-    // the plaza-to-gate span of the wide 1.83:1 frame
-    try {
-      const townBg = await loadImage('../assets/raw/towncandidate1.png');
+    // The scene pair (spec entry 85, Antigravity): two 1:1 squares joining AT
+    // the town square's painted right-edge wall — same strong model for both
+    // halves, the field square generated with the town square attached. Drop
+    // candidates as scenetown1.png / scenefield1.png (or the accepted
+    // raw_bg_scene_*.png) into assets/raw/ and refresh. Falls back per-half
+    // to the older web-app candidates, then the mirrored placeholder.
+    async function firstImage(names) {
+      for (const n of names) {
+        try { return { img: await loadImage('../assets/raw/' + n), name: n }; }
+        catch (e) { /* try next */ }
+      }
+      return null;
+    }
+    // Per-candidate CSS alignment (allowed: whole-image positioning/cropping —
+    // never pixel edits). fx: image-width fraction seated on the seam from the
+    // town side. lx: left-crop fraction on the field side (scenebattle2 drew a
+    // forbidden wall+buildings strip on its left edge; cropped, not erased).
+    const TOWN_SEAM_FX = { 'scenetown1.png': 956/1024, 'scenetown2.png': 978/1024 };
+    const FIELD_CROP_LX = { 'scenebattle2.png': 0.09 };
+    // scenebattle3: computed color grade marrying its grass to scenetown2's
+    // (measured full mapping hue-rotate(-36.4deg) saturate(1.342)
+    // brightness(0.892) drags the road/mud browns to pink — ~half the
+    // rotation keeps them brown), plus a 45-source-px upward shift aligning
+    // the two mountain-band horizons. A uniform display grade, not a pixel
+    // edit — the raw file is untouched.
+    const FIELD_FILTER = { 'scenebattle3.png': 'hue-rotate(-20deg) saturate(1.2) brightness(0.93)' };
+    const FIELD_SHIFT_SRC = { 'scenebattle3.png': 45 };
+    // THE continuous widescreen scene (scenebothhalves.png, 2026-07-18 late):
+    // ONE generation with the wall+gate painted mid-frame — retires the pair
+    // rig, the divider band, the color grade, and every continuity concern.
+    // Detail density finally matches the character art. Wall center
+    // (~x1318/2752) is seated on the 46% seam line via cover-fit offset.
+    let wholeScene = null;
+    try { wholeScene = await loadImage('../assets/raw/scenebothhalves.png'); } catch (e) {}
+    if (wholeScene) {
+      const stage = document.getElementById('stage');
+      const sw = stage.clientWidth, sh = stage.clientHeight;
+      const W = wholeScene.width, H = wholeScene.height;
+      const s = Math.max(sh / H, sw / W);
+      let ox = sw * 0.46 - (1318 / 2752) * W * s;
+      ox = Math.min(0, Math.max(sw - W * s, ox)); // clamp so no edge gaps
+      const el = document.createElement('div');
+      el.className = 'bg';
+      el.style.cssText = 'position:absolute; inset:0; z-index:0;' +
+        `background-image:url(${wholeScene.src});` +
+        `background-size:${W*s}px ${H*s}px;` +
+        `background-position:${ox}px ${(sh - H*s)/2}px;`;
+      stage.prepend(el);
+      document.querySelector('#town-half .bg').style.display = 'none';
+      document.querySelector('#battle-half .bg').style.display = 'none';
+      document.getElementById('seam').style.display = 'none';
+      document.getElementById('proto-note').textContent =
+        'SCENE PROTOTYPE — continuous scene: scenebothhalves.png';
+    }
+
+    const townSq = wholeScene ? null : await firstImage(['raw_bg_scene_town.png', 'scenetown2.png', 'scenetown1.png']);
+    const fieldSq = wholeScene ? null : await firstImage(['raw_bg_scene_field.png', 'scenebattle3.png', 'scenebattle2.png', 'scenefield1.png']);
+
+    if (townSq) {
+      // Rendered AS GIVEN — standing user rule after two failed salvage
+      // attempts: no pipeline pixel-surgery on generated art; an image either
+      // works as delivered or gets regenerated. Only CSS-crop alignment here:
+      // the gatehouse's outer face (x 956/1024 in scenetown1.png) sits on the
+      // seam. Below the gate the joint is ground-to-ground under the seam
+      // shadow until 85b continues it.
       const tb = document.querySelector('#town-half .bg');
-      tb.style.backgroundImage = `url(${townBg.src})`;
+      tb.style.backgroundImage = `url(${townSq.img.src})`;
       tb.style.transform = 'none';
-      tb.style.backgroundPosition = '87% 40%';
-    } catch (e) { /* candidate absent — mirrored battlefield placeholder remains */ }
-    // AI Studio battlefield candidate: position favors the left span (wall
-    // scrap + arrival road) so the town's right-edge wall carries the seam
-    try {
-      const fieldBg = await loadImage('../assets/raw/battlefieldcandidate1.png');
+      const fx = TOWN_SEAM_FX[townSq.name] || 1.0;
+      const half = document.getElementById('town-half');
+      const cw = half.clientWidth, ch = half.clientHeight;
+      const W = townSq.img.width, H = townSq.img.height;
+      const s = Math.max(cw / (fx * W), ch / H);
+      tb.style.backgroundSize = (W*s) + 'px ' + (H*s) + 'px';
+      tb.style.backgroundPosition = (cw - fx*W*s) + 'px ' + ((ch - H*s)/2) + 'px';
+    } else {
+      // web-app town candidate: unmirrored (own enclosing walls, gate at the
+      // right/seam edge); position favors the plaza-to-gate span of the wide frame
+      try {
+        const townBg = await loadImage('../assets/raw/towncandidate1.png');
+        const tb = document.querySelector('#town-half .bg');
+        tb.style.backgroundImage = `url(${townBg.src})`;
+        tb.style.transform = 'none';
+        tb.style.backgroundPosition = '87% 40%';
+      } catch (e) { /* absent — mirrored battlefield placeholder remains */ }
+    }
+
+    if (fieldSq) {
       const fb = document.querySelector('#battle-half .bg');
-      fb.style.backgroundImage = `url(${fieldBg.src})`;
-      fb.style.backgroundPosition = '5% 50%';
-    } catch (e) { /* candidate absent — v1 battlefield remains */ }
+      fb.style.backgroundImage = `url(${fieldSq.img.src})`;
+      const lx = FIELD_CROP_LX[fieldSq.name] || 0;
+      const shift = FIELD_SHIFT_SRC[fieldSq.name] || 0; // source px, shifts up
+      if (FIELD_FILTER[fieldSq.name]) fb.style.filter = FIELD_FILTER[fieldSq.name];
+      const half = document.getElementById('battle-half');
+      const cw = half.clientWidth, ch = half.clientHeight;
+      const W = fieldSq.img.width, H = fieldSq.img.height;
+      const s = Math.max(cw / ((1 - lx) * W), ch / (H - shift));
+      fb.style.backgroundSize = (W*s) + 'px ' + (H*s) + 'px';
+      fb.style.backgroundPosition = (-lx*W*s) + 'px ' +
+        (shift ? (-shift*s) : (ch - H*s)/2) + 'px';
+    } else {
+      // web-app battlefield candidate: left span (wall scrap + arrival road)
+      try {
+        const fieldBg = await loadImage('../assets/raw/battlefieldcandidate1.png');
+        const fb = document.querySelector('#battle-half .bg');
+        fb.style.backgroundImage = `url(${fieldBg.src})`;
+        fb.style.backgroundPosition = '5% 50%';
+      } catch (e) { /* absent — v1 battlefield remains */ }
+    }
+
+    if (townSq || fieldSq) {
+      document.getElementById('proto-note').textContent =
+        'SCENE PROTOTYPE — scene pair: ' +
+        (townSq ? townSq.name : 'town pending') + ' + ' +
+        (fieldSq ? fieldSq.name : 'field pending');
+    }
+
+    // Interim tiled seam wall from townwall.png — only while no town square
+    // exists (the town square carries the painted wall). Uses ONLY the
+    // straight wall run (x 1290-1805, y 1300 down — measured perfectly
+    // vertical); the file's tower/gatehouse is drawn in a clashing isometric
+    // orientation and cannot be composited onto a vertical wall.
+    if (!townSq && !wholeScene) try {
+      const wallImg = await loadImage('../assets/raw/townwall.png');
+      const wc = toCanvas(wallImg); keyMagenta(wc); despillMagenta(wc);
+      const B = { x: 1290, y: 1300, w: 515, h: 236 }; // straight wall run
+      const SCREEN_W = 130;     // on-screen strip width (px)
+      const stageH = document.getElementById('stage').clientHeight;
+      const srcH = Math.ceil(stageH / (SCREEN_W / B.w));
+      const strip = document.createElement('canvas');
+      strip.width = B.w; strip.height = srcH;
+      const sctx = strip.getContext('2d');
+      for (let y = srcH; y > -B.h; y -= B.h) {
+        sctx.drawImage(wc, B.x, B.y, B.w, B.h, 0, y - B.h, B.w, B.h);
+      }
+      const wallEl = document.createElement('img');
+      wallEl.id = 'seam-wall';
+      wallEl.src = strip.toDataURL('image/png');
+      wallEl.style.cssText = 'position:absolute; left:46%; top:0; height:100%;' +
+        'transform:translateX(-50%); z-index:40; pointer-events:none;' +
+        'filter:drop-shadow(0 0 18px rgba(8,6,3,0.65));';
+      document.getElementById('stage').appendChild(wallEl);
+    } catch (e) { /* townwall absent — gradient seam remains */ }
 
     // frame chrome for the drawer
     const frame = toCanvas(frameImg); keyMagenta(frame);
