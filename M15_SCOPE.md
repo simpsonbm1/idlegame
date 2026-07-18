@@ -86,15 +86,32 @@ Original emitter table:
 | Raid arrives | `startInvasion` | banner slam-in (horn lands in Phase 3) |
 | Repelled | `winInvasion` | victory sting frame, loot + Legacy pop |
 
-## Phase 2 — Town & progression juice (pure CSS/JS, zero assets)
-- Gold counter easing (lerp toward the true value instead of snapping).
-- "+N g/s" floater on hire; purchase flash on buildings; pool-refresh shuffle animation.
-- Kingdom level-up fanfare moment (full-width flourish — it's the economic ratchet, make it land).
-- Legacy pop at wave clear (`bankWaveLegacy`).
-- Run drama: Kingdom-fall transition into the run summary (`endRun`) — darken/crumble beat
-  before the overlay; "Found a New Age" dawn transition (`foundNewAge`); victory-screen polish
-  (`campaignVictory`).
-- QoL alongside: reduced-motion/no-shake toggle; auto-respect `prefers-reduced-motion`.
+## Phase 2 — Town & progression juice — ✅ DONE 2026-07-17 (browser-verified same day)
+Shipped (all pure CSS/JS, zero assets):
+- **Gold counter easing**: display rolls 25% of the gap per frame toward true gold, snaps
+  within 2 — purchases visibly "spend down". Purely presentational; all checks read real gold.
+- **"+N g/s" hire floater**: badge on the admin per-second row (hp/s hires badge the Kingdom
+  HP panel); coalesced in drainFx so an auto-hire spree floats ONE summed badge.
+- **Building purchase flash**: gold pulse on the bought card via the postRenderFlashes queue —
+  a new mechanism for flashes targeting memoized-panel content (drainFx runs before panels
+  render, so panel-content flashes must apply after the rebuild settles).
+- **Pool-refresh shuffle**: fresh cards deal in with a 50ms stagger (pool/hero-pool generation
+  counters); wall-clock gated ≥400ms between replays so 100× can't strobe.
+- **Level-up fanfare**: full-width "The realm rises — <LEVEL>" banner, 2.2s, one at a time.
+- **Kingdom-fall shroud**: endRun darkens the screen (950ms dramatic / 450ms for abandoned),
+  THEN the summary rises through the lifting shroud. Reload-mid-summary still shows instantly.
+- **Dawn wash** on Found a New Age; **victory polish** (shimmering title, ages stagger in).
+- **Reduced-motion toggle**: Motion panel (Full/Reduced) persisted in `meta.reduceMotion`
+  (additive, no SAVE_VERSION bump); system `prefers-reduced-motion` forces+locks it. Single
+  mechanism: `reducedMotion()` gates JS spawns, `body.reduce-motion` (synced each frame)
+  gates CSS animation classes; `removeOnAnimationDone` also listens for `animationcancel` so
+  toggling mid-animation can't leak invisible nodes.
+- Legacy pop at wave clear shipped earlier with Phase 1 (repelled loot float + Legacy badge).
+
+Verified in-browser: easing lag+converge measured, hire badge text exact, built-flash class
+observed, shroud beat → overlay reveal timings confirmed, dawn suppressed under Reduced,
+toggle persists across reload, zero console errors — including through an organic Age fall
+that happened mid-test at speed.
 
 ## Phase 3 — Audio (SoundBoard engine + prefab CC0 assets)
 Engine (small, ~150–250 lines):
@@ -129,6 +146,15 @@ Verified in-browser with the two existing sprites: knight in hero slot + pool ch
 brute in enemy slot, letters everywhere else, zero console errors.
 
 ## Phase 4 — Art pass (DIRECTION CHOSEN 2026-07-17: Gemini-generated, user-in-the-loop)
+
+> **THE MOCKUP IS THE DESTINATION (re-affirmed by the developer 2026-07-17).** M15's end state
+> is the game *looking like the one-scene mockup*: a complete visual overhaul — town vista →
+> wall → battlefield as the primary presentation — not the current panel UI with sprites
+> swapped in for letters. All three tiers below are committed scope, in order, as assets
+> arrive; T1/T2/T3 is a build sequence, not a priority ranking with an optional tail. The
+> sprites-in-old-panels state that exists today is pipeline scaffolding (it makes every asset
+> drop immediately visible and testable) and is explicitly NOT a candidate end state.
+
 The developer produced Gemini pixel-art mockups matching their vision (one-scene town→wall→
 battlefield panorama). **Workflow:** Claude writes exact per-asset specs/prompts
 (`M15_ART_PILOT.md`), the developer generates in Gemini and saves raws to `assets/raw/`,
@@ -192,7 +218,7 @@ has a CREDITS.md line.)
 | 1 combat juice | M | 0 |
 | 2 town/run juice | M | 0 (parallel with 1) |
 | 3 audio | M (engine S; curation is the variable) | 0 (event bus) |
-| 4 art pass | M–XL depending on option | nothing — deferrable indefinitely |
+| 4 art pass | M–XL | asset delivery cadence — **committed scope, the milestone's end state** (see Phase 4 banner) |
 
 ## Open decisions (owner: developer)
 1. **Art direction** — DECIDED 2026-07-17 (superseding the same-day SVG-portrait decision):

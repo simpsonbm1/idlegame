@@ -514,6 +514,21 @@ h1 {
     color: #e8c96d;
 }
 
+.btn-speed--locked {
+    opacity: 0.4;
+    cursor: default;
+}
+.btn-speed--locked:hover {
+    color: #6a5a30;
+    border-color: #4a3a18;
+}
+
+/* Dev-only speeds: visually set apart from the player selector */
+.btn-speed--dev {
+    border-style: dashed;
+    color: #5a4a55;
+}
+
 .btn-reset {
     background: none;
     border: 1px solid #4a2020;
@@ -1375,4 +1390,114 @@ h1 {
     background-position: right 4px bottom 4px;
     background-size: auto 68%;
     image-rendering: pixelated;
+}
+
+/* --- M15 Phase 2: town & progression juice --- */
+
+/* Building purchase flash (applied post-render — see postRenderFlashes) */
+.fx-built { animation: fx-built-anim 0.55s ease-out; }
+@keyframes fx-built-anim {
+    0%   { box-shadow: inset 0 0 18px rgba(220, 180, 70, 0.55); }
+    100% { box-shadow: none; }
+}
+
+/* "+N g/s" badge on the admin resource row after a hire */
+.fx-float--gps { color: #7fbf6a; text-shadow: 1px 1px 0 #14110c; }
+#kingdom-hp { position: relative; }
+
+/* Pool refresh: the fresh cards deal in with a small stagger */
+.fx-pool-shuffle .recruit-card { animation: fx-card-in 0.35s ease-out backwards; }
+.fx-pool-shuffle .recruit-card:nth-child(2) { animation-delay: 0.05s; }
+.fx-pool-shuffle .recruit-card:nth-child(3) { animation-delay: 0.10s; }
+.fx-pool-shuffle .recruit-card:nth-child(4) { animation-delay: 0.15s; }
+.fx-pool-shuffle .recruit-card:nth-child(5) { animation-delay: 0.20s; }
+@keyframes fx-card-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Kingdom level-up fanfare — full-width flourish */
+#fx-levelup-banner {
+    position: fixed; left: 0; right: 0; top: 34%;
+    display: flex; align-items: center; gap: 14px;
+    padding: 18px 8vw;
+    pointer-events: none; z-index: 250;
+    background: linear-gradient(90deg, transparent, rgba(30, 24, 12, 0.92) 18%, rgba(30, 24, 12, 0.92) 82%, transparent);
+    animation: fx-levelup-anim 2.2s ease-out forwards;
+}
+.fx-levelup-text {
+    white-space: nowrap;
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 1.5rem; color: #e8c96d;
+    text-shadow: 0 0 12px rgba(220, 170, 60, 0.5);
+}
+.fx-levelup-text strong { color: #ffdf8e; letter-spacing: 1px; }
+.fx-levelup-rule { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, #8a7240, transparent); }
+@keyframes fx-levelup-anim {
+    0%   { opacity: 0; transform: scale(0.94); }
+    12%  { opacity: 1; transform: scale(1); }
+    78%  { opacity: 1; }
+    100% { opacity: 0; transform: scale(1.03); }
+}
+
+/* Kingdom-fall shroud: darken over the dying kingdom, hold the beat, then
+   lift to reveal the run summary (overlay is z 100, shroud sits above). */
+#fx-fall-shroud {
+    position: fixed; inset: 0; z-index: 300; pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(24, 5, 3, 0.94), rgba(8, 3, 2, 0.99));
+    opacity: 0;
+    animation: fx-shroud-in 0.9s ease-in forwards;
+}
+#fx-fall-shroud.fx-fall-shroud--gentle { animation-duration: 0.4s; }
+#fx-fall-shroud.fx-fall-shroud--lift { animation: fx-shroud-out 0.75s ease-out forwards; }
+@keyframes fx-shroud-in  { to { opacity: 1; } }
+@keyframes fx-shroud-out { from { opacity: 1; } to { opacity: 0; } }
+
+/* Dawn wash: a new Age begins */
+#fx-dawn {
+    position: fixed; inset: 0; z-index: 400; pointer-events: none;
+    background: linear-gradient(180deg, rgba(255, 214, 130, 0.5), rgba(255, 172, 84, 0.28));
+    animation: fx-dawn-anim 1.4s ease-out forwards;
+}
+@keyframes fx-dawn-anim { from { opacity: 1; } to { opacity: 0; } }
+
+/* Victory-screen polish: shimmering title, ages roll in one by one */
+.summary-title--victory {
+    animation: fx-victory-shimmer 3s ease-in-out infinite;
+}
+@keyframes fx-victory-shimmer {
+    0%, 100% { text-shadow: 0 0 10px rgba(220, 180, 70, 0.35); }
+    50%      { text-shadow: 0 0 22px rgba(255, 215, 110, 0.75); }
+}
+.victory-age-line { animation: fx-card-in 0.45s ease-out backwards; }
+.victory-age-line:nth-child(2) { animation-delay: 0.15s; }
+.victory-age-line:nth-child(3) { animation-delay: 0.30s; }
+.victory-age-line:nth-child(4) { animation-delay: 0.45s; }
+.victory-age-line:nth-child(5) { animation-delay: 0.60s; }
+.victory-age-line:nth-child(6) { animation-delay: 0.75s; }
+.victory-age-line:nth-child(7) { animation-delay: 0.90s; }
+.victory-age-line:nth-child(8) { animation-delay: 1.05s; }
+.victory-age-line:nth-child(9) { animation-delay: 1.20s; }
+.victory-age-line:nth-child(10) { animation-delay: 1.35s; }
+
+/* Reduced motion — manual toggle (body class, synced every frame from
+   reducedMotion()) and the system preference cover the same ground: the
+   body class is the single mechanism once JS runs; the media query is the
+   pre-JS safety net. */
+body.reduce-motion [class*="fx-"],
+body.reduce-motion .fx-pool-shuffle .recruit-card,
+body.reduce-motion .victory-age-line,
+body.reduce-motion .summary-title--victory {
+    animation: none !important;
+}
+body.reduce-motion .fx-float,
+body.reduce-motion #fx-levelup-banner,
+body.reduce-motion #fx-fall-shroud,
+body.reduce-motion #fx-dawn { display: none; }
+@media (prefers-reduced-motion: reduce) {
+    .fx-built, .fx-pool-shuffle .recruit-card, #fx-levelup-banner,
+    #fx-fall-shroud, #fx-dawn, .victory-age-line, .summary-title--victory {
+        animation: none !important;
+    }
+    #fx-levelup-banner, #fx-fall-shroud, #fx-dawn { display: none; }
 }

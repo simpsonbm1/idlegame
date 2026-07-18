@@ -341,6 +341,7 @@ Two permanent, currency-funded trees spent into after each reset. Full planned s
 | Military | Rimecraft (M11) | unlocks the Frost Adept archetype | 1 | 1,200 |
 | Military | Standard Bearers (M11) | unlocks the Banneret archetype | 1 | 1,500 |
 | Economy | Steward's Ledger (M10) | unlocks townsfolk auto-hire (always-on in dev builds via `DEV_MODE`) | 1 | 150 |
+| Economy | Swift Seasons (2026-07-17) | unlocks the game speed selector — 1× / 2× / 4× (always-on in dev builds; 10×/50×/100× stay dev-only). Pure wall-clock QoL: the engine runs on game-seconds, so speed never touches balance (no sim change needed) | 1 | 300 |
 | Economy | Smithy Forgework (M12) | +1.5% hero attack per Smithy owned | 1 | 2,000 |
 | Economy | Library Tactics (M12) | +1% hero action speed per Library owned | 1 | 3,000 |
 | Economy | Apothecary Salves (M12) | heroes regen 0.3% HP/s per Apothecary in battle | 1 | 6,000 |
@@ -435,6 +436,11 @@ The in-run economy stays **gold-only** — no separate combat currency for hero 
   lines (ATK / HLR / DEF / GRD) — GRD especially ("Guard: draws ×N of the targeting weight in
   its row"); even the developer didn't associate "GRD" with guard when re-reading it, so the
   abbreviation demonstrably doesn't carry the mechanic.
+- **Raise the default game speed? (raised 2026-07-17):** after test runs, 1× felt really low to
+  the developer. First response shipped same day: the **Swift Seasons** Economy node (300 Legacy)
+  unlocks a player-facing 1×/2×/4× selector, dev speeds unchanged. Still undecided: whether the
+  *default* (pre-upgrade) speed should also rise — note the ~5-hour campaign arc and all
+  playtest-calibrated pacing assume 1×, so a default bump is a real pacing decision, not pure QoL.
 - **"Lock" a hero recruit (playtest 2026-07-17):** pin a pool recruit so it survives refreshes,
   hire when affordable. User worried it's too strong; assessment: healthy as a Legacy QoL node,
   especially now that hero costs scale by tier (locking becomes the pressure valve that makes
@@ -473,7 +479,7 @@ How the death-and-rebuild loop from *Progression loop redesign* is wired in `gam
 - **Run end:** `endRun(reason)` — `'overrun'` from `tick()` when `kingdomHP` hits 0 mid-battle, `'abandoned'` from the manual left-panel "Found a New Age" button (visible once raids have begun, two-click confirm). Either way: fall recorded, `runEnded = true` (the whole game freezes — `tick()` no-ops), and the full-screen run-summary overlay opens showing Age number, fall point, waves repelled, Legacy earned/available, both upgrade trees with Buy buttons, and the "Found a New Age" button. Closing the browser mid-summary is safe: `runEnded`/`runSummary` are saved, so the overlay reopens on load.
 - **The reset:** `foundNewAge()` increments `meta.age` and rebuilds run state: gold = `getStartingGold()` (Royal Treasury), kingdom level = Hamlet (or Village with Old Foundations), Kingdom HP = `getKingdomHpMax()` (Reinforced Walls), buildings back to zero at base costs (`BUILDING_BASE_COSTS`), residents/heroes/pools cleared, raid tier/wave/streak zeroed, free Rare Knight placed if Veteran's Welcome is owned. Upgrades are bought *on* the summary screen, so purchases there apply to the very next Age.
 - **What resets:** gold, `goldEarned`, buildings, residents, heroes, kingdom level, raid tier/wave/streak, Kingdom HP.
-- **What persists:** Legacy, tree purchases, `waveCredit`, `fallHistory`, auto-recruit setting, dev speed (also survives reload now), and the M13 campaign flags: `meta.victory` (endless-mode unlock), `meta.lessonsGranted`, `meta.gameSeconds` (lifetime game-time).
+- **What persists:** Legacy, tree purchases, `waveCredit`, `fallHistory`, auto-recruit setting, game speed (clamped on load via `allowedSpeeds()` to what the build + Swift Seasons permit — a saved 4× without the node, or a dev speed in a release build, falls back to 1×), and the M13 campaign flags: `meta.victory` (endless-mode unlock), `meta.lessonsGranted`, `meta.gameSeconds` (lifetime game-time).
 - The **Legacy balance** shows as a third resource line in the admin panel; the left panel shows "Kingdom · Age N".
 
 (The original prestige design — Legacy Points from lifetime `goldEarned`, manual prestige at Realm level, automatic +5%/point bonuses — is fully superseded by the above.)
@@ -494,6 +500,12 @@ feedback: the game isn't done until it feels good to play. M15 is the dedicated 
 **Guiding principle:** every player action and every important game event gets an immediate,
 legible, satisfying response. Juice is information delivery, not decoration — a hit you can see
 and hear is a hit the player understands.
+
+**The mockup is the destination (developer, re-affirmed 2026-07-17):** M15's visual end state
+is a **complete overhaul** matching the developer's one-scene Gemini mockup (town vista → wall
+→ battlefield as the primary presentation). Replacing letter portraits with sprites inside the
+current panel layout is pipeline scaffolding along the way, never the end state. The T1→T2→T3
+art tiers in `M15_SCOPE.md` are all committed scope — a build sequence, not a wishlist.
 
 This is a first-pass scope sketch; detailed design happens when M14 wraps. Constraints that hold
 regardless: plain HTML/CSS/JS with no build step (per the tech-stack decision), any assets
@@ -534,8 +546,22 @@ happens in a `requestAnimationFrame` loop (`renderFrame` → `renderAll`, capped
 the Phase 0 verification: **100× dev speed runs at a true 100× effective** (was 5–8×; a sim
 tick costs ~0.02ms). The mechanisms:
 - **Memoized panels** (`setPanelHtml`): innerHTML only touches the DOM when the freshly built
-  string differs from the last one; panels with embedded timers naturally refresh once per
-  game-second at 1×, at frame cadence at dev speeds.
+  string differs from the last one.
+- **Volatile/structure split (2026-07-17, click-eating fix):** memoized panel strings must
+  contain NO per-second-changing values — countdown timers, live cost labels, gold-driven
+  disabled states all live in fixed child elements that `refreshVolatileUI()` (formerly
+  `refreshAffordability`) updates in place at the end of every `renderAll`. Baking a ticking
+  value into a panel string forced a full innerHTML rebuild every game-second, which destroyed
+  buttons mid-click (unreliable at 1×, near-unclickable at 4×+) and reset hover states. Panels
+  now rebuild only on real structural change (pool refresh, hire, purchase, state flip).
+- **Delegated UI actions (same fix):** generated panels use `data-action="name:arg"` instead
+  of inline `onclick`; two document-level pointer listeners (`bindActionDispatch`,
+  `UI_ACTIONS` registry) dispatch by **action string**, so a press survives even a rebuild
+  that replaces the button between pointerdown and pointerup. Identity is in the string
+  (recruit/hero ids are forever-unique counters), so a pool refresh mid-click mismatches and
+  safely drops the press instead of firing on the replacement. Keyboard activation still works
+  via a click fallback (with single-shot suppression of the pointer-path's trailing click).
+  Human-verified at 100× dev speed (2026-07-17): every click landed; this never worked before.
 - **Persistent battle slots**: `renderSquad` = `squadSignature` (grid shape + per-slot unit
   identity via `unit._domKey`) → `buildSquad` rebuilds structure only when the signature
   changes → `updateSquad` updates HP widths/text/classes in place every frame. Persistent
@@ -577,8 +603,8 @@ tick costs ~0.02ms). The mechanisms:
 - [x] Milestone 12: **Doctrines** (wild/m10-m14 branch) — the four building↔army synergy nodes (Forgework / Tactics / Salves / Blessing, 2k/3k/5k/8k Legacy) as live use-time multipliers through the M11 modifier layer; Infernal boss comp trimmed one breath-mage; sim-verified that doctrines open the final boss (2% → 25% for the endgame squad); browser-smoked (multiplier values, blessing one-revive-per-battle)
 - [x] Milestone 13: **Final Siege** (wild/m10-m14 branch) — herald + 3-raid countdown after the first Demon Empress kill; 3-phase gauntlet as one invasion (HP carries, escalation resets per phase, Blessing once per gauntlet; phase waves 14/16/18 sim-tuned to ~38% for the endgame squad with doctrines, 0% without); Lessons of the Last Siege (25,000 Legacy, once) on a lost attempt; victory screen with campaign stats; endless mode (post-boss comp clamp, no second siege); browser-smoked end-to-end (herald, phases, victory overlay, endless resume, lessons once-only)
 - [x] Milestone 14: **Full-game balance calibration** (wild/m10-m14 branch; sim + accelerated-engine version — the user's real 1× playthrough is the acceptance gate) — campaign-arc wall-finder in the sim (per-run arc squads vs targets: on-target at both ends, ~half a tier deep mid-campaign; gauntlet 27–38% with the full kit, 0% without doctrines); tree-cost rescale to the pricing philosophy (totals ≈90k, winning kit ≈⅔; top power ranks 6,000, War Banners 4,000/30,000, Blessing 10,000); SAVE_VERSION → 5; browser soak test: a greedy driver played run 1 end-to-end at accelerated speed and fell to Orc w6 with 10 waves / 330 Legacy — matching the sim's prediction (Orc w5–7, ~380 LP) with zero console errors; known perf debt recorded for M15 (per-tick DOM rebuild caps 100× at ~5–8× effective)
-- [x] Milestone 14.1: **Acceptance-playtest feedback round 1** (uncommitted on wild/m10-m14) — stale-affordability UI fix (per-tick `refreshAffordability`); new-save softlock fix (starting gold 75); battle-grid column-stagger fix + hero-pool timer; **combat rebalance from the 5-reset playtest**: the **guard spectrum** (guardian 3 / paladin·banneret 2 / fighter 1.5 / assassin 0.5 weighted targeting, "GRD ×N" on unit cards), Fighter base-roster archetype (Footman/Sellsword/Blademaster/Warlord — frontline DPS), mender buff (22/65/8), paladin heal trim (11→9), hero costs ×1.4/raid tier, Reinforced Walls +3 Kingdom defense/rank, doctrine shop copy rewritten for impact. Sim re-verified: arc lands on the M14 baseline run-for-run (run-1 model reproduces the user's actual run 1 exactly: Orc w7, 11 waves, 380 LP), frontline composition is tier-dependent, paladin-stacks are a specialist choice, rear-row bodyguarding is a real matchup call, slippery assassins non-degenerate. Browser-smoked (weighted distributions exact, cost scaling ×1.96 at tier 2, walls def 27, GRD display, live battle repelled clean)
-- [ ] Milestone 15: **Game feel — visuals & sound** — the juice pass that turns the mechanically-complete game (M14) into one that feels good to play: combat/UI feedback animations, floating numbers, kingdom-damage and run-transition drama, portrait/sprite art pass; Web Audio SFX (hits, hires, raid horn, escalation heartbeat, stingers) with mute/volume; reduced-motion toggle. Scope sketch in *Game feel pass — visuals & sound (M15)*. **In progress:** full scope in `M15_SCOPE.md`; Gemini art workflow proven (`M15_ART_PILOT.md` — anchor knight, goblin, backdrop, frame all passed; pipeline tools in `tools/`); tier re-theme (Undead Legion / Infernal Siege) landed ahead of the asset run; **Phase 0 render refactor DONE 2026-07-17** (sim/render decoupled, memoized panels, persistent battle slots, FX bus with first consumers; 100× measured at true 100× effective, browser-verified across three organic run-ends with zero console errors — see *Render architecture* above); **Phase 1 combat juice DONE 2026-07-17** (lunges, hero death-ghosts + enemy death flashes, revive glow, chill tint + ❄, Kingdom HP damage-trail, kingdom-hit shake/vignette, injury flash, raid slam-in, repelled loot float + Legacy badge, escalation red wash — all through the FX bus / state-driven bindings; details in M15_SCOPE.md Phase 1); **runtime sprite pipeline DONE 2026-07-17** (raw-PNG loading + in-memory keying/trim/anchor/downscale, per-key letter fallback, wired into portraits and battle slots — see *Render architecture*)
+- [x] Milestone 14.1: **Acceptance-playtest feedback round 1** (uncommitted on wild/m10-m14) — stale-affordability UI fix (per-tick `refreshAffordability`, since renamed `refreshVolatileUI`); new-save softlock fix (starting gold 75); battle-grid column-stagger fix + hero-pool timer; **combat rebalance from the 5-reset playtest**: the **guard spectrum** (guardian 3 / paladin·banneret 2 / fighter 1.5 / assassin 0.5 weighted targeting, "GRD ×N" on unit cards), Fighter base-roster archetype (Footman/Sellsword/Blademaster/Warlord — frontline DPS), mender buff (22/65/8), paladin heal trim (11→9), hero costs ×1.4/raid tier, Reinforced Walls +3 Kingdom defense/rank, doctrine shop copy rewritten for impact. Sim re-verified: arc lands on the M14 baseline run-for-run (run-1 model reproduces the user's actual run 1 exactly: Orc w7, 11 waves, 380 LP), frontline composition is tier-dependent, paladin-stacks are a specialist choice, rear-row bodyguarding is a real matchup call, slippery assassins non-degenerate. Browser-smoked (weighted distributions exact, cost scaling ×1.96 at tier 2, walls def 27, GRD display, live battle repelled clean)
+- [ ] Milestone 15: **Game feel — visuals & sound** — the juice pass that turns the mechanically-complete game (M14) into one that feels good to play: combat/UI feedback animations, floating numbers, kingdom-damage and run-transition drama, portrait/sprite art pass; Web Audio SFX (hits, hires, raid horn, escalation heartbeat, stingers) with mute/volume; reduced-motion toggle. Scope sketch in *Game feel pass — visuals & sound (M15)*. **In progress:** full scope in `M15_SCOPE.md`; Gemini art workflow proven (`M15_ART_PILOT.md` — anchor knight, goblin, backdrop, frame all passed; pipeline tools in `tools/`); tier re-theme (Undead Legion / Infernal Siege) landed ahead of the asset run; **Phase 0 render refactor DONE 2026-07-17** (sim/render decoupled, memoized panels, persistent battle slots, FX bus with first consumers; 100× measured at true 100× effective, browser-verified across three organic run-ends with zero console errors — see *Render architecture* above); **Phase 1 combat juice DONE 2026-07-17** (lunges, hero death-ghosts + enemy death flashes, revive glow, chill tint + ❄, Kingdom HP damage-trail, kingdom-hit shake/vignette, injury flash, raid slam-in, repelled loot float + Legacy badge, escalation red wash — all through the FX bus / state-driven bindings; details in M15_SCOPE.md Phase 1); **runtime sprite pipeline DONE 2026-07-17** (raw-PNG loading + in-memory keying/trim/anchor/downscale, per-key letter fallback, wired into portraits and battle slots — see *Render architecture*); **Phase 2 town/progression juice DONE 2026-07-17** (gold-counter easing, "+N g/s" hire floaters, building purchase flash via the postRenderFlashes mechanism, pool-refresh card shuffle with a wall-clock strobe gate, level-up fanfare banner, Kingdom-fall shroud beat before the run summary, New-Age dawn wash, victory-screen polish, and the Motion Full/Reduced toggle persisted in `meta.reduceMotion` — details in M15_SCOPE.md Phase 2; browser-verified, zero console errors)
 
 ## Starting state
 - Player begins with 75 gold — enough that even buying all 3 Hamlet Cottages (39g) still leaves the first 25g Villager hire affordable (softlock guard, 2026-07-17; was 50); Royal Treasury ranks raise this for later Ages

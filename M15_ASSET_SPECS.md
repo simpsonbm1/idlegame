@@ -35,25 +35,25 @@ correctly. After each image, wait for me to approve or ask for a correction befo
 - Bosses (marked BOSS): fill about 85% of the image height, imposing commanding stance.
 
 ## Heroes (face slightly right)
-1. `raw_hero_fighter.png` — a hardened human footman soldier in a chainmail shirt,
+1. [DONE] `raw_hero_fighter.png` — a hardened human footman soldier in a chainmail shirt,
    open-faced kettle helmet, and red-and-steel tabard, gripping a longsword in both hands.
-2. `raw_hero_ranged.png` — a keen-eyed human archer in a forest-green hood and brown leather
+2. [DONE] `raw_hero_ranged.png` — a keen-eyed human archer in a forest-green hood and brown leather
    armor, longbow with an arrow nocked but pointed down, quiver on the back.
-3. `raw_hero_mender.png` — a gentle human healer in cream-and-gold hooded robes, wooden
+3. [DONE] `raw_hero_mender.png` — a gentle human healer in cream-and-gold hooded robes, wooden
    staff topped with a small glowing golden sun emblem, satchel of bandages at the hip.
-4. `raw_hero_paladin.png` — a holy paladin in polished silver-white plate armor with gold
+4. [DONE] `raw_hero_paladin.png` — a holy paladin in polished silver-white plate armor with gold
    trim, warhammer in one hand, radiant golden holy symbol in the other.
-5. `raw_hero_assassin.png` — a slim hooded assassin in dark charcoal-and-purple leathers,
+5. [DONE] `raw_hero_assassin.png` — a slim hooded assassin in dark charcoal-and-purple leathers,
    face in shadow, slightly crouched, twin curved daggers held low.
-6. `raw_hero_battlemage.png` — a battle-mage in deep blue robes with purple trim and glowing
+6. [DONE] `raw_hero_battlemage.png` — a battle-mage in deep blue robes with purple trim and glowing
    arcane runes on the sleeves, tall staff crackling with bright arcane blue energy.
-7. `raw_hero_banneret.png` — a banner-bearing knight in steel half-plate, tall
+7. [DONE] `raw_hero_banneret.png` — a banner-bearing knight in steel half-plate, tall
    crimson-and-gold war banner on a pole in one hand, short sword in the other.
-8. `raw_hero_frostadept.png` — a frost mage in pale ice-blue robes with white fur trim,
+8. [DONE] `raw_hero_frostadept.png` — a frost mage in pale ice-blue robes with white fur trim,
    crystal-tipped staff swirling with snowflakes and cold blue mist.
 
 ## Townsfolk (face slightly right; relaxed friendly standing pose instead of combat-idle)
-9. `raw_town_villager.png` — a cheerful villager in a simple brown tunic and straw hat,
+9. [DONE] `raw_town_villager.png` — a cheerful villager in a simple brown tunic and straw hat,
    carrying a basket of vegetables.
 10. `raw_town_tavernkeeper.png` — a stout jolly tavernkeeper, apron over rolled-up sleeves,
     foaming mug in one hand, cleaning rag in the other.

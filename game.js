@@ -73,6 +73,13 @@ const SAVE_VERSION = 5;
 // release build.
 const DEV_MODE = true;
 
+// Game speed is pure wall-clock QoL: the whole engine runs on game-seconds
+// (income, raid intervals, escalation), so a faster tick compresses real time
+// without touching balance. Player speeds unlock via the Swift Seasons node;
+// dev speeds exist only for testing.
+const PLAYER_SPEEDS = [1, 2, 4];
+const DEV_SPEEDS = [10, 50, 100];
+
 const BASE_ATTACK_INTERVAL = 2500;
 const DEFAULT_BACKLINE_CHANCE = 0.15;
 
@@ -308,7 +315,8 @@ function defaultMeta() {
         fallHistory: [],
         lessonsGranted: false, // Lessons of the Last Siege paid out (once per campaign)
         victory: false,        // the Final Siege has been won — endless mode unlocked
-        gameSeconds: 0         // lifetime game-time across all Ages (victory-screen stat)
+        gameSeconds: 0,        // lifetime game-time across all Ages (victory-screen stat)
+        reduceMotion: false    // manual no-shake/no-float toggle (M15 Phase 2; additive field)
     };
 }
 
@@ -329,7 +337,8 @@ function loadMeta() {
         fallHistory: state.fallHistory ?? [],
         lessonsGranted: state.lessonsGranted ?? false,
         victory: state.victory ?? false,
-        gameSeconds: state.gameSeconds ?? 0
+        gameSeconds: state.gameSeconds ?? 0,
+        reduceMotion: state.reduceMotion ?? false
     };
 }
 
@@ -341,6 +350,7 @@ const UPGRADE_TREES = {
             { id: 'treasury',    name: 'Royal Treasury',   desc: 'Begin each Age with a larger treasury (250 / 1,000 / 4,000 / 15,000 gold)', maxRank: 4, costs: [10, 40, 150, 500] },
             { id: 'builders',    name: 'Master Builders',  desc: '+50% Builder HP regen per rank',                               maxRank: 3, costs: [25, 100, 400] },
             { id: 'steward',     name: "Steward's Ledger", desc: 'Unlocks auto-hiring for townsfolk',                            maxRank: 1, costs: [150] },
+            { id: 'seasons',     name: 'Swift Seasons',    desc: 'Unlocks the game speed selector — rule your Ages at 1×, 2×, or 4× pace', maxRank: 1, costs: [300] },
             { id: 'foundations', name: 'Old Foundations',  desc: 'New Ages begin at Village level',                              maxRank: 1, costs: [400] },
             // Doctrines (M12): buildings feed the army, so town composition
             // stays a battle decision all game.
@@ -469,6 +479,11 @@ function unlockedHeroArchetypes() {
 // Townsfolk auto-hire is an Economy-tree purchase (Steward's Ledger); the dev
 // build keeps it always-on for testing.
 function autoRecruitAvailable() { return DEV_MODE || upgradeRank('steward') > 0; }
+function speedSelectorAvailable() { return DEV_MODE || upgradeRank('seasons') > 0; }
+function allowedSpeeds() {
+    const speeds = speedSelectorAvailable() ? [...PLAYER_SPEEDS] : [1];
+    return DEV_MODE ? speeds.concat(DEV_SPEEDS) : speeds;
+}
 
 // First-ever-clear pays full value; re-clears pay the trickle. Credit is
 // all-time (the high-water mark persists across Ages).
@@ -605,12 +620,44 @@ function toggleBuilding(id) {
 }
 
 function setGameSpeed(speed) {
+    if (!allowedSpeeds().includes(speed)) speed = 1;
     gameSpeed = speed;
     clearInterval(tickInterval);
     tickInterval = setInterval(tick, Math.floor(1000 / speed));
-    [1, 10, 50, 100].forEach(s => {
-        document.getElementById(`speed-${s}`).classList.toggle('btn-speed--active', s === speed);
-    });
+    renderSpeedButtons();
+}
+
+// Player speeds always render (locked until Swift Seasons); dev speeds append
+// only in dev builds. Memoized like every panel — rebuilds only on change.
+function renderSpeedButtons() {
+    const unlocked = speedSelectorAvailable();
+    let html = PLAYER_SPEEDS.map(s => {
+        const locked = s > 1 && !unlocked;
+        const active = s === gameSpeed ? ' btn-speed--active' : '';
+        return locked
+            ? `<button class="btn-speed btn-speed--locked" disabled title="Unlocks with Swift Seasons (Economy tree)">${s}×</button>`
+            : `<button class="btn-speed${active}" data-action="setGameSpeed:${s}">${s}×</button>`;
+    }).join('');
+    if (DEV_MODE) {
+        html += DEV_SPEEDS.map(s =>
+            `<button class="btn-speed btn-speed--dev${s === gameSpeed ? ' btn-speed--active' : ''}" data-action="setGameSpeed:${s}">${s}×</button>`
+        ).join('');
+    }
+    setPanelHtml('speed-buttons', html);
+}
+
+// Reduced-motion / no-shake toggle (M15 Phase 2). When the OS itself asks for
+// reduced motion, the choice is honored unconditionally and the toggle locks.
+function renderMotionToggle() {
+    let html;
+    if (SYSTEM_REDUCED_MOTION) {
+        html = `<button class="btn-speed btn-speed--active btn-speed--locked" disabled title="Your system requests reduced motion">Reduced (system)</button>`;
+    } else {
+        const reduced = !!meta.reduceMotion;
+        html = `<button class="btn-speed${reduced ? '' : ' btn-speed--active'}" data-action="setReduceMotion:0">Full</button>`
+             + `<button class="btn-speed${reduced ? ' btn-speed--active' : ''}" data-action="setReduceMotion:1" title="No shake, flashes, or floating numbers">Reduced</button>`;
+    }
+    setPanelHtml('motion-toggle', html);
 }
 
 function bulkBuildingCost(id, n) {
@@ -700,12 +747,16 @@ function generateRecruit() {
     return { id: nextRecruitId++, typeId, buildingId: type.buildingId, name: type.name, rarity, income, cost };
 }
 
+let poolGeneration = 0;     // bumped per refresh — drives the card shuffle-in animation
+let heroPoolGeneration = 0;
+
 function refreshPool() {
     recruitPool = [];
     for (let i = 0; i < POOL_SIZE; i++) {
         const r = generateRecruit();
         if (r) recruitPool.push(r);
     }
+    poolGeneration++;
     return autoRecruit();
 }
 
@@ -737,6 +788,7 @@ function autoRecruit() {
 
         if (b.type === 'hpregen') kingdomHpRegen += recruit.income;
         else goldPerSecond += recruit.income;
+        emitFxData(b.type === 'hpregen' ? 'hireHp' : 'hireGold', { amount: recruit.income });
 
         anyHired = true;
     }
@@ -765,6 +817,7 @@ function hireRecruit(recruitId) {
     } else {
         goldPerSecond += recruit.income;
     }
+    emitFxData(b.type === 'hpregen' ? 'hireHp' : 'hireGold', { amount: recruit.income });
 
     saveGame();
     updateUI();
@@ -1171,6 +1224,7 @@ function refreshHeroPool() {
     for (let i = 0; i < getHeroPoolSize(); i++) {
         heroRecruitPool.push(generateHeroRecruit());
     }
+    heroPoolGeneration++;
 }
 
 function hireHero(recruitId) {
@@ -1387,7 +1441,34 @@ function endRun(reason) {
     confirmingNewAge = false;
     saveMeta();
     saveGame();
-    renderRunSummary();
+    // The fall gets a beat before the ledger appears: the screen darkens,
+    // then the summary rises through the lifting shroud. An abandoned Age
+    // takes the short fade; a reload mid-summary still shows it instantly
+    // (this path only runs at the moment of the fall).
+    playFallTransition(reason === 'overrun');
+}
+
+function playFallTransition(dramatic) {
+    if (reducedMotion() || document.getElementById('fx-fall-shroud')) return renderRunSummary();
+    const v = document.createElement('div');
+    v.id = 'fx-fall-shroud';
+    if (!dramatic) v.classList.add('fx-fall-shroud--gentle');
+    document.body.appendChild(v);
+    setTimeout(() => {
+        renderRunSummary();
+        v.classList.add('fx-fall-shroud--lift');
+        setTimeout(() => v.remove(), 800);
+    }, dramatic ? 950 : 450);
+}
+
+// Dawn wash when a new Age begins — a warm light that fades as the fresh
+// kingdom appears underneath.
+function playDawnTransition() {
+    if (reducedMotion() || document.getElementById('fx-dawn')) return;
+    const v = document.createElement('div');
+    v.id = 'fx-dawn';
+    removeOnAnimationDone(v);
+    document.body.appendChild(v);
 }
 
 // The reset itself: back to Hamlet (or Village with Old Foundations) with
@@ -1436,6 +1517,7 @@ function foundNewAge() {
 
     refreshPool();
     renderRunSummary();
+    playDawnTransition();
     saveGame();
     updateUI();
 }
@@ -1521,7 +1603,11 @@ function loadGame() {
     runSummary = state.runSummary ?? null;
     runLegacyEarned = state.runLegacyEarned ?? 0;
     runWavesCleared = state.runWavesCleared ?? 0;
-    gameSpeed = [1, 10, 50, 100].includes(state.gameSpeed) ? state.gameSpeed : 1;
+    // Clamp to what this build + the player's upgrades actually allow (meta is
+    // already loaded): a save carrying 4x without Swift Seasons, or a dev speed
+    // in a non-dev build, falls back to 1x rather than keeping a speed the UI
+    // can no longer select.
+    gameSpeed = allowedSpeeds().includes(state.gameSpeed) ? state.gameSpeed : 1;
     recruitPool = state.recruitPool ?? [];
     poolTimer = state.poolTimer ?? 0;
     nextRecruitId = state.nextRecruitId ?? 0;
@@ -1654,6 +1740,7 @@ function levelUpKingdom() {
     gold -= next.cost;
     kingdomLevel += 1;
     if (kingdomLevel >= RAID_TRIGGER_LEVEL && heroRecruitPool.length === 0) refreshHeroPool();
+    emitFxData('levelup', { label: levels[kingdomLevel].name });
     saveGame();
     updateUI();
 }
@@ -1669,6 +1756,7 @@ function buyBuilding(id) {
     gold -= totalCost;
     b.cost = Math.floor(b.cost * Math.pow(b.costGrowth, affordable));
     b.count += affordable;
+    emitFxData('built', { id });
     saveGame();
     updateUI();
 }
@@ -1680,8 +1768,6 @@ function canHireRecruit(recruit) {
 }
 
 function renderRecruitPool() {
-    const timeUntilRefresh = POOL_REFRESH_INTERVAL - poolTimer;
-
     const autoOptions = [
         { value: null,        label: 'Off'       },
         { value: 'common',    label: 'Common+'   },
@@ -1695,15 +1781,17 @@ function renderRecruitPool() {
             <span class="auto-recruit-label">Auto-hire:</span>
             ${autoOptions.map(({ value, label }) => {
                 const active = autoRecruitRarity === value;
-                const arg = value === null ? 'null' : `'${value}'`;
                 const rarityClass = value ? `btn-auto--${value}` : '';
-                return `<button class="btn-auto ${rarityClass} ${active ? 'btn-auto--active' : ''}" onclick="setAutoRecruit(${arg})">${label}</button>`;
+                return `<button class="btn-auto ${rarityClass} ${active ? 'btn-auto--active' : ''}" data-action="setAutoRecruit:${value === null ? 'null' : value}">${label}</button>`;
             }).join('')}
         </div>`
         : `<div class="auto-recruit"><span class="auto-recruit-label auto-recruit-locked">Auto-hire: unlocks with Steward's Ledger (Economy)</span></div>`;
 
+    // The countdown is volatile text — it lives OUTSIDE the memoized string
+    // (filled in refreshVolatileUI) so the ticking clock doesn't force a full
+    // panel rebuild every game-second, which destroyed Hire buttons mid-click.
     let html = `<div class="pool-header">
-        <span class="pool-timer" id="pool-timer-text">New arrivals in ${timeUntilRefresh}s</span>
+        <span class="pool-timer" id="pool-timer-text"></span>
         ${autoRecruitHtml}
     </div><div class="pool-cards">`;
 
@@ -1715,7 +1803,6 @@ function renderRecruitPool() {
             const slots = b.count * b.slotsPerBuilding;
             const hasSlot = b.residents.length < slots;
             const buildingUnlocked = getBuildingCap(recruit.buildingId) > 0;
-            const canHire = canHireRecruit(recruit);
             const isHpregen = b.type === 'hpregen';
             const type = recruitTypes[recruit.typeId];
             const tier = rarityTiers[recruit.rarity];
@@ -1748,7 +1835,7 @@ function renderRecruitPool() {
                 </div>
                 <div class="recruit-action">
                     <div class="recruit-cost">${recruit.cost.toLocaleString()}g</div>
-                    <button class="btn-hire-recruit" data-recruit-id="${recruit.id}" onclick="hireRecruit(${recruit.id})" ${canHire ? '' : 'disabled'}>Hire</button>
+                    <button class="btn-hire-recruit" data-recruit-id="${recruit.id}" data-action="hireRecruit:${recruit.id}">Hire</button>
                 </div>
             </div>`;
         });
@@ -1778,7 +1865,7 @@ function renderBuildings() {
     const qtys = [1, 5, 10, 'max'];
     let html = `<div class="buy-mode">
         <span class="buy-mode-label">Buy:</span>
-        ${qtys.map(q => `<button class="btn-qty ${buyQuantity === q ? 'btn-qty--active' : ''}" onclick="setBuyQuantity(${q === 'max' ? "'max'" : q})">×${q}</button>`).join('')}
+        ${qtys.map(q => `<button class="btn-qty ${buyQuantity === q ? 'btn-qty--active' : ''}" data-action="setBuyQuantity:${q}">×${q}</button>`).join('')}
     </div>`;
 
     for (const id in buildings) {
@@ -1800,7 +1887,6 @@ function renderBuildings() {
         const isHpregen = b.type === 'hpregen';
         const hasSlots = b.slotsPerBuilding > 0;
         const totalSlots = b.count * b.slotsPerBuilding;
-        const { canAfford: canAffordBuilding, costLabel } = buildingPurchaseInfo(id);
 
         const isExpanded = buildingExpanded[id] || false;
         const buildingTotal = b.residents.reduce((sum, r) => sum + r.income, 0);
@@ -1812,10 +1898,10 @@ function renderBuildings() {
 
         html += `<div class="building-card ${isHpregen ? 'building-card--hpregen' : ''}">
             <div class="building-row">
-                <button class="btn-building" data-building-id="${id}" onclick="buyBuilding('${id}')" ${canAffordBuilding ? '' : 'disabled'}>
+                <button class="btn-building" data-building-id="${id}" data-action="buyBuilding:${id}">
                     <span class="building-name">${b.name}</span>
                     <span class="building-meta">
-                        <span class="building-cost">Cost: ${costLabel}</span>
+                        <span class="building-cost"></span>
                         <span class="building-desc">${descLabel}</span>
                     </span>
                     <span class="building-stats">
@@ -1825,7 +1911,7 @@ function renderBuildings() {
                         ${totalLabel ? `<span class="building-income-total ${isHpregen ? 'building-income-total--hpregen' : ''}">${totalLabel}</span>` : ''}
                     </span>
                 </button>
-                ${b.count > 0 && hasSlots ? `<button class="btn-expand" onclick="toggleBuilding('${id}')" title="${isExpanded ? 'Collapse' : 'Expand residents'}">${isExpanded ? '▲' : '▼'}</button>` : ''}
+                ${b.count > 0 && hasSlots ? `<button class="btn-expand" data-action="toggleBuilding:${id}" title="${isExpanded ? 'Collapse' : 'Expand residents'}">${isExpanded ? '▲' : '▼'}</button>` : ''}
             </div>`;
 
         if (b.count > 0 && hasSlots && isExpanded) {
@@ -1840,10 +1926,13 @@ function renderBuildings() {
                 const valueLabel = isHpregen ? `${r.income} hp/s` : `${r.income} g/s`;
                 const rarityInfo = rarityTiers[r.rarity] || rarityTiers.common;
                 const injured = isInjured(r);
-                const injuredTitle = injured ? `&#10;INJURED — recovers in ${Math.max(0, Math.ceil(r.injuredUntil - runTime))}s (no income)` : '';
+                // Injury recovery countdown is volatile — refreshVolatileUI
+                // maintains the title so the ticking clock doesn't rebuild
+                // the whole buildings panel every game-second.
+                const injuredTitle = injured ? `&#10;INJURED — recovering (no income)` : '';
                 html += `<div class="portrait portrait--${r.rarity || 'common'}${injured ? ' portrait--injured' : ''}" data-type="${r.typeId || 'villager'}"
                     title="${r.name} (${rarityInfo.name}) — ${valueLabel}${injuredTitle}&#10;Click to dismiss"
-                    onclick="fireResident('${id}', ${r.originalIndex})">
+                    data-action="fireResident:${id}:${r.originalIndex}">
                     ${injured ? '<span class="portrait-letter">✚</span>' : portraitInner('town_' + (r.typeId || 'villager'), letter)}
                     <span class="portrait-stat">${r.income}</span>
                 </div>`;
@@ -1879,7 +1968,7 @@ function renderLeftPanel() {
         html += `<div class="levelup-block">
             <div class="levelup-cost">Level up: ${next.cost.toLocaleString()} gold</div>
             ${unlockNames ? `<div class="levelup-unlocks">Unlocks: ${unlockNames}</div>` : ''}
-            <button class="btn-levelup" onclick="levelUpKingdom()" ${canAfford ? '' : 'disabled'}>
+            <button class="btn-levelup" data-action="levelUpKingdom" ${canAfford ? '' : 'disabled'}>
                 Become a ${next.name}
             </button>
         </div>`;
@@ -1896,13 +1985,13 @@ function renderLeftPanel() {
             html += `<div class="panel-section">
                 <div class="panel-label" style="color:#8a4040">End this Age?</div>
                 <div class="reset-confirm-buttons">
-                    <button class="btn-reset btn-reset--confirm" onclick="confirmNewAge()">Yes, end it</button>
-                    <button class="btn-reset" onclick="cancelNewAge()">Cancel</button>
+                    <button class="btn-reset btn-reset--confirm" data-action="confirmNewAge">Yes, end it</button>
+                    <button class="btn-reset" data-action="cancelNewAge">Cancel</button>
                 </div>
             </div>`;
         } else {
             html += `<div class="panel-section">
-                <button class="btn-new-age-side" onclick="showNewAgeConfirm()">Found a New Age</button>
+                <button class="btn-new-age-side" data-action="showNewAgeConfirm">Found a New Age</button>
             </div>`;
         }
     }
@@ -1911,13 +2000,13 @@ function renderLeftPanel() {
         html += `<div class="panel-section">
             <div class="panel-label" style="color:#8a4040">Reset all progress?</div>
             <div class="reset-confirm-buttons">
-                <button class="btn-reset btn-reset--confirm" onclick="doResetGame()">Yes, reset</button>
-                <button class="btn-reset" onclick="cancelReset()">Cancel</button>
+                <button class="btn-reset btn-reset--confirm" data-action="doResetGame">Yes, reset</button>
+                <button class="btn-reset" data-action="cancelReset">Cancel</button>
             </div>
         </div>`;
     } else {
         html += `<div class="panel-section">
-            <button class="btn-reset" onclick="showResetConfirm()">Reset game</button>
+            <button class="btn-reset" data-action="showResetConfirm">Reset game</button>
         </div>`;
     }
 
@@ -1948,12 +2037,14 @@ function renderKingdomHP() {
 function renderRaidStatusBar() {
     let html = '';
 
+    // Live numbers (arrival countdown, escalation %) render into fixed child
+    // elements filled by refreshVolatileUI — baking them into this string
+    // would rebuild the bar every game-second and restart its CSS animations.
     if (currentInvasion) {
         html += `<div class="raid-status-name">${currentInvasion.name}</div>
             <div class="raid-status-timer">${currentInvasion.finalSiege ? `Phase ${currentInvasion.phase} of ${FINAL_SIEGE_PHASES.length}` : 'Battle in progress'}</div>`;
-        const esc = escalationMult(currentInvasion);
-        if (esc > 1) {
-            html += `<div class="raid-status-escalation">The siege escalates! Enemy attack +${Math.round((esc - 1) * 100)}%</div>`;
+        if (escalationMult(currentInvasion) > 1) {
+            html += `<div class="raid-status-escalation" id="raid-esc-line"></div>`;
         }
         if (!squadAlive(heroSquad)) {
             html += `<div class="raid-status-siege">The Kingdom is under siege!</div>`;
@@ -1961,7 +2052,7 @@ function renderRaidStatusBar() {
     } else if (raidsStarted) {
         const nextName = finalSiegeCountdown === 0 ? 'THE FINAL SIEGE' : getInvasionName(raidTierIndex, tierWave);
         html += `<div class="raid-status-name">Next: ${nextName}</div>
-            <div class="raid-status-timer">Arrives in ${formatTimer(invasionTimer)}</div>`;
+            <div class="raid-status-timer">Arrives in <span id="raid-timer-text"></span></div>`;
         if (finalSiegeCountdown > 0) {
             html += `<div class="raid-status-siege">A herald arrives: the Final Siege approaches — ${finalSiegeCountdown} raid${finalSiegeCountdown === 1 ? '' : 's'} remain${finalSiegeCountdown === 1 ? 's' : ''}!</div>`;
         }
@@ -1999,7 +2090,11 @@ function unitDomKey(unit) {
 // 100x dev speed produces the same on-screen effect density as 1x.
 const fxQueue = [];
 const FX_MAX_FLOATS = 14; // concurrent floats in the battle overlay layer
-const REDUCED_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const SYSTEM_REDUCED_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+// System preference OR the manual in-game toggle (M15 Phase 2, persisted in
+// meta). JS spawns check this; CSS animations are gated by the matching
+// `body.reduce-motion` class (synced in renderAll) plus the media query.
+function reducedMotion() { return SYSTEM_REDUCED_MOTION || !!meta.reduceMotion; }
 
 function emitFx(type, unit, amount) {
     // Hidden tabs don't render (rAF pauses), so a long-running battle could
@@ -2014,11 +2109,32 @@ function emitFx(type, unit, amount) {
     });
 }
 
+// Non-unit events (town/progression juice, M15 Phase 2) carry a free-form
+// payload instead of a unit key.
+function emitFxData(type, data) {
+    if (fxQueue.length > 2000) fxQueue.length = 0;
+    fxQueue.push({ type, ...data });
+}
+
+// Flashes that target content INSIDE memoized panels can't run in drainFx —
+// it drains before the panel renders, and the rebuild would wipe the class.
+// They queue here and fire at the END of renderAll, after panels settle.
+const postRenderFlashes = [];
+
 function flashClass(el, cls) {
     if (!el) return;
     el.classList.remove(cls);
     void el.offsetWidth; // reflow so re-adding the class restarts the animation
     el.classList.add(cls);
+}
+
+// Self-removing FX nodes must also die on `animationcancel`: flipping the
+// reduce-motion toggle mid-flight sets animation:none, which cancels instead
+// of ending — without this, the node would linger invisibly forever.
+function removeOnAnimationDone(el, selfOnly) {
+    const done = e => { if (!selfOnly || e.target === el) el.remove(); };
+    el.addEventListener('animationend', done);
+    el.addEventListener('animationcancel', done);
 }
 
 // Floats and death-ghosts live in an overlay layer over the battle area —
@@ -2035,7 +2151,7 @@ function fxLayer() {
 }
 
 function spawnFloatAt(anchorEl, text, cls) {
-    if (REDUCED_MOTION) return;
+    if (reducedMotion()) return;
     const layer = fxLayer();
     if (layer.querySelectorAll('.fx-float').length >= FX_MAX_FLOATS) return;
     const lr = layer.getBoundingClientRect();
@@ -2045,23 +2161,23 @@ function spawnFloatAt(anchorEl, text, cls) {
     f.textContent = text;
     f.style.left = (ar.left - lr.left + ar.width / 2) + 'px';
     f.style.top = (ar.top - lr.top - 4) + 'px';
-    f.addEventListener('animationend', () => f.remove());
+    removeOnAnimationDone(f);
     layer.appendChild(f);
 }
 
 // One-at-a-time float pinned inside a stable (never innerHTML-replaced)
 // container — used for the Legacy gain on the admin panel's resource row.
 function spawnBadgeFloat(container, text, cls) {
-    if (REDUCED_MOTION || !container || container.querySelector('.fx-float')) return;
+    if (reducedMotion() || !container || container.querySelector('.fx-float')) return;
     const f = document.createElement('div');
     f.className = 'fx-float fx-float--badge ' + cls;
     f.textContent = text;
-    f.addEventListener('animationend', () => f.remove());
+    removeOnAnimationDone(f);
     container.appendChild(f);
 }
 
 function spawnDeathGhost(slot, name) {
-    if (REDUCED_MOTION) return;
+    if (reducedMotion()) return;
     const layer = fxLayer();
     const lr = layer.getBoundingClientRect();
     const sr = slot.getBoundingClientRect();
@@ -2072,7 +2188,7 @@ function spawnDeathGhost(slot, name) {
     g.style.top = (sr.top - lr.top) + 'px';
     g.style.width = sr.width + 'px';
     g.style.height = sr.height + 'px';
-    g.addEventListener('animationend', () => g.remove());
+    removeOnAnimationDone(g);
     layer.appendChild(g);
 }
 
@@ -2089,8 +2205,9 @@ function fxVignette() {
 function drainFx() {
     if (fxQueue.length === 0) return;
     const dmg = new Map(), heal = new Map(), lunges = new Map();
-    const deaths = [], revives = [];
+    const deaths = [], revives = [], builtIds = new Set();
     let kingdomHit = 0, injury = false, raidStart = false, repelledLoot = 0, legacyGain = 0;
+    let hireGold = 0, hireHp = 0, levelUpLabel = null;
     for (const fx of fxQueue) {
         if (fx.type === 'hit') dmg.set(fx.key, (dmg.get(fx.key) || 0) + fx.amount);
         else if (fx.type === 'heal') heal.set(fx.key, (heal.get(fx.key) || 0) + fx.amount);
@@ -2102,6 +2219,10 @@ function drainFx() {
         else if (fx.type === 'raidStart') raidStart = true;
         else if (fx.type === 'repelled') repelledLoot += fx.amount;
         else if (fx.type === 'legacy') legacyGain += fx.amount;
+        else if (fx.type === 'hireGold') hireGold += fx.amount;   // coalesced: auto-hire
+        else if (fx.type === 'hireHp') hireHp += fx.amount;       // sprees float ONE sum
+        else if (fx.type === 'built') builtIds.add(fx.id);
+        else if (fx.type === 'levelup') levelUpLabel = fx.label;
     }
     fxQueue.length = 0;
 
@@ -2149,6 +2270,32 @@ function drainFx() {
         const legacyEl = document.getElementById('legacy-display');
         spawnBadgeFloat(legacyEl && legacyEl.parentElement, '+' + legacyGain.toLocaleString(), 'fx-float--legacy');
     }
+    if (hireGold > 0) {
+        const gpsEl = document.getElementById('gps-display');
+        spawnBadgeFloat(gpsEl && gpsEl.parentElement, `+${Math.round(hireGold * 10) / 10} g/s`, 'fx-float--gps');
+    }
+    if (hireHp > 0) {
+        spawnBadgeFloat(document.getElementById('kingdom-hp'), `+${Math.round(hireHp * 10) / 10} hp/s`, 'fx-float--gps');
+    }
+    // Building flash targets memoized-panel content: queue for AFTER the
+    // panel render this frame (the rebuild would wipe a class set here).
+    for (const id of builtIds) {
+        postRenderFlashes.push({ selector: `.btn-building[data-building-id="${id}"]`, cls: 'fx-built' });
+    }
+    if (levelUpLabel) spawnLevelUpBanner(levelUpLabel);
+}
+
+// Full-width fanfare for the kingdom level-up — the economic ratchet moment.
+// One at a time; player-triggered, so no dev-speed budget concerns.
+function spawnLevelUpBanner(levelName) {
+    if (reducedMotion() || document.getElementById('fx-levelup-banner')) return;
+    const b = document.createElement('div');
+    b.id = 'fx-levelup-banner';
+    b.innerHTML = `<div class="fx-levelup-rule"></div>
+        <div class="fx-levelup-text">The realm rises &mdash; <strong>${levelName}</strong></div>
+        <div class="fx-levelup-rule"></div>`;
+    removeOnAnimationDone(b, true);
+    document.body.appendChild(b);
 }
 
 // --- M15 sprite pipeline (runtime — no build step, per the tech-stack rule) ---
@@ -2458,7 +2605,7 @@ function renderHeroRecruitPool() {
     }
 
     let html = `<div class="pool-header">
-        <span class="pool-timer">New heroes in ${HERO_POOL_REFRESH_INTERVAL - heroPoolTimer}s</span>
+        <span class="pool-timer" id="hero-pool-timer-text"></span>
     </div>`;
 
     if (heroRecruitPool.length === 0) {
@@ -2475,8 +2622,6 @@ function renderHeroRecruitPool() {
             statParts.push(`DEF ${base.defense}%`);
             if (base.guard) statParts.push(`GRD ×${base.guard}`);
 
-            const canAfford = gold >= recruit.cost;
-            const canHire = canAfford && hasSlot;
             const letter = recruit.name[0].toUpperCase();
 
             let hint = '';
@@ -2494,7 +2639,7 @@ function renderHeroRecruitPool() {
                 </div>
                 <div class="recruit-action">
                     <div class="recruit-cost">${recruit.cost.toLocaleString()}g</div>
-                    <button class="btn-hire-recruit" data-hero-id="${recruit.id}" onclick="hireHero(${recruit.id})" ${canHire ? '' : 'disabled'}>Hire</button>
+                    <button class="btn-hire-recruit" data-hero-id="${recruit.id}" data-action="hireHero:${recruit.id}">Hire</button>
                 </div>
             </div>`;
         });
@@ -2525,7 +2670,7 @@ function renderUpgradeTree(treeId) {
                 ${maxed
                     ? `<div class="upgrade-maxed-label">Maxed</div>`
                     : `<div class="upgrade-cost">${cost.toLocaleString()} Legacy</div>
-                       <button class="btn-upgrade" onclick="buyUpgrade('${node.id}')" ${canAfford ? '' : 'disabled'}>Buy</button>`}
+                       <button class="btn-upgrade" data-action="buyUpgrade:${node.id}" ${canAfford ? '' : 'disabled'}>Buy</button>`}
             </div>
         </div>`;
     }
@@ -2552,7 +2697,7 @@ function renderRunSummary() {
         </div>
         <div class="summary-shop-heading">Spend Legacy on permanent upgrades — they carry into every future Age.</div>
         <div class="summary-trees">${renderUpgradeTree('economy')}${renderUpgradeTree('military')}</div>
-        <button class="btn-new-age" onclick="foundNewAge()">Found a New Age &mdash; Age ${meta.age + 1}</button>`;
+        <button class="btn-new-age" data-action="foundNewAge">Found a New Age &mdash; Age ${meta.age + 1}</button>`;
 
     document.getElementById('run-summary-content').innerHTML = html;
     overlay.classList.remove('hidden');
@@ -2576,7 +2721,7 @@ function renderVictory() {
             <div class="summary-stat"><span class="summary-stat-value">${hours}h ${mins}m</span> of kingdom time</div>
         </div>
         ${fallLines ? `<div class="victory-history"><div class="summary-shop-heading">The Ages that came before:</div>${fallLines}</div>` : ''}
-        <button class="btn-new-age" onclick="continueEndless()">Rule in Peace &mdash; Endless Mode</button>`;
+        <button class="btn-new-age" data-action="continueEndless">Rule in Peace &mdash; Endless Mode</button>`;
 
     document.getElementById('run-summary-content').innerHTML = html;
     overlay.classList.remove('hidden');
@@ -2586,7 +2731,14 @@ function renderVictory() {
 // rebuild on events (pool refresh, purchases, expand/collapse) — so their
 // baked-in disabled states go stale as gold comes in. Refresh them in place
 // each tick instead of rebuilding the DOM (see the M15 perf-debt note).
-function refreshAffordability() {
+// Per-frame in-place refresh of every VOLATILE piece of the UI: affordability
+// (disabled states, live cost labels) and ticking countdown texts. These are
+// deliberately NOT part of the memoized panel strings — baking a per-second
+// value into a panel forces a full innerHTML rebuild every game-second, which
+// destroys buttons mid-click (the click-eating bug, fixed 2026-07-17) and
+// kills hover states / CSS animations. Runs after the panel renders in
+// renderAll, so even a frame that rebuilt a panel ends with correct state.
+function refreshVolatileUI() {
     document.querySelectorAll('#recruit-pool .btn-hire-recruit[data-recruit-id]').forEach(btn => {
         const recruit = recruitPool.find(r => r.id === Number(btn.dataset.recruitId));
         if (recruit) btn.disabled = !canHireRecruit(recruit);
@@ -2602,6 +2754,17 @@ function refreshAffordability() {
         const recruit = heroRecruitPool.find(r => r.id === Number(btn.dataset.heroId));
         if (recruit) btn.disabled = !(gold >= recruit.cost && heroHasSlot);
     });
+
+    const setText = (id, text) => {
+        const el = document.getElementById(id);
+        if (el && el.textContent !== text) el.textContent = text;
+    };
+    setText('pool-timer-text', `New arrivals in ${Math.max(0, POOL_REFRESH_INTERVAL - poolTimer)}s`);
+    setText('hero-pool-timer-text', `New heroes in ${Math.max(0, HERO_POOL_REFRESH_INTERVAL - heroPoolTimer)}s`);
+    setText('raid-timer-text', formatTimer(invasionTimer));
+    if (currentInvasion) {
+        setText('raid-esc-line', `The siege escalates! Enemy attack +${Math.round((escalationMult(currentInvasion) - 1) * 100)}%`);
+    }
 }
 
 // --- M15 Phase 0: the render loop ---
@@ -2610,31 +2773,134 @@ function refreshAffordability() {
 // everything: memoized panels only touch the DOM when content changed,
 // battle slots update in place, and the FX queue drains under its budget.
 // Render cost is now independent of dev speed — 100x sim, ~15fps paint.
+let displayedGold = null;   // eased display value — the counter rolls, never snaps
+let paintedPoolGen = 0, paintedHeroPoolGen = 0;
+let lastShuffleWall = 0;
+
 function renderAll() {
     // FX drain FIRST: death-ghosts must capture slot geometry before this
     // frame's squad render rebuilds the structure out from under them.
     drainFx();
 
-    document.getElementById('gold-display').textContent = Math.floor(gold).toLocaleString();
+    document.body.classList.toggle('reduce-motion', reducedMotion());
+
+    // Gold counter easing: roll 25% of the gap per frame, snap when close.
+    // Purely presentational — every purchase check reads the real `gold`.
+    const goldTarget = Math.floor(gold);
+    if (displayedGold === null || Math.abs(goldTarget - displayedGold) < 2) displayedGold = goldTarget;
+    else displayedGold += (goldTarget - displayedGold) * 0.25;
+    document.getElementById('gold-display').textContent = Math.floor(displayedGold).toLocaleString();
     document.getElementById('gps-display').textContent = Math.round(goldPerSecond * econIncomeMult()).toLocaleString();
     document.getElementById('legacy-display').textContent = meta.legacy.toLocaleString();
     document.getElementById('siege-indicator').textContent = currentInvasion ? ' (siege)' : '';
 
     renderKingdomHP();
     renderLeftPanel();
+    renderSpeedButtons(); // locks lift the frame after Swift Seasons is bought
+    renderMotionToggle();
     renderRaidStatusBar();
     renderBattleSquads();
     renderRecruitPool();
     renderBuildings();
     renderHeroRecruitPool();
 
-    refreshAffordability();
+    refreshVolatileUI();
+
+    // Post-render FX: flashes and entrance animations that target content
+    // inside memoized panels — must run AFTER the panels have settled.
+    for (const f of postRenderFlashes) flashClass(document.querySelector(f.selector), f.cls);
+    postRenderFlashes.length = 0;
+
+    // Pool-refresh shuffle: stagger the fresh cards in. Wall-clock gated so
+    // 100x dev speed (a refresh every ~0.1s real time) doesn't strobe.
+    const now = performance.now();
+    if (paintedPoolGen !== poolGeneration) {
+        paintedPoolGen = poolGeneration;
+        if (!reducedMotion() && now - lastShuffleWall > 400) {
+            lastShuffleWall = now;
+            flashClass(document.getElementById('recruit-pool'), 'fx-pool-shuffle');
+        }
+    }
+    if (paintedHeroPoolGen !== heroPoolGeneration) {
+        paintedHeroPoolGen = heroPoolGeneration;
+        if (!reducedMotion() && now - lastShuffleWall > 400) {
+            lastShuffleWall = now;
+            flashClass(document.getElementById('hero-recruit-pool'), 'fx-pool-shuffle');
+        }
+    }
 }
 
 // Kept as the universal "something changed, repaint" entry point for event
 // handlers — an immediate full pass is cheap now that panels are memoized.
 function updateUI() {
     renderAll();
+}
+
+// --- Delegated UI actions (click-eating fix, 2026-07-17) ---
+// Generated panels use data-action="name:arg:arg" instead of inline onclick.
+// Two document-level listeners dispatch by ACTION STRING, not by element:
+// if a panel rebuild replaces a button between pointerdown and pointerup, the
+// replacement under the cursor carries the same action string and the press
+// still lands. Identity is part of the string (recruit/hero ids are unique
+// forever), so a pool refresh mid-click yields a MISMATCH and safely drops
+// the press instead of buying whatever took that spot.
+const UI_ACTIONS = {
+    hireRecruit:     id => hireRecruit(Number(id)),
+    hireHero:        id => hireHero(Number(id)),
+    fireResident:    (id, idx) => fireResident(id, Number(idx)),
+    buyBuilding:     id => buyBuilding(id),
+    toggleBuilding:  id => toggleBuilding(id),
+    setBuyQuantity:  q => setBuyQuantity(q === 'max' ? 'max' : Number(q)),
+    setAutoRecruit:  r => setAutoRecruit(r === 'null' ? null : r),
+    setGameSpeed:    s => setGameSpeed(Number(s)),
+    levelUpKingdom:  () => levelUpKingdom(),
+    showNewAgeConfirm: () => showNewAgeConfirm(),
+    confirmNewAge:   () => confirmNewAge(),
+    cancelNewAge:    () => cancelNewAge(),
+    showResetConfirm: () => showResetConfirm(),
+    doResetGame:     () => doResetGame(),
+    cancelReset:     () => cancelReset(),
+    buyUpgrade:      id => buyUpgrade(id),
+    foundNewAge:     () => foundNewAge(),
+    continueEndless: () => continueEndless(),
+    setReduceMotion: v => { meta.reduceMotion = v === '1'; saveMeta(); updateUI(); }
+};
+
+function runUiAction(actionStr) {
+    const [name, ...args] = actionStr.split(':');
+    const fn = UI_ACTIONS[name];
+    if (fn) fn(...args);
+}
+
+let pressedActionStr = null;
+let lastDispatched = { action: null, t: 0 };
+
+function bindActionDispatch() {
+    document.addEventListener('pointerdown', e => {
+        const el = e.target.closest && e.target.closest('[data-action]');
+        pressedActionStr = el && !el.disabled ? el.dataset.action : null;
+    }, true);
+    document.addEventListener('pointerup', e => {
+        const pressed = pressedActionStr;
+        pressedActionStr = null;
+        if (!pressed) return;
+        const el = e.target.closest && e.target.closest('[data-action]');
+        if (!el || el.disabled || el.dataset.action !== pressed) return;
+        lastDispatched = { action: pressed, t: performance.now() };
+        runUiAction(pressed);
+    }, true);
+    // Keyboard activation (Enter/Space) arrives as a click with no pointer
+    // press. Dispatch it — but swallow the synthetic click that trails a
+    // pointerup we already handled, or every mouse press would fire twice.
+    document.addEventListener('click', e => {
+        const el = e.target.closest && e.target.closest('[data-action]');
+        if (!el || el.disabled) return;
+        if (el.dataset.action === lastDispatched.action && performance.now() - lastDispatched.t < 600) {
+            lastDispatched.action = null; // swallow only the one trailing click
+            return;
+        }
+        runUiAction(el.dataset.action);
+    });
 }
 
 const RENDER_INTERVAL_MS = 66; // ~15fps paint cadence
@@ -2647,6 +2913,7 @@ function renderFrame(ts) {
 }
 
 loadSprites(); // async — sprites pop into portraits/slots as each file processes
+bindActionDispatch(); // delegated data-action dispatch — see UI_ACTIONS
 loadMeta();
 loadGame();
 resizeHeroSquad(); // no-save startups still need the squad sized to War Banners rank
