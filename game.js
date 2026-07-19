@@ -2436,7 +2436,20 @@ for (const id of ['cottage', 'tavern', 'smithy', 'library', 'workshop', 'keep', 
 // mirrors these in memory at load time — the spec's upper-left lighting inverts
 // with them, but the 2026-07-18 flip test showed it doesn't read at game scale.
 // Remove a key here if a corrected PNG ever replaces its raw file.
-const SPRITE_FLIP = new Set([]);
+const SPRITE_FLIP = new Set([
+    // 2026-07-19 assessment of the enemy batch: these 8 raws face right
+    // (spec says enemies face LEFT); orc_shaman is near-frontal with a right
+    // lean, orc_skirmisher near-frontal (left unflipped — its off-magenta
+    // crimson background keys cleanly via the corner-sampling fallback).
+    'boss_orc',
+    'enemy_bandit_brute',
+    'enemy_bandit_shaman',
+    'enemy_bandit_skirmisher',
+    'enemy_goblin_sapper',
+    'enemy_orc_brute',
+    'enemy_orc_sapper',
+    'enemy_orc_shaman'
+]);
 
 function keyMagentaPixels(p, w, h) {
     // With dims, sample the four corners (spec: background fills the edges); if
@@ -2922,46 +2935,54 @@ function toggleSceneView() {
     if (sceneOpen) { layoutScene(); updateUI(); }
 }
 
-// Backdrop: the accepted continuous widescreen scene, cover-fit with the
-// painted wall (~x1318/2752) seated on the 46% seam. It's an opaque
+// Backdrop: scene_backdrop_v2 (2026-07-19, Gemini web app 4:3 regen anchored
+// to the v1 crop) — finer pixel density than v1 and generated in 4:3 so the
+// baked watermark (always ~90%/84% of the canvas) falls below the clip line.
+// Cover-fit with the painted wall seated on the 46% seam. It's an opaque
 // painting, so no canvas keying is needed — this also works on file://.
 let sceneBgImg = null;
-const SCENE_WALL_FRAC = 1318 / 2752;   // wall center in the source image
+const SCENE_WALL_FRAC = 1178 / 2400;   // wall-walk center in the source image
+const SCENE_COMP_ASPECT = 2400 / 1270; // kept-region aspect: rows below
+    // W/aspect are clipped at layout time — they hold the generator's baked
+    // watermark (top edge ~row 1440) plus slack rows traded for horizontal
+    // freedom: 1270 is the largest keep whose panning slack lets the wall
+    // seat exactly on the 46% seam at 16:9 (a 16:9 keep forces it to 48%+;
+    // aspects wider than the keep drift toward 49% — accepted, v1 did too).
 const TOWN_REGION_FRAC = 0.46;         // town half of the stage width
 function loadScene() {
     const img = new Image();
     img.onload = () => { sceneBgImg = img; if (sceneOpen) layoutScene(); };
     img.onerror = () => {}; // absent — flat ground remains
-    img.src = 'assets/raw/scenebothhalves.png';
+    img.src = 'assets/raw/scene_backdrop_v2.png';
 }
 function layoutScene() {
     const bg = document.getElementById('scene-bg');
     if (!sceneBgImg || !bg) return;
     const sw = window.innerWidth, sh = window.innerHeight;
     const W = sceneBgImg.width, H = sceneBgImg.height;
-    const s = Math.max(sh / H, sw / W);              // cover-fit
+    const compH = Math.min(H, W / SCENE_COMP_ASPECT); // margin cropped off
+    const s = Math.max(sh / compH, sw / W);          // cover-fit the composition
     let ox = sw * 0.46 - SCENE_WALL_FRAC * W * s;    // seat wall on 46%
     ox = Math.min(0, Math.max(sw - W * s, ox));      // clamp: no edge gaps
     bg.style.backgroundImage = `url(${sceneBgImg.src})`;
     bg.style.backgroundSize = `${W * s}px ${H * s}px`;
-    bg.style.backgroundPosition = `${ox}px ${(sh - H * s) / 2}px`;
+    bg.style.backgroundPosition = `${ox}px ${(sh - compH * s) / 2}px`;
 }
 window.addEventListener('resize', () => { if (sceneOpen) layoutScene(); });
 
 // Fixed building plots (x,y in % of the town region = left 46% of the
-// stage). Fixed positions — never free placement — is what keeps the
-// vista affordable (spec T3). Laid out for scenebothhalves.png: the
-// painted plaza + road form a belt across the town's midline (~y 50-78),
-// so buildings live on the upper grass band (back rows, smaller with
-// depth) and the bottom-left pocket (cottage — the first building the
-// player ever buys gets the near-camera spot). Nothing stands on the
-// plaza, the road, or the crowd zone (y 84+).
+// stage; y is the plot's TOP edge). Fixed positions — never free placement —
+// is what keeps the vista affordable (spec T3). Re-seated 2026-07-19 for
+// scene_backdrop_v2.png: its wall band runs to ~30% of screen height (v1's
+// ended ~23%), the round plaza spans ~64-90%, and the crowd stands on the
+// plaza's lower half. Back row tucks under the wall (31-32), mid row on the
+// open grass above the plaza (39-43); nothing stands on the plaza or road.
 const BUILDING_PLOTS = {
     // back row, along the north wall (smaller with depth)
-    keep:      { x: 8,  y: 26 }, library: { x: 22, y: 24 }, tower:    { x: 36, y: 22 },
-    cathedral: { x: 52, y: 24 }, apothecary: { x: 68, y: 27 },
+    keep:      { x: 8,  y: 31 }, library: { x: 22, y: 30 }, tower:    { x: 36, y: 29 },
+    cathedral: { x: 52, y: 30 }, apothecary: { x: 68, y: 32 },
     // mid row, upper grass above the plaza — cottage leftmost (the first
-    // building every run buys reads first); all bases clear of the belt
+    // building every run buys reads first); all bases clear of the plaza
     cottage:   { x: 12, y: 41 }, tavern:  { x: 32, y: 39 }, smithy:   { x: 52, y: 41 },
     workshop:  { x: 66, y: 43 }
 };

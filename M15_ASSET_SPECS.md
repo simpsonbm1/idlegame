@@ -205,6 +205,66 @@ squads plus 9 building plots don't fit (measured in the scene prototype).
     detail density matching the characters) made the pair approach below unnecessary.
     The prototype loads it full-stage; the pair rig below survives only as fallback
     and as the record of the sketch-reference + measured-color-grade techniques.
+
+    **85-EDIT-1 — SUPERSEDED by 85-V2 same day (2026-07-19).** The watermark-move
+    edit pass (remove/cover the sparkle + sacrificial margin, with a fallback
+    ladder) died on the user's observation that EVERY web-Gemini output gets a
+    fresh watermark and the app won't remove its own even when the net result
+    would be equally watermarked — so no edit pass can ever produce a clean file,
+    and relying on the watermark landing inside a requested margin is Gemini-
+    cooperation we don't control. The only robust pattern: Claude strips
+    watermarks by CROPPING on our side, both on inputs and outputs.
+
+    **85-V2 — RESOLVED 2026-07-19 by `scene_backdrop_v2.png`** (2400×1792 4:3 regen
+    anchored to the clean crop; the 4:3 rule below worked exactly as designed:
+    watermark at rows 1440+, in-game clip keeps rows 0–1270 — chosen so the wall
+    also seats exactly on the 46% seam at 16:9 — density ~1.3–1.5× finer than v1,
+    wall faithful, plots re-seated, browser-verified zero-console-error). Extra
+    battlefield debris in the mid-right field accepted as wreckage-under-the-armies;
+    a future edit pass can clean it if it grates. Playbook below kept for the next
+    backdrop generation (prosperity variants, any v3 attempt).
+    Backdrop cells are 6–12px at 2752 wide and render 3–4× chunkier on screen than
+    the characters (measured); 2× finer is the sweet spot (3–4× collapses into
+    sub-grid noise, and a residual 1.5–2× softness reads as depth-of-field).
+    - **Conditioning input (already cut, committed):**
+      `assets/reference/scene_regen_input.png` — the current backdrop cropped at
+      row 1245, just above the sparkle, so the input is watermark-free and the
+      regen can't repaint the sparkle as scene content. The regen re-invents the
+      foreground band (plaza bottom, rope coil) — expect drift there, it's
+      accepted.
+    - **Prompt (attach scene_regen_input.png):**
+      > Re-render this pixel-art scene at twice the detail density — each pixel
+      > cell about half its current size, so everything resolves twice as finely —
+      > keeping the composition, layout, colors, lighting, and style exactly as
+      > shown: walled medieval town on the left, stone wall and gatehouse
+      > mid-frame, open battlefield with a dirt road on the right, mountains
+      > behind. The image is cut off at the bottom: continue the scene downward to
+      > complete the foreground (finish the round stone plaza on the left;
+      > continue open grass with occasional dirt patches on the right), then keep
+      > extending about 10% further with plain grassy foreground. Output in
+      > widescreen at the largest resolution available.
+      The plain-grass tail is deliberate slack: the output WILL come back
+      watermarked (bottom-right, wherever its canvas ends), and grass is free to
+      clip. If the watermark lands on real composition instead, Claude still
+      clips — worst case re-roll with a bigger tail.
+    - **THE 4:3 RULE (discovered 2026-07-19 from two window iterations):** the web
+      app's watermark ALWAYS lands at ~90% across / ~84% down of the output canvas
+      (fixed relative position, fixed 16:9 canvas 2752×1536 by default — which is
+      why clipping a 16:9 output always costs ~22% zoom). Ask for **4:3 output**
+      with all important content in the upper three quarters and a plain-grass
+      bottom quarter: clipping 4:3 → 16:9 keeps the top 75%, and 84% is always
+      below that line. Watermark discarded at ZERO zoom. Also: anchor regens to
+      `assets/reference/scene_regen_input.png` (the watermark-free crop of the
+      ORIGINAL) — never to a window-chain intermediate (drift compounds; one
+      attempt carried a mangled wall) and never to a sparkle-bearing file (the
+      regen paints the sparkle back as scene content). First 4:3 attempt confirmed
+      the geometry works; density asks land ~1.3–1.5× finer, not the 2× requested.
+    - **Integration (Claude, full re-placement, not a trim):** locate the
+      watermark, set the clip bounds to exclude it (`SCENE_COMP_ASPECT` /
+      explicit crop), re-derive `SCENE_WALL_FRAC` from the new wall/gate center,
+      re-seat all `BUILDING_PLOTS` against the new painted plaza/road, verify
+      in-game (46% seam, plots clear of the belt, crowd zone, diorama, density
+      next to the character sprites).
     **THE scene pair — town square + battlefield square (Antigravity).** Final filenames
     `raw_bg_scene_town.png` / `raw_bg_scene_field.png`; save candidates as
     `scenetown1.png` / `scenefield1.png` (`2`, …) — `tools/scene-prototype.html`

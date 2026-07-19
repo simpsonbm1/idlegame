@@ -62,21 +62,52 @@ sprite; the three source variants are kept on disk for reference (user call — 
 - `raw/raw_bldg_smithy2.png` — option 2 (chosen; identical bytes to the active `raw_bldg_smithy.png`)
 - `raw/raw_bldg_smithy3.png` — option 3 (no smoke, cold all-stone; alternate, kept for reference)
 
-## Batch 4 — Goblin Raid enemies, in progress (2026-07-18)
-Generated via Antigravity (Gemini image generation) by Ben Simpson, from entries 17–21 of
-`M15_ASSET_SPECS.md`, style-anchored to `raw_hero_knight_v3.png`. Wired automatically via
-existing `SPRITE_SOURCES` keys (battle slots). Remaining in the batch: shaman (19),
-sapper (20), boss Warmaster (21).
+## Batch 4 — Goblin Raid enemies (2026-07-18) + orc/bandit tiers (2026-07-19)
+Generated via Antigravity (Gemini image generation) by Ben Simpson, from the enemy
+entries of `M15_ASSET_SPECS.md`, style-anchored to `raw_hero_knight_v3.png`. Wired
+automatically via existing `SPRITE_SOURCES` keys (battle slots). The 2026-07-19
+integration pass (Claude) added `SPRITE_FLIP` in game.js: 8 of these raws face right
+(spec says enemies face LEFT) and are mirrored in memory at load — do NOT regenerate
+them for facing. Antigravity quota froze 2026-07-19 (~40 assets, resets 07-24);
+still missing: bandit sapper + Bandit King, all undead + infernal enemies/bosses.
 
 - `raw/raw_enemy_goblin_skirmisher.png` — goblin skulker (hooded, twin crude daggers)
 - `raw/raw_enemy_goblin_caster.png` — goblin slinger (whirling sling, pebble pouch)
+- `raw/raw_enemy_goblin_shaman.png` — goblin shaman (bone headdress, glowing charm staff)
+- `raw/raw_enemy_goblin_sapper.png` — goblin tunneler (candle helm, pickaxe; flipped)
+- `raw/raw_boss_goblin.png` — Goblin Warmaster (crown, bone standard, cleaver)
+- `raw/raw_enemy_orc_brute.png` — orc brute (black plate, spiked maul; flipped)
+- `raw/raw_enemy_orc_skirmisher.png` — orc berserker (twin axes; off-spec crimson bg —
+  keys cleanly via the corner-sampling fallback; coarser/noisier pixel grid than the
+  batch — accepted at game scale, the one regen candidate when capacity returns)
+- `raw/raw_enemy_orc_caster.png` — orc warcaster (red lightning claw, skull totem)
+- `raw/raw_enemy_orc_shaman.png` — orc witch doctor (horned tiki mask, fetish staff; flipped)
+- `raw/raw_enemy_orc_sapper.png` — orc saboteur (torch, powder keg shield; flipped)
+- `raw/raw_boss_orc.png` — Orc Warlord (skull pauldrons, great axe, red cape; flipped)
+- `raw/raw_enemy_bandit_brute.png` — bandit enforcer (spiked club, red scarf; flipped)
+- `raw/raw_enemy_bandit_skirmisher.png` — bandit cutthroat (masked, twin daggers; flipped)
+- `raw/raw_enemy_bandit_caster.png` — bandit marksman (hooded, crossbow)
+- `raw/raw_enemy_bandit_shaman.png` — bandit medic (satchel of potions; flipped)
+
+## The scene backdrop (live)
+- `raw/scene_backdrop_v2.png` — **the live scene backdrop** (spec 85-V2): Gemini web
+  app 4:3 regeneration anchored to the v1 crop (`reference/scene_regen_input.png`),
+  by Ben Simpson, 2026-07-19. Finer pixel density than v1 (~1.3-1.5×); generated in
+  4:3 deliberately so the app's baked watermark (always ~90%/84% of canvas, rows
+  1440+ here) sits below the in-game clip line — `SCENE_COMP_ASPECT` in game.js
+  keeps rows 0-1270 only, so the watermark never renders. No file editing involved.
 
 ## Candidates under evaluation (delete or promote before shipping)
-- `raw/scenebothhalves.png` — **the accepted-direction continuous scene backdrop**
+- `raw/scenebothhalvesbigger.png` — 16:9 density-regen attempt (2026-07-19), superseded
+  same day by scene_backdrop_v2 (watermark at the fixed spot made a zoom-free clip
+  impossible on a 16:9 canvas). Kept for reference; delete before shipping.
+- `raw/scenebothhalves.png` — **the v1 continuous scene backdrop**
   (spec entry 85 resolution): one widescreen generation, town + wall/gatehouse +
-  battlefield, by Ben Simpson, 2026-07-18. First backdrop whose detail density matches
-  the character series. Small baked-in sparkle watermark lower-right (~2560,1297) —
-  resolve before shipping. Earlier candidates below are superseded by it.
+  battlefield, by Ben Simpson, 2026-07-18. First backdrop whose detail density matched
+  the character series; superseded by scene_backdrop_v2 (2026-07-19) which clips its
+  baked sparkle watermark away instead of shipping it. Its watermark-free crop lives
+  at `reference/scene_regen_input.png` as the anchor for future backdrop regens.
+  Earlier candidates below are superseded by it.
 All three below generated with the **Gemini web app** (weak route) by Ben Simpson,
 2026-07-18. All are superseded as final assets by spec entry 85 (the Antigravity scene
 pair) and serve as interim/reference material until it lands:
