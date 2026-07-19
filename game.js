@@ -2432,22 +2432,42 @@ for (const id of ['cottage', 'tavern', 'smithy', 'library', 'workshop', 'keep', 
     SPRITE_SOURCES['bldg_' + id] = 'raw_bldg_' + id + '.png';
 }
 
-function keyMagentaPixels(p) {
+// Keys whose raw art faces the wrong way (Gemini direction misses): the loader
+// mirrors these in memory at load time — the spec's upper-left lighting inverts
+// with them, but the 2026-07-18 flip test showed it doesn't read at game scale.
+// Remove a key here if a corrected PNG ever replaces its raw file.
+const SPRITE_FLIP = new Set([]);
+
+function keyMagentaPixels(p, w, h) {
+    // With dims, sample the four corners (spec: background fills the edges); if
+    // they agree on one flat color, pixels near it key too — catches off-spec
+    // background drifts (e.g. a too-blue purple) the magenta test misses.
+    let bg = null;
+    if (w && h) {
+        const c = (x, y) => { const i = (y * w + x) * 4; return [p[i], p[i + 1], p[i + 2]]; };
+        const cs = [c(1, 1), c(w - 2, 1), c(1, h - 2), c(w - 2, h - 2)];
+        const near = (a, b, lim) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]) < lim;
+        if (cs.every(k => near(k, cs[0], 60))) bg = cs[0];
+    }
     for (let i = 0; i < p.length; i += 4) {
         const r = p[i], g = p[i + 1], b = p[i + 2];
         const m = Math.max(r, b);
-        if (m > 130 && g < 0.65 * m && Math.min(r, b) > 0.45 * m) p[i + 3] = 0;
+        if (m > 130 && g < 0.65 * m && Math.min(r, b) > 0.45 * m) { p[i + 3] = 0; continue; }
+        if (bg && Math.abs(r - bg[0]) + Math.abs(g - bg[1]) + Math.abs(b - bg[2]) < 90) p[i + 3] = 0;
     }
 }
 
-function processSprite(img) {
+function processSprite(img, flip) {
     const c = document.createElement('canvas');
     c.width = img.width; c.height = img.height;
     const ctx = c.getContext('2d');
+    // Mirror before any pixel work, so keying/trim/anchor see the final image.
+    if (flip) { ctx.translate(c.width, 0); ctx.scale(-1, 1); }
     ctx.drawImage(img, 0, 0);
+    if (flip) ctx.setTransform(1, 0, 0, 1, 0, 0);
     const data = ctx.getImageData(0, 0, c.width, c.height); // throws on file://
     const p = data.data;
-    keyMagentaPixels(p);
+    keyMagentaPixels(p, c.width, c.height);
     let minX = c.width, minY = c.height, maxX = -1, maxY = -1;
     for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
         if (p[(y * c.width + x) * 4 + 3] > 8) {
@@ -2490,7 +2510,7 @@ function loadSprites() {
         const img = new Image();
         img.onload = () => {
             try {
-                const s = processSprite(img);
+                const s = processSprite(img, SPRITE_FLIP.has(key));
                 // Tiny blob: object URLs, not 40KB data: URLs — keeps style
                 // attributes and the per-frame panel memo strings small.
                 if (s) s.canvas.toBlob(blob => {
@@ -2518,7 +2538,7 @@ function loadChrome() {
             const ctx = c.getContext('2d');
             ctx.drawImage(img, 0, 0);
             const data = ctx.getImageData(0, 0, c.width, c.height); // throws on file://
-            keyMagentaPixels(data.data);
+            keyMagentaPixels(data.data, c.width, c.height);
             ctx.putImageData(data, 0, 0);
             c.toBlob(blob => {
                 if (!blob) return;

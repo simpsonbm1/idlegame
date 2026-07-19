@@ -595,6 +595,15 @@ tick costs ~0.02ms). The mechanisms:
   (`unitSpriteKey()` — heroes via `archetypeKey`, enemies via `spriteKey` set in
   `generateEnemy` from the tier's `key` field; corner background, provisional pending the T2
   diorama). Requires http serving (canvas is tainted on file://; loader degrades cleanly).
+  Two robustness mechanisms (2026-07-19, for Gemini generation misses): **`SPRITE_FLIP`** —
+  keys listed in this set are mirrored in memory before keying/trim/anchor (for sprites
+  generated facing the wrong way; user-approved after a side-by-side showed the upper-left
+  lighting inversion doesn't read at game scale — regenerate only if a specific flipped
+  sprite bothers in play); and a **self-calibrating keyer** — `keyMagentaPixels(p, w, h)`
+  samples the four image corners and, when all four agree on one flat color, also keys
+  pixels near that color, so off-spec flat backgrounds (e.g. a too-blue purple) key
+  automatically. Magenta behavior is unchanged; a gradient/vignetted background defeats
+  corner agreement and still needs regeneration.
 
 ## Milestone tracker
 - [x] Milestone 1: Gold counter ticking automatically
