@@ -435,7 +435,12 @@ function simulateRun({ treeIncome = 1, treePower = 1, treeHp = 1, startGold = 75
             heroes = heroes.filter(x => x.alive);
             heroes.push(makeHero(need, rarityMult, treePower, treeHp));
             assignHeroCols(heroes);
-            hireCooldown = 8; // pool RNG / refresh delay
+            // Pool RNG / refresh latency. 2026-07-19: natural refresh is 45s
+            // (was 15s) but a paid instant muster exists (~100g × 1.4^tier,
+            // doubling per press in a window) — a player building toward a
+            // squad "when gold is comfortable" can usually afford the first
+            // press, so effective latency rises only modestly.
+            hireCooldown = 12;
         } else if (!emergency) {
             // level up when affordable
             if (level + 1 < LEVELS.length && gold >= LEVELS[level + 1].cost && (level < CFG.RAID_TRIGGER_LEVEL || aliveHeroes >= 6)) {
@@ -539,6 +544,10 @@ function winRate(squadSpec, tierIdx, wave, trials = 40, doctrines = null) {
 // the Kingdom regenerates behind it. Without escalation, a healer-led wave the
 // squad can't out-damage stalemates forever (the playtest soft-lock); with it,
 // the siege must resolve as WIN or OVERRUN.
+// hireDelay stays 6 under the 45s-refresh/paid-muster rework (2026-07-19):
+// the grind scenario is deep-wallet by construction, and paid musters reset
+// each window — their cost is noise next to tier-scaled hero rehires, so the
+// wall-grind cadence is unchanged.
 function grindBattle({ tierIdx, wave, rarityMult = 1, income = 400, regen = 6, hireDelay = 6, escalation = true, maxSeconds = 3600 }) {
     const costMult = (rarityMult === 1 ? 1 : rarityMult === 2.5 ? 3 : rarityMult === 5 ? 8 : 20)
         * Math.pow(HERO_COST_TIER_GROWTH, tierIdx);

@@ -1556,7 +1556,16 @@ body.chrome-ready #run-summary-panel {
 #scene {
     position: fixed; inset: 0; z-index: 500; overflow: hidden;
     background: #14110c; image-rendering: pixelated;
+    /* Readability scale (2026-07-19 feedback: flat-px UI reads tiny at 16:9 /
+       on a 1440p monitor). Every scene font/width worth scaling multiplies by
+       this. A UNITLESS ratio can't come from clamp(1, 100vh/950, 1.5) — CSS
+       calc can't divide by a length — so it's a media-query step ladder. */
+    --uis: 1;
 }
+@media (min-height: 950px)  { #scene { --uis: 1.1; } }
+@media (min-height: 1100px) { #scene { --uis: 1.25; } }
+@media (min-height: 1250px) { #scene { --uis: 1.4; } }
+@media (min-height: 1400px) { #scene { --uis: 1.5; } }
 #scene.hidden, #scene-drawer.hidden { display: none; }
 #scene-bg {
     position: absolute; inset: 0; z-index: 0;
@@ -1581,7 +1590,8 @@ body.chrome-ready #run-summary-panel {
 body.scene-open #scene-toggle { color: #e8c96d; border-color: #7a6428; }
 
 #scene-note {
-    position: absolute; left: 12px; bottom: 10px; z-index: 30; font-size: 11px;
+    position: absolute; left: 12px; bottom: 10px; z-index: 30;
+    font-size: calc(11.5px * var(--uis));
     color: #8a7f63; text-shadow: 1px 1px 0 #171008; pointer-events: none;
 }
 
@@ -1594,14 +1604,26 @@ body.scene-open #scene-toggle { color: #e8c96d; border-color: #7a6428; }
 .plot .bldg-sprite { background-repeat: no-repeat; background-size: contain;
                      background-position: bottom center; image-rendering: pixelated; }
 .plot:hover .art { filter: drop-shadow(2px 4px 3px rgba(8,6,3,0.55)) brightness(1.16); }
-.plot .count {
-    position: absolute; top: -6px; right: -12px; min-width: 20px; height: 20px;
-    line-height: 18px; border-radius: 50%; background: #b8942f; color: #171008;
-    border: 2px solid #6a5518; font-size: 10px; font-weight: bold;
+/* Red notification dot: "another one can be built right now" (replaces the
+   old ×N count badge — counts live in the hover tag and the drawer header). */
+.plot .dot {
+    position: absolute; top: -4px; right: -9px; width: 13px; height: 13px;
+    border-radius: 50%; background: #e05038; border: 2px solid #571510;
+    box-shadow: 0 0 6px rgba(224, 80, 56, 0.8); display: none; pointer-events: none;
+}
+.plot .dot.dot--on { display: block; animation: dotPulse 1.6s ease-in-out infinite; }
+@keyframes dotPulse {
+    50% { transform: scale(1.3); box-shadow: 0 0 11px rgba(224, 80, 56, 1); }
+}
+/* Never-clicked new unlock: golden pulse until the player opens it once. */
+.plot--new .art { animation: plotGlow 1.8s ease-in-out infinite; }
+@keyframes plotGlow {
+    0%, 100% { filter: drop-shadow(2px 4px 3px rgba(8,6,3,0.55)) drop-shadow(0 0 6px rgba(232,201,109,0.5)); }
+    50% { filter: drop-shadow(2px 4px 3px rgba(8,6,3,0.55)) drop-shadow(0 0 16px rgba(232,201,109,0.95)) brightness(1.1); }
 }
 .plot .tag {
     position: absolute; left: 50%; transform: translateX(-50%); bottom: -20px;
-    white-space: nowrap; font-size: 11px; color: #e8c96d;
+    white-space: nowrap; font-size: calc(12px * var(--uis)); color: #e8c96d;
     text-shadow: 1px 1px 0 #171008, -1px 1px 0 #171008, 1px -1px 0 #171008, -1px -1px 0 #171008;
     opacity: 0; transition: opacity 0.12s; pointer-events: none;
 }
@@ -1613,35 +1635,40 @@ body.scene-open #scene-toggle { color: #e8c96d; border-color: #7a6428; }
     filter: saturate(0.85) brightness(0.93); opacity: 0.92; }
 .plot--unbuilt:hover .art svg, .plot--unbuilt:hover .art .bldg-sprite {
     filter: brightness(1.06); opacity: 1; }
-.plot.locked { cursor: default; opacity: 0.6; }
-.plot.locked .ghost {
-    border: 2px dashed rgba(216,203,168,0.4); border-radius: 4px; padding: 6px 8px;
-    font-size: 10px; color: #d8cba8; background: rgba(14,11,6,0.35); line-height: 1.5;
-}
-.plot.locked .ghost .nm { color: #c9a84c; font-size: 11px; }
+/* (locked-building ghost boxes removed 2026-07-19 — locked types render
+   nothing; the level-up button lists upcoming unlocks and plot--new glows
+   when one arrives) */
 
 /* ---------- HUD chips (wood-toned, minimal) ---------- */
 #scene-hud { position: absolute; inset: 0; z-index: 25; pointer-events: none; }
 #scene-hud .chip {
     position: absolute; pointer-events: auto; padding: 6px 12px;
     background: rgba(24,20,10,0.92); border: 1px solid #4a3a18; border-radius: 4px;
-    font-size: 13px; line-height: 1.5; box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    font-size: calc(14px * var(--uis)); line-height: 1.5; box-shadow: 0 2px 8px rgba(0,0,0,0.5);
 }
 #scene-hud .chip b { color: #e8c96d; font-variant-numeric: tabular-nums; }
-#scene-hud .chip .lbl { color: #8a7f63; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; }
+#scene-hud .chip .lbl { color: #8a7f63; font-size: calc(10.5px * var(--uis)); text-transform: uppercase; letter-spacing: 2px; }
 #scene-hud .chip .row { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; }
-#hud-econ  { left: 14px; top: 12px; min-width: 150px; }
-#hud-level { left: 14px; top: 112px; min-width: 150px; }
-#hud-level .kname { color: #e8c96d; font-size: 15px; }
+/* Left chip stack: a flex COLUMN, not fixed offsets — chips can grow with the
+   readability scale without overlapping each other, and the drawer knows the
+   column's width and opens beside it instead of on top of it. */
+#hud-left {
+    position: absolute; left: 14px; top: 12px; display: flex;
+    flex-direction: column; gap: 8px; width: calc(196px * var(--uis));
+}
+#hud-left .chip { position: static; box-sizing: border-box; width: 100%; }
+#hud-level .kname { color: #e8c96d; font-size: calc(16px * var(--uis)); }
 #hud-level button {
     display: block; margin-top: 5px; background: #2a2410; color: #c9a84c;
     border: 1px solid #5a4a1e; border-radius: 3px; font-family: inherit;
-    font-size: 12px; padding: 3px 10px; cursor: pointer;
+    font-size: calc(12.5px * var(--uis)); padding: 3px 10px; cursor: pointer;
 }
 #hud-level button:hover:not(:disabled) { background: #3a3014; color: #e8c96d; }
 #hud-level button:disabled { opacity: 0.5; cursor: default; }
-/* Kingdom HP seated on the painted wall (≈46% across) */
-#hud-wall { left: 46%; top: 30%; transform: translateX(-50%); text-align: center; min-width: 190px; }
+/* Kingdom HP above the painted wall — renderSceneHud bakes the image-anchored
+   position inline through sceneTransform(); this is only the no-backdrop fallback. */
+#hud-wall { left: 46%; top: 6%; transform: translateX(-50%); text-align: center;
+            min-width: calc(190px * var(--uis)); }
 #hud-wall .bar { height: 9px; background: #2a1512; border: 1px solid #171008; margin-top: 4px; }
 #hud-wall .fill { height: 100%; background: linear-gradient(#7dc95e, #4e9636); transition: width 0.3s; }
 
@@ -1664,19 +1691,30 @@ body.scene-open #scene-toggle { color: #e8c96d; border-color: #7a6428; }
 .sunit .ring--rare      { border-color: rgba(90,150,220,0.75); }
 .sunit .ring--epic      { border-color: rgba(170,100,220,0.8); }
 .sunit .ring--legendary { border-color: rgba(232,190,80,0.9); }
-.sunit .sprite { position: absolute; image-rendering: pixelated;
+/* Smooth sampling, NOT pixelated (2026-07-19 art feedback): the processed
+   asset is already a high-quality 160px downscale, and world units render at
+   0.5-0.97x of it. Nearest-neighbor kept the sprite's fine pixel grid nearly
+   intact at battle sizes, reading sharper/higher-res than the painterly
+   backdrop; bilinear gives the softer look that blends with it (the crowd's
+   smaller scale melted the grid anyway — this makes both halves match).
+   Panel portraits and the backdrop keep their pixelated rendering. */
+.sunit .sprite { position: absolute; image-rendering: auto;
                  animation: sunit-bob 2.6s ease-in-out infinite;
                  transform-origin: 50% 100%; transition: filter 0.15s; }
 @keyframes sunit-bob { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.014); } }
 .sunit .letter-chip { position: absolute; width: 34px; height: 40px; line-height: 40px;
                  text-align: center; font-size: 19px; color: #d8cba8;
                  background: rgba(24,20,10,0.85); border: 1px solid #4a3a18; border-radius: 4px; }
-.sunit .plate { position: absolute; width: 150px; text-align: center; white-space: nowrap;
-                font-size: 11px; color: #f0d890; pointer-events: none; line-height: 1.35;
+/* Plates center on the feet point via a scaled CSS left (JS only inlines the
+   vertical offset) so the readability scale can widen them without breaking
+   the centering. */
+.sunit .plate { position: absolute; width: calc(150px * var(--uis)); left: calc(-75px * var(--uis));
+                text-align: center; white-space: nowrap;
+                font-size: calc(12px * var(--uis)); color: #f0d890; pointer-events: none; line-height: 1.35;
                 text-shadow: 1px 1px 0 #171008, -1px 1px 0 #171008, 1px -1px 0 #171008, -1px -1px 0 #171008; }
-.sunit .plate .sub { font-size: 10px; color: #d8cba8; }
-.sunit .plate .cost { font-size: 10px; color: #e8c96d; }
-.sunit .hp { width: 56px; height: 6px; background: #2a1512; border: 1px solid #171008;
+.sunit .plate .sub { font-size: calc(10.5px * var(--uis)); color: #d8cba8; }
+.sunit .plate .cost { font-size: calc(10.5px * var(--uis)); color: #e8c96d; }
+.sunit .hp { width: calc(56px * var(--uis)); height: 6px; background: #2a1512; border: 1px solid #171008;
              margin: 2px auto 0; }
 .sunit .hp i { display: block; height: 100%; }
 .sunit .hp--hero i  { background: linear-gradient(#7dc95e, #4e9636); }
@@ -1685,7 +1723,8 @@ body.scene-open #scene-toggle { color: #e8c96d; border-color: #7a6428; }
 /* recruits: hoverable, hireable */
 .sunit--recruit { cursor: pointer; }
 .sunit--recruit:hover .sprite, .sunit--recruit:hover .letter-chip { filter: brightness(1.22); }
-.sunit .hint { position: absolute; width: 150px; text-align: center; font-size: 10px;
+.sunit .hint { position: absolute; width: calc(150px * var(--uis)); left: calc(-75px * var(--uis));
+               text-align: center; font-size: calc(11px * var(--uis));
                pointer-events: none; opacity: 0; transition: opacity 0.12s; }
 .sunit .hint span { padding: 1px 8px; background: rgba(24,20,10,0.92);
                border: 1px solid #7a6428; border-radius: 3px; color: #e8c96d; }
@@ -1721,8 +1760,9 @@ body.scene-open #scene-toggle { color: #e8c96d; border-color: #7a6428; }
 .sunit.fx-death-anim .sprite, .sunit.fx-death-anim .letter-chip { animation: sunit-die 0.5s ease-out forwards; }
 @keyframes sunit-die { 0% { filter: brightness(2.2); } 100% { filter: grayscale(1) brightness(0.4); opacity: 0.35; } }
 
-/* scene death ghost: a detached sprite copy fading out where the hero fell */
-.sghost { position: absolute; image-rendering: pixelated; pointer-events: none;
+/* scene death ghost: a detached sprite copy fading out where the hero fell
+   (sampling matches .sunit .sprite so the ghost doesn't sharpen at death) */
+.sghost { position: absolute; image-rendering: auto; pointer-events: none;
           animation: sghost-fade 1.1s ease-out forwards; }
 @keyframes sghost-fade { 0% { opacity: 0.9; } 100% { opacity: 0; transform: translateY(-26px); } }
 
@@ -1738,27 +1778,39 @@ body.scene-open #scene-toggle { color: #e8c96d; border-color: #7a6428; }
                   background: linear-gradient(rgba(160,30,20,0.0), rgba(160,30,20,0.55) 70%); }
 
 /* left-stack chips: town square arrivals + hero muster; corner system chip */
+#scene-square-chip { font-size: calc(12px * var(--uis)); }
 #scene-square-chip button, #scene-corner-chip button {
     margin: 2px 2px 0 0; background: #2a2410; color: #c9a84c;
     border: 1px solid #5a4a1e; border-radius: 3px; font-family: inherit;
-    font-size: 10px; padding: 1px 7px; cursor: pointer; }
+    font-size: calc(11px * var(--uis)); padding: 1px 7px; cursor: pointer; }
 #scene-square-chip button.on { color: #7db4e8; border-color: #4a6a8a; }
-#scene-corner-chip { right: 12px; bottom: 10px; font-size: 11px; }
+#scene-square-chip button:disabled { opacity: 0.5; cursor: default; }
+#scene-corner-chip { right: 12px; bottom: 10px; font-size: calc(11.5px * var(--uis)); }
 #scene-corner-chip button.on { color: #e8c96d; border-color: #7a6428; }
 #scene-corner-chip button:disabled { opacity: 0.5; cursor: default; }
 
-/* formation drag: units and empty tiles as drop targets */
+/* formation drag: units and ALL tiles as drop targets, with oversized
+   invisible hit halos — precision-dropping on the small ellipse was genuinely
+   hard (2026-07-19 feedback). Pseudo-elements participate in hit testing and
+   aren't clipped by the tile's border-radius, so each halo is a generous
+   rectangle around the tile / above the unit's feet. */
 .btile--drop { pointer-events: auto; }
+.btile--drop::after {
+    content: ''; position: absolute; left: -14px; right: -14px; top: -54px; bottom: -10px;
+}
+#scene-battle .sunit--hero::after {
+    content: ''; position: absolute; left: -40px; right: -40px; top: -120px; bottom: -10px;
+}
 .sunit.drag-over .sprite, .sunit.drag-over .letter-chip {
     filter: brightness(1.4) drop-shadow(0 0 8px rgba(233,196,106,0.9)); }
 .btile.drag-over { background: rgba(233,196,106,0.28); border-color: rgba(233,196,106,0.85); }
 #scene-hud .chip .row { position: relative; }   /* badge floats anchor here */
 #scene-raid-chip { left: 73%; top: 12px; transform: translateX(-50%); text-align: center;
-                   min-width: 280px; max-width: 380px; }
-#scene-raid-chip .rname { color: #e8c96d; font-size: 15px; letter-spacing: 1px; }
-#scene-raid-chip .resc { color: #e0a050; font-style: italic; font-size: 12px; }
-#scene-raid-chip .rsiege { color: #e06050; font-size: 12px; animation: siegePulse 1.1s ease-in-out infinite; }
-#scene-raid-chip .rvict { color: #9dc97e; font-size: 11.5px; margin-top: 2px; }
+                   min-width: calc(280px * var(--uis)); max-width: calc(380px * var(--uis)); }
+#scene-raid-chip .rname { color: #e8c96d; font-size: calc(16px * var(--uis)); letter-spacing: 1px; }
+#scene-raid-chip .resc { color: #e0a050; font-style: italic; font-size: calc(12.5px * var(--uis)); }
+#scene-raid-chip .rsiege { color: #e06050; font-size: calc(12.5px * var(--uis)); animation: siegePulse 1.1s ease-in-out infinite; }
+#scene-raid-chip .rvict { color: #9dc97e; font-size: calc(12px * var(--uis)); margin-top: 2px; }
 @keyframes siegePulse { 50% { opacity: 0.45; } }
 
 /* scene-scoped z bumps so body-level FX read above the full-screen scene */
@@ -1775,15 +1827,24 @@ body.scene-open #run-summary-overlay { z-index: 1250; }
     .sunit.fx-hit .sprite, .sunit.fx-heal-glow .sprite, .sunit.fx-revive .sprite,
     .sunit.fx-death-anim .sprite, .sghost { animation: none; }
     #scene-raid-chip .rsiege { animation: none; }
+    .plot .dot.dot--on { animation: none; }
+    .plot--new .art { animation: none;
+        filter: drop-shadow(2px 4px 3px rgba(8,6,3,0.55)) drop-shadow(0 0 11px rgba(232,201,109,0.85)); }
 }
 body.reduce-motion .sunit .sprite { animation: none; }
 body.reduce-motion .sunit.fx-hit .sprite, body.reduce-motion .sunit.fx-heal-glow .sprite,
 body.reduce-motion .sunit.fx-revive .sprite, body.reduce-motion .sunit.fx-death-anim .sprite { animation: none; }
 body.reduce-motion #scene-raid-chip .rsiege { animation: none; }
+body.reduce-motion .plot .dot.dot--on { animation: none; }
+body.reduce-motion .plot--new .art { animation: none;
+    filter: drop-shadow(2px 4px 3px rgba(8,6,3,0.55)) drop-shadow(0 0 11px rgba(232,201,109,0.85)); }
 
 /* ---------- residents drawer (reuses classic slot portraits) ---------- */
 #scene-drawer {
-    position: absolute; left: 20px; top: 14%; width: 320px; max-height: 74%;
+    /* Opens BESIDE the left chip column, never over it (2026-07-19 feedback —
+       it used to cover the gold/level chips). left tracks #hud-left's width. */
+    position: absolute; left: calc(26px + 196px * var(--uis)); top: 12px;
+    width: calc(330px * var(--uis)); max-height: 80%;
     z-index: 40; padding: 16px 18px; display: flex; flex-direction: column;
     background: rgba(24,20,10,0.96); border: 1px solid #5a4a1e; border-radius: 4px;
     box-shadow: 0 6px 26px rgba(0,0,0,0.6);
@@ -1795,11 +1856,11 @@ body.chrome-ready #scene-drawer {
     position: absolute; top: 4px; right: 8px; cursor: pointer; color: #8a7f63; font-size: 16px; z-index: 2;
 }
 #scene-drawer .scene-drawer-close:hover { color: #e8c96d; }
-#scene-drawer h3 { font-size: 15px; color: #e8c96d; letter-spacing: 1px; }
-#scene-drawer .meta { font-size: 11px; color: #8a7f63; margin: 2px 0 10px; }
+#scene-drawer h3 { font-size: calc(16px * var(--uis)); color: #e8c96d; letter-spacing: 1px; }
+#scene-drawer .meta { font-size: calc(12px * var(--uis)); color: #8a7f63; margin: 2px 0 10px; }
 #scene-drawer .dw-list { overflow-y: auto; min-height: 0; }
-#scene-drawer h3 .dw-count { color: #b8a06a; font-size: 13px; letter-spacing: 0; }
-#scene-drawer .dw-cap { font-size: 11px; color: #c9a84c; margin: 0 0 6px; }
+#scene-drawer h3 .dw-count { color: #b8a06a; font-size: calc(13.5px * var(--uis)); letter-spacing: 0; }
+#scene-drawer .dw-cap { font-size: calc(12px * var(--uis)); color: #c9a84c; margin: 0 0 6px; }
 /* The drawer's Build button wears the scene's gold, not the Legacy-shop
    purple — purple reads as "meta/upgrade currency" everywhere else. */
 #scene-drawer .btn-upgrade { background: #3a2e12; border-color: #b8942f; color: #e8c96d; }

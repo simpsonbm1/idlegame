@@ -17,10 +17,18 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #060504;
         border-left: 1px dashed rgba(232,201,109,0.5); pointer-events: none; }
 #seam span { position: absolute; top: 45%; left: 4px; color: rgba(232,201,109,0.7);
              font-size: 11px; writing-mode: vertical-rl; }
-#crowd-zone { position: absolute; left: 0; width: 46%; top: 82%; bottom: 0;
-              border: 1px dashed rgba(150,180,255,0.35); pointer-events: none; }
-#crowd-zone span { color: rgba(150,180,255,0.55); font-size: 11px; position: absolute;
-                   left: 8px; top: 4px; }
+/* crowd markers: draggable feet points for the hiring crowd (T = townsfolk,
+   H = hero recruits), exported alongside the building plots */
+.mark { position: absolute; transform: translate(-50%, -50%); width: 16px; height: 16px;
+        border-radius: 50%; cursor: grab; user-select: none; touch-action: none;
+        border: 2px solid rgba(0,0,0,0.6); box-shadow: 0 1px 4px rgba(0,0,0,0.6); }
+.mark:active { cursor: grabbing; }
+.mark--town { background: rgba(120,160,255,0.85); }
+.mark--hero { background: rgba(232,190,80,0.9); }
+.mark .lbl { position: absolute; left: 50%; transform: translateX(-50%); top: 16px;
+             font-size: 10px; color: #e8c96d; white-space: nowrap;
+             text-shadow: 1px 1px 0 #171008, -1px -1px 0 #171008,
+                          1px -1px 0 #171008, -1px 1px 0 #171008; }
 .plot { position: absolute; transform: translateX(-50%); cursor: grab;
         text-align: center; user-select: none; touch-action: none; }
 .plot:active { cursor: grabbing; }
@@ -53,12 +61,13 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #060504;
 <body>
 <div id="frame">
   <div id="seam"><span>46% town/battle seam</span></div>
-  <div id="crowd-zone"><span>hiring crowd stands here</span></div>
 </div>
 <div id="panel">
   <h1>Plot Placer</h1>
   <div>Drag each building into place on the letterboxed stage. Window size doesn't
-       matter — coordinates are % of the painting itself.</div>
+       matter — coordinates are % of the painting itself. The blue dots are
+       townsfolk feet spots, the gold dots are hero-recruit feet spots (the
+       hiring crowd) — drag them too; they export with the plots.</div>
   <div style="margin-top:6px">Preview aspect:
     <button id="a169" class="on">16:9</button>
     <button id="auw">ultrawide 3440×1440</button>
@@ -86,6 +95,15 @@ const BUILDING_PLOTS = {
     cottage: { x: 11.4, y: 45.5 }, tavern: { x: 20.7, y: 45.7 }, smithy: { x: 29.4, y: 46 },
     workshop: { x: 38, y: 45.7 }
 };
+// Hiring-crowd feet spots, image space like the plots (keep in sync with
+// TOWN_CROWD_SPOTS / HERO_CROWD_SPOTS in game.js). Keep y ≤ 84: ultrawide
+// crops the bottom of the comp, and lower spots push nameplates off-screen.
+const CROWD = {};
+[[18.0, 75], [20.5, 82], [24.8, 84.5], [29.0, 81.5], [22.0, 69]]
+    .forEach((s, i) => CROWD['t' + i] = { x: s[0], y: s[1] });
+[[33.5, 74], [36.5, 78.5], [39.0, 71.5], [41.5, 76], [36.0, 68]]
+    .forEach((s, i) => CROWD['h' + i] = { x: s[0], y: s[1] });
+const pointFor = id => BUILDING_PLOTS[id] || CROWD[id];
 let artH = 134;
 let frameAspect = 16 / 9;
 
@@ -157,7 +175,7 @@ function keyAndTrim(img) {
 const els = {};
 function place(id) {
     const t = transform();
-    const p = BUILDING_PLOTS[id], el = els[id];
+    const p = pointFor(id), el = els[id];
     if (!el || !t) return;
     el.style.left = (p.x / 100 * t.W * t.s + t.ox) + 'px';
     el.style.top = (p.y / 100 * t.compH * t.s + t.oy) + 'px';
@@ -168,6 +186,8 @@ function refreshOut() {
         const p = BUILDING_PLOTS[id];
         return `${id}: { x: ${p.x}, y: ${p.y} }`;
     };
+    const spots = prefix => [0, 1, 2, 3, 4]
+        .map(i => { const p = CROWD[prefix + i]; return `[${p.x}, ${p.y}]`; }).join(', ');
     document.getElementById('out').value =
 `// image-space plots (% of painting) · art height: ${artH}px
 const BUILDING_PLOTS = {
@@ -175,8 +195,21 @@ const BUILDING_PLOTS = {
     ${f('cathedral')}, ${f('apothecary')},
     ${f('cottage')}, ${f('tavern')}, ${f('smithy')},
     ${f('workshop')}
-};`;
+};
+const TOWN_CROWD_SPOTS = [${spots('t')}];
+const HERO_CROWD_SPOTS = [${spots('h')}];`;
 }
+// crowd markers exist immediately (no sprite load needed)
+for (const id in CROWD) {
+    const el = document.createElement('div');
+    el.className = 'mark ' + (id[0] === 't' ? 'mark--town' : 'mark--hero');
+    el.dataset.id = id;
+    el.innerHTML = `<span class="lbl">${id[0].toUpperCase()}${+id.slice(1) + 1}</span>`;
+    frame.appendChild(el);
+    els[id] = el;
+    place(id);
+}
+refreshOut();
 for (const id of Object.keys(BUILDING_PLOTS)) {
     const img = new Image();
     img.onload = () => {
@@ -200,11 +233,11 @@ for (const id of Object.keys(BUILDING_PLOTS)) {
 
 let drag = null;
 addEventListener('pointerdown', e => {
-    const el = e.target.closest('.plot');
+    const el = e.target.closest('.plot, .mark');
     if (!el) return;
     const t = transform();
     if (!t) return;
-    const p = BUILDING_PLOTS[el.dataset.id];
+    const p = pointFor(el.dataset.id);
     const fr = frame.getBoundingClientRect();
     drag = { id: el.dataset.id,
              dx: (e.clientX - fr.left) - (p.x / 100 * t.W * t.s + t.ox),
@@ -216,7 +249,7 @@ addEventListener('pointermove', e => {
     const t = transform();
     if (!t) return;
     const fr = frame.getBoundingClientRect();
-    const p = BUILDING_PLOTS[drag.id];
+    const p = pointFor(drag.id);
     p.x = Math.round((((e.clientX - fr.left) - drag.dx - t.ox) / (t.W * t.s)) * 100 * 10) / 10;
     p.y = Math.round((((e.clientY - fr.top) - drag.dy - t.oy) / (t.compH * t.s)) * 100 * 10) / 10;
     p.x = Math.max(0, Math.min(60, p.x));  // town lives in the painting's left half

@@ -18,7 +18,9 @@ let nextRecruitId = 0;
 let heroSquad = new Array(6).fill(null);
 let heroRecruitPool = [];
 let heroPoolTimer = 0;
+let heroRefreshCount = 0; // paid musters this refresh window — doubles the price each press
 let nextHeroRecruitId = 0;
+let seenPlots = {};       // building ids the player has opened in the scene — unclicked new unlocks glow
 let confirmingReset = false;
 let confirmingNewAge = false;
 let runEnded = false;
@@ -44,7 +46,13 @@ const POOL_SIZE = 5;
 const POOL_REFRESH_INTERVAL = 10;
 
 const HERO_POOL_SIZE = 3;
-const HERO_POOL_REFRESH_INTERVAL = 15;
+// 45s, up from 15 (2026-07-19 feedback): at 4x speed a 15s window forced
+// notice-decide-fire-hire in ~4 real seconds. The slow muster is paired with
+// a PAID instant refresh (manualHeroRefresh) whose price doubles per press
+// within a window — unhurried by default, and an unbounded late-game gold
+// sink for whoever wants to shop faster than the muster drum.
+const HERO_POOL_REFRESH_INTERVAL = 45;
+const HERO_REFRESH_BASE_COST = 100; // first paid muster at tier 0; scales x1.4/raid tier like hero hires
 
 const KINGDOM_HP_MAX = 1000;
 const KINGDOM_DEFENSE = 15;
@@ -352,6 +360,7 @@ const UPGRADE_TREES = {
             { id: 'treasury',    name: 'Royal Treasury',   desc: 'Begin each Age with a larger treasury (250 / 1,000 / 4,000 / 15,000 gold)', maxRank: 4, costs: [10, 40, 150, 500] },
             { id: 'builders',    name: 'Master Builders',  desc: '+50% Builder HP regen per rank',                               maxRank: 3, costs: [25, 100, 400] },
             { id: 'steward',     name: "Steward's Ledger", desc: 'Unlocks auto-hiring for townsfolk',                            maxRank: 1, costs: [150] },
+            { id: 'architect',   name: 'Crown Architect',  desc: 'Unlocks Build All — one order raises every building toward its cap, cheapest first', maxRank: 1, costs: [200] },
             { id: 'seasons',     name: 'Swift Seasons',    desc: 'Unlocks the game speed selector — rule your Ages at 1×, 2×, or 4× pace', maxRank: 1, costs: [300] },
             { id: 'foundations', name: 'Old Foundations',  desc: 'New Ages begin at Village level',                              maxRank: 1, costs: [400] },
             // Doctrines (M12): buildings feed the army, so town composition
@@ -481,6 +490,7 @@ function unlockedHeroArchetypes() {
 // Townsfolk auto-hire is an Economy-tree purchase (Steward's Ledger); the dev
 // build keeps it always-on for testing.
 function autoRecruitAvailable() { return DEV_MODE || upgradeRank('steward') > 0; }
+function buildAllAvailable()    { return DEV_MODE || upgradeRank('architect') > 0; }
 function speedSelectorAvailable() { return DEV_MODE || upgradeRank('seasons') > 0; }
 function allowedSpeeds() {
     const speeds = speedSelectorAvailable() ? [...PLAYER_SPEEDS] : [1];
@@ -1230,12 +1240,35 @@ function generateHeroRecruit() {
     };
 }
 
-function refreshHeroPool() {
+function refreshHeroPool(manual = false) {
     heroRecruitPool = [];
     for (let i = 0; i < getHeroPoolSize(); i++) {
         heroRecruitPool.push(generateHeroRecruit());
     }
+    if (!manual) heroRefreshCount = 0; // a natural muster re-arms the cheap first press
     heroPoolGeneration++;
+}
+
+// Paid instant muster (2026-07-19): the price doubles with each press inside
+// the same refresh window and resets when the natural muster fires — cheap as
+// occasional QoL, self-pricing as a gold sink (a rich player's spam spree
+// climbs exponentially until it meets whatever their income actually is).
+function heroRefreshCost() {
+    return Math.floor(HERO_REFRESH_BASE_COST
+        * Math.pow(HERO_COST_TIER_GROWTH, raidTierIndex)
+        * Math.pow(2, heroRefreshCount));
+}
+
+function manualHeroRefresh() {
+    if (kingdomLevel < RAID_TRIGGER_LEVEL) return;
+    const cost = heroRefreshCost();
+    if (gold < cost) return;
+    gold -= cost;
+    heroRefreshCount++;
+    heroPoolTimer = 0; // the muster drum restarts its count
+    refreshHeroPool(true);
+    saveGame();
+    updateUI();
 }
 
 function hireHero(recruitId) {
@@ -1512,8 +1545,10 @@ function foundNewAge() {
     heroSquad = new Array(heroSquadCap()).fill(null);
     heroRecruitPool = [];
     heroPoolTimer = 0;
+    heroRefreshCount = 0;
     recruitPool = [];
     poolTimer = 0;
+    seenPlots = {}; // fresh Age, fresh ground — the Hamlet unlocks glow again
     // autoRecruitRarity deliberately survives the reset (persists per design).
 
     for (const id in buildings) {
@@ -1575,7 +1610,7 @@ function saveGame() {
         gold, goldEarned, kingdomLevel, raidsStarted, raidTierIndex, tierWave, raidWinStreak, invasionTimer, currentInvasion, lastVictory, kingdomFallRecord, autoRecruitRarity, runTime, finalSiegeCountdown, victoryPending,
         runEnded, runSummary, runLegacyEarned, runWavesCleared, gameSpeed,
         recruitPool, poolTimer, nextRecruitId,
-        kingdomHP, heroSquad, heroRecruitPool, heroPoolTimer, nextHeroRecruitId,
+        kingdomHP, heroSquad, heroRecruitPool, heroPoolTimer, heroRefreshCount, nextHeroRecruitId, seenPlots,
         buildings: {}
     };
     for (const id in buildings) {
@@ -1627,7 +1662,9 @@ function loadGame() {
     heroSquad = state.heroSquad ?? new Array(6).fill(null);
     heroRecruitPool = state.heroRecruitPool ?? [];
     heroPoolTimer = state.heroPoolTimer ?? 0;
+    heroRefreshCount = state.heroRefreshCount ?? 0;
     nextHeroRecruitId = state.nextHeroRecruitId ?? 0;
+    seenPlots = state.seenPlots ?? null; // null = pre-feature save; grandfathered below
 
     for (const id in (state.buildings || {})) {
         if (!buildings[id]) continue;
@@ -1660,6 +1697,13 @@ function loadGame() {
     }
 
     recomputeIncome();
+
+    // Grandfather pre-feature saves: everything already unlocked counts as
+    // seen, so a mid-campaign town doesn't light up nine glows at once.
+    if (!seenPlots) {
+        seenPlots = {};
+        for (const id in buildings) if (getBuildingCap(id) > 0) seenPlots[id] = true;
+    }
 
     // Saved squads predate any War Banners rank bought this session (and a
     // missing save leaves the 6-slot default) — normalize to current dims.
@@ -1772,6 +1816,32 @@ function buyBuilding(id) {
     updateUI();
 }
 
+// Build All (Crown Architect, 2026-07-19 feedback): one order that buys
+// buildings toward every cap, always the cheapest next purchase first —
+// maximizes count for the gold and needs no per-building clicking.
+function buildAllBuildings() {
+    if (!buildAllAvailable()) return;
+    const boughtIds = new Set();
+    for (;;) {
+        let best = null;
+        for (const id in buildings) {
+            const b = buildings[id];
+            if (b.count >= getBuildingCap(id)) continue; // capped or still locked
+            if (!best || b.cost < buildings[best].cost) best = id;
+        }
+        if (!best || gold < buildings[best].cost) break;
+        const b = buildings[best];
+        gold -= b.cost;
+        b.cost = Math.floor(b.cost * b.costGrowth);
+        b.count++;
+        boughtIds.add(best);
+    }
+    if (boughtIds.size === 0) return;
+    for (const id of boughtIds) emitFxData('built', { id });
+    saveGame();
+    updateUI();
+}
+
 function canHireRecruit(recruit) {
     const b = buildings[recruit.buildingId];
     const hasSlot = b.residents.length < b.count * b.slotsPerBuilding;
@@ -1877,6 +1947,7 @@ function renderBuildings() {
     let html = `<div class="buy-mode">
         <span class="buy-mode-label">Buy:</span>
         ${qtys.map(q => `<button class="btn-qty ${buyQuantity === q ? 'btn-qty--active' : ''}" data-action="setBuyQuantity:${q}">×${q}</button>`).join('')}
+        ${buildAllAvailable() ? `<button class="btn-qty" id="build-all-btn" data-action="buildAllBuildings" title="Buy buildings toward every cap, cheapest first">Build all</button>` : ''}
     </div>`;
 
     for (const id in buildings) {
@@ -2757,6 +2828,8 @@ function renderHeroRecruitPool() {
 
     let html = `<div class="pool-header">
         <span class="pool-timer" id="hero-pool-timer-text"></span>
+        <button class="btn-qty" id="hero-refresh-btn" data-action="manualHeroRefresh"
+            title="Pay to muster new hero recruits now — each press before the next natural muster doubles the price">↻ Muster</button>
     </div>`;
 
     if (heroRecruitPool.length === 0) {
@@ -2912,6 +2985,17 @@ function refreshVolatileUI() {
     };
     setText('pool-timer-text', `New arrivals in ${Math.max(0, POOL_REFRESH_INTERVAL - poolTimer)}s`);
     setText('hero-pool-timer-text', `New heroes in ${Math.max(0, HERO_POOL_REFRESH_INTERVAL - heroPoolTimer)}s`);
+    const heroRefreshBtn = document.getElementById('hero-refresh-btn');
+    if (heroRefreshBtn) {
+        const cost = heroRefreshCost();
+        setText('hero-refresh-btn', `↻ Muster — ${cost.toLocaleString()}g`);
+        heroRefreshBtn.disabled = gold < cost;
+    }
+    const classicBuildAll = document.getElementById('build-all-btn');
+    if (classicBuildAll) {
+        classicBuildAll.disabled = !Object.keys(buildings).some(id =>
+            buildings[id].count < getBuildingCap(id) && gold >= buildings[id].cost);
+    }
     setText('raid-timer-text', formatTimer(invasionTimer));
     if (currentInvasion) {
         setText('raid-esc-line', `The siege escalates! Enemy attack +${Math.round((escalationMult(currentInvasion) - 1) * 100)}%`);
@@ -2951,13 +3035,13 @@ function toggleSceneView() {
 // painting, so no canvas keying is needed — this also works on file://.
 let sceneBgImg = null;
 const SCENE_WALL_FRAC = 1178 / 2400;   // wall-walk center in the source image
+const HUD_WALL_IMG_Y = 10;             // Kingdom HP chip top, % of comp height — above the wall band (~16%)
 const SCENE_COMP_ASPECT = 2400 / 1270; // kept-region aspect: rows below
     // W/aspect are clipped at layout time — they hold the generator's baked
     // watermark (top edge ~row 1440) plus slack rows traded for horizontal
     // freedom: 1270 is the largest keep whose panning slack lets the wall
     // seat exactly on the 46% seam at 16:9 (a 16:9 keep forces it to 48%+;
     // aspects wider than the keep drift toward 49% — accepted, v1 did too).
-const TOWN_REGION_FRAC = 0.46;         // town half of the stage width
 function loadScene() {
     const img = new Image();
     img.onload = () => { sceneBgImg = img; if (sceneOpen) layoutScene(); };
@@ -3076,22 +3160,27 @@ function renderVista() {
         const z = Math.round(topPct * 4);
         const pos = `left:${leftPct.toFixed(2)}%;top:${topPct.toFixed(2)}%;z-index:${z}`;
 
-        if (getBuildingCap(id) <= 0) {
-            const lvl = levels.find(l => l.caps[id] > 0);
-            html += `<div class="plot locked" style="${pos}">
-                <div class="ghost"><span class="nm">${b.name}</span><br>Unlocks at ${lvl ? lvl.name : '???'}</div></div>`;
-            continue;
-        }
+        // Locked types render nothing (2026-07-19 feedback): plot locations
+        // are stable now, so the dashed "Unlocks at ..." ghosts were noise —
+        // the level-up button already lists what the next tier unlocks, and
+        // a newly unlocked building announces itself with the glow below.
+        if (getBuildingCap(id) <= 0) continue;
+        // Never-clicked unlock: glow until the player opens it once.
+        const fresh = seenPlots[id] ? '' : ' plot--new';
         const art = `<div class="art">${buildingArtHtml(id)}`;
+        // Red notification dot = "another one can be built right now"
+        // (under cap AND affordable). Affordability is volatile — renderScene
+        // toggles .dot--on per frame; only the span itself lives in the string.
+        const dot = `<span class="dot" data-dot="${id}"></span>`;
         if (b.count === 0) {
             // Ghost-preview: desaturated, NOT washed out — a fresh save shows
             // several of these at once and stacked transparency read as a bug.
-            html += `<div class="plot plot--unbuilt" data-action="openScenePlot:${id}" data-bldg="${id}" style="${pos}">${art}</div>
+            html += `<div class="plot plot--unbuilt${fresh}" data-action="openScenePlot:${id}" data-bldg="${id}" style="${pos}">${art}${dot}</div>
                 <span class="tag">${b.name} · click to build</span></div>`;
             continue;
         }
-        html += `<div class="plot" data-action="openScenePlot:${id}" data-bldg="${id}" style="${pos}">
-            ${art}<span class="count">×${b.count}</span></div>
+        html += `<div class="plot${fresh}" data-action="openScenePlot:${id}" data-bldg="${id}" style="${pos}">
+            ${art}${dot}</div>
             <span class="tag">${b.name} ×${b.count} · click to manage</span></div>`;
     }
     setPanelHtml('scene-vista', html);
@@ -3106,15 +3195,21 @@ function renderSceneHud() {
     let levelBtn;
     if (next) {
         const unlockNames = next.unlocks.map(id => buildings[id].name).join(', ');
-        levelBtn = `${unlockNames ? `<div style="font-size:10px;color:#8a7f63">Unlocks: ${unlockNames}</div>` : ''}
+        levelBtn = `${unlockNames ? `<div style="font-size:calc(10.5px * var(--uis));color:#8a7f63">Unlocks: ${unlockNames}</div>` : ''}
             <button data-action="levelUpKingdom" ${gold >= next.cost ? '' : 'disabled'}>Become a ${next.name} — ${next.cost.toLocaleString()}g</button>`;
     } else {
-        levelBtn = `<div style="color:#8a7f63;font-size:11px;margin-top:5px">Highest tier reached</div>`;
+        levelBtn = `<div style="color:#8a7f63;font-size:calc(11.5px * var(--uis));margin-top:5px">Highest tier reached</div>`;
+    }
+    // Build All (Crown Architect): affordability is volatile — renderScene
+    // flips the disabled state in place each frame, never the string.
+    if (buildAllAvailable()) {
+        levelBtn += `<button id="scene-build-all" data-action="buildAllBuildings"
+            title="Buy buildings toward every cap, cheapest first">Build all</button>`;
     }
     // Manual run-ender (same confirm flow as the classic left panel)
     if (raidsStarted && !runEnded) {
         levelBtn += confirmingNewAge
-            ? `<div style="margin-top:6px;font-size:11px;color:#c06060">End this Age?
+            ? `<div style="margin-top:6px;font-size:calc(11.5px * var(--uis));color:#c06060">End this Age?
                 <button data-action="confirmNewAge" style="color:#e08080;border-color:#8a4040">Yes, end it</button>
                 <button data-action="cancelNewAge">Cancel</button></div>`
             : `<button data-action="showNewAgeConfirm" style="margin-top:6px;opacity:0.8">Found a New Age</button>`;
@@ -3131,11 +3226,15 @@ function renderSceneHud() {
         ? `<div style="margin-top:3px">${autoOptions.map(o =>
             `<button class="${autoRecruitRarity === o.value ? 'on' : ''}" data-action="setAutoRecruit:${o.value === null ? 'null' : o.value}">${o.label}</button>`).join('')}</div>`
         : '';
+    // Hero muster: slow natural refresh + a paid instant muster whose label/
+    // disabled state are volatile (cost doubles per press — see heroRefreshCost).
     const heroLine = kingdomLevel >= RAID_TRIGGER_LEVEL
-        ? `<div class="row"><span class="lbl">Heroes</span> <span id="scene-hero-timer" style="font-size:11px"></span></div>`
-        : `<div class="row"><span class="lbl">Heroes</span> <span style="font-size:10px;color:#8a7f63">unlock at ${levels[RAID_TRIGGER_LEVEL].name}</span></div>`;
-    const squareChip = `<div class="chip" id="scene-square-chip" style="left:14px;top:212px;min-width:150px;font-size:11px">
-        <div class="row"><span class="lbl">Town Square</span> <span id="scene-pool-timer" style="font-size:11px"></span></div>
+        ? `<div class="row"><span class="lbl">Heroes</span> <span id="scene-hero-timer"></span></div>
+           <div class="row"><button id="scene-hero-refresh" data-action="manualHeroRefresh"
+               title="Pay to muster new hero recruits now — each press before the next natural muster doubles the price">↻ Muster now</button></div>`
+        : `<div class="row"><span class="lbl">Heroes</span> <span style="font-size:calc(10.5px * var(--uis));color:#8a7f63">unlock at ${levels[RAID_TRIGGER_LEVEL].name}</span></div>`;
+    const squareChip = `<div class="chip" id="scene-square-chip">
+        <div class="row"><span class="lbl">Town Square</span> <span id="scene-pool-timer"></span></div>
         ${autoHtml}${heroLine}</div>`;
 
     // System corner: game speed, motion, reset — classic's admin controls,
@@ -3168,7 +3267,7 @@ function renderSceneHud() {
     if (currentInvasion) {
         raidChip = `<div class="chip" id="scene-raid-chip">
             <div class="rname">${currentInvasion.name}</div>
-            <div style="font-size:11px;color:#8a7f63">${currentInvasion.finalSiege ? `Phase ${currentInvasion.phase} of ${FINAL_SIEGE_PHASES.length}` : 'Battle in progress'}</div>
+            <div style="font-size:calc(11.5px * var(--uis));color:#8a7f63">${currentInvasion.finalSiege ? `Phase ${currentInvasion.phase} of ${FINAL_SIEGE_PHASES.length}` : 'Battle in progress'}</div>
             ${escalationMult(currentInvasion) > 1 ? `<div class="resc" id="scene-esc-line"></div>` : ''}
             ${!squadAlive(heroSquad) ? `<div class="rsiege">The Kingdom is under siege!</div>` : ''}
             ${lastVictory ? `<div class="rvict">Repelled: ${lastVictory.name} +${lastVictory.loot.toLocaleString()}g${lastVictory.legacy ? ` · +${lastVictory.legacy.toLocaleString()} Legacy` : ''}</div>` : ''}
@@ -3177,14 +3276,27 @@ function renderSceneHud() {
         const nextName = finalSiegeCountdown === 0 ? 'THE FINAL SIEGE' : getInvasionName(raidTierIndex, tierWave);
         raidChip = `<div class="chip" id="scene-raid-chip">
             <div class="rname">Next: ${nextName}</div>
-            <div style="font-size:11px;color:#8a7f63">Arrives in <span id="scene-raid-timer"></span></div>
+            <div style="font-size:calc(11.5px * var(--uis));color:#8a7f63">Arrives in <span id="scene-raid-timer"></span></div>
             ${finalSiegeCountdown > 0 ? `<div class="rsiege">A herald arrives: the Final Siege approaches — ${finalSiegeCountdown} raid${finalSiegeCountdown === 1 ? '' : 's'} remain${finalSiegeCountdown === 1 ? 's' : ''}!</div>` : ''}
             ${lastVictory ? `<div class="rvict">Repelled: ${lastVictory.name} +${lastVictory.loot.toLocaleString()}g${lastVictory.legacy ? ` · +${lastVictory.legacy.toLocaleString()} Legacy` : ''}</div>` : ''}
         </div>`;
     }
 
+    // Kingdom HP chip: anchored ABOVE the painted wall (2026-07-19 feedback —
+    // it used to sit mid-wall), through the same painting→screen transform the
+    // plots use, clamped so ultrawide's top crop can't push it off-screen.
+    // Resize changes the baked style → memo string differs → chip re-seats.
+    const t = sceneTransform();
+    let wallStyle = '';
+    if (t) {
+        const leftPct = (SCENE_WALL_FRAC * t.W * t.s + t.ox) / window.innerWidth * 100;
+        const topPx = Math.max(10, HUD_WALL_IMG_Y / 100 * t.compH * t.s + t.oy);
+        wallStyle = ` style="left:${leftPct.toFixed(2)}%;top:${topPx.toFixed(0)}px"`;
+    }
+
     setPanelHtml('scene-hud',
-        `<div class="chip" id="hud-econ">
+        `<div id="hud-left">
+        <div class="chip" id="hud-econ">
             <div class="row"><span class="lbl">Gold</span> <b id="scene-gold">0</b></div>
             <div class="row"><span class="lbl">Per sec</span> <b id="scene-gps">0</b></div>
             <div class="row"><span class="lbl">Legacy</span> <b id="scene-legacy" style="color:#b48ae8">0</b></div>
@@ -3195,8 +3307,9 @@ function renderSceneHud() {
             ${levelBtn}
         </div>
         ${squareChip}
+        </div>
         ${cornerChip}
-        <div class="chip" id="hud-wall">
+        <div class="chip" id="hud-wall"${wallStyle}>
             <span class="lbl">Kingdom</span> <b id="scene-hp-text">—</b>
             <div class="bar"><div class="fill" id="scene-hp-fill"></div></div>
         </div>
@@ -3232,16 +3345,34 @@ function sceneUnitBits(sKey, h, letter, rarity) {
 // the string carries pool identity + sprite readiness (blob URLs appear in it),
 // so it rebuilds exactly on pool change / hire / sprite load. Affordability is
 // a volatile class toggled per frame — never part of the string.
-// Spread wide with alternating depth so five nameplates never stack.
-const TOWN_CROWD_SPOTS = [[0.05, 0.86], [0.15, 0.905], [0.25, 0.868], [0.35, 0.915], [0.45, 0.878]];
-const HERO_CROWD_SPOTS = [[0.56, 0.87], [0.67, 0.905], [0.78, 0.868], [0.88, 0.92], [0.62, 0.95]];
+// Spots are in IMAGE space (x % of painting width, y % of the kept comp
+// height — same convention as BUILDING_PLOTS) so the crowd stands ON the
+// painted plaza at any window size/aspect; the old viewport-% spots put them
+// in the trees (2026-07-19 feedback). Townsfolk ring the plaza well; hero
+// recruits muster along the road toward the gate. y stays ≤ 84 so ultrawide's
+// bottom crop can't push a nameplate off-screen. Hand-tunable in
+// tools/plot-placer.html (crowd markers), like the building plots.
+const TOWN_CROWD_SPOTS = [[18.0, 75], [20.5, 82], [24.8, 84.5], [29.0, 81.5], [22.0, 69]];
+const HERO_CROWD_SPOTS = [[33.5, 74], [36.5, 78.5], [39.0, 71.5], [41.5, 76], [36.0, 68]];
+
+// image-space spot -> screen %, through the shared transform (fallback:
+// treat the coords as rough viewport % when the backdrop isn't loaded).
+// Shared by the crowd AND the battle diorama.
+function sceneSpotToScreen(spot) {
+    const t = sceneTransform();
+    if (!t) return [spot[0], spot[1]];
+    return [
+        (spot[0] / 100 * t.W * t.s + t.ox) / window.innerWidth * 100,
+        (spot[1] / 100 * t.compH * t.s + t.oy) / window.innerHeight * 100
+    ];
+}
 
 function renderSceneCrowd() {
     let html = '';
     recruitPool.forEach((recruit, i) => {
         const spot = TOWN_CROWD_SPOTS[i % TOWN_CROWD_SPOTS.length];
-        const x = spot[0] * TOWN_REGION_FRAC * 100, y = spot[1] * 100;
-        const h = 74 + (spot[1] - 0.84) * 170;
+        const [x, y] = sceneSpotToScreen(spot);
+        const h = 76 + (spot[1] - 77) * 0.8; // gentle nearer-is-bigger depth cue
         const type = recruitTypes[recruit.typeId];
         const tier = rarityTiers[recruit.rarity];
         const b = buildings[recruit.buildingId];
@@ -3256,28 +3387,28 @@ function renderSceneCrowd() {
         html += `<div class="sunit sunit--recruit" data-action="hireRecruit:${recruit.id}" data-recruit-id="${recruit.id}"
             style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%;z-index:${Math.round(y * 4)}">
             ${bits.html}
-            <div class="plate" style="left:-75px;top:6px">${recruit.name}
+            <div class="plate" style="top:6px">${recruit.name}
                 <div class="sub" style="color:${tier.color}">${tier.name} · ${valueLabel}</div>
                 <div class="cost">${recruit.cost.toLocaleString()}g</div></div>
-            <div class="hint" style="left:-75px;top:${(-h - 26).toFixed(0)}px"><span>${hint}</span></div>
+            <div class="hint" style="top:${(-h - 26).toFixed(0)}px"><span>${hint}</span></div>
         </div>`;
     });
     if (kingdomLevel >= RAID_TRIGGER_LEVEL) {
         const hasSlot = heroSquad.some(s => s === null);
         heroRecruitPool.forEach((recruit, i) => {
             const spot = HERO_CROWD_SPOTS[i % HERO_CROWD_SPOTS.length];
-            const x = spot[0] * TOWN_REGION_FRAC * 100, y = spot[1] * 100;
-            const h = 82 + (spot[1] - 0.84) * 170;
+            const [x, y] = sceneSpotToScreen(spot);
+            const h = 84 + (spot[1] - 74) * 0.8;
             const tier = rarityTiers[recruit.rarity];
             const hint = hasSlot ? `Hire — ${recruit.cost.toLocaleString()}g` : 'Squad full';
             const bits = sceneUnitBits(heroSpriteKey(recruit.archetypeKey, recruit.rarity), h, recruit.name[0].toUpperCase(), recruit.rarity);
             html += `<div class="sunit sunit--recruit" data-action="hireHero:${recruit.id}" data-hero-id="${recruit.id}"
                 style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%;z-index:${Math.round(y * 4)}">
                 ${bits.html}
-                <div class="plate" style="left:-75px;top:6px">${recruit.name}
+                <div class="plate" style="top:6px">${recruit.name}
                     <div class="sub" style="color:${tier.color}">${tier.name}</div>
                     <div class="cost">${recruit.cost.toLocaleString()}g</div></div>
-                <div class="hint" style="left:-75px;top:${(-h - 26).toFixed(0)}px"><span>${hint}</span></div>
+                <div class="hint" style="top:${(-h - 26).toFixed(0)}px"><span>${hint}</span></div>
             </div>`;
         });
     }
@@ -3289,16 +3420,41 @@ function renderSceneCrowd() {
 // (hero front row nearest the enemies, and vice versa), its game COL picks
 // the depth lane (top lane = col 0, farther = higher + smaller). All in
 // stage-% so the layout survives resizes.
-function sceneHeroRowX(r)  { return 62 - r * 5; }     // r0 front … r3 rear (toward wall)
-function sceneEnemyRowX(r) { return 74 + r * 5.5; }   // r0 front … r3 rear (toward treeline)
-function sceneLaneY(c, n)  { return (n >= 4 ? [63, 73, 83, 92] : [67, 78, 90])[c]; }
-function sceneLaneH(c)     { return 90 + c * 13; }
+// Battle-field geometry in IMAGE space (2026-07-19 feedback round): rows and
+// lanes are % of the painting, pushed through sceneSpotToScreen like the
+// plots/crowd — viewport-% rows drifted the expanded squad's rear rows onto
+// the painted wall when the window shape changed. Hero rear rows step toward
+// the wall, but the step compresses so the rear-most row always clears the
+// wall band (right edge ≈ 51.5% of the painting + a unit half-width).
+const SCENE_HERO_FRONT_X = 65;      // hero row 0 (front line), % of painting width
+const SCENE_HERO_ROW_STEP = 4.6;    // % per rear row, toward the wall
+const SCENE_HERO_REAR_MIN_X = 54.5; // rear rows never cross this — wall clearance
+const SCENE_ENEMY_FRONT_X = 75.5;
+const SCENE_ENEMY_ROW_STEP = 5.5;
+// Flat unit size, near crowd scale (the lane-depth scaling went the way of
+// the town's building depth scaling — same 2026-07-19 user call). Matching
+// the crowd's render scale also matches its softer sampling: at ~0.6x of the
+// 160px asset, bilinear melts the pixel grid the same way the plaza does.
+// Bosses keep their x1.28 presence bump in sceneBattleUnitHtml.
+const SCENE_BATTLE_UNIT_H = 94;
+function sceneHeroRowX(r, rows) {
+    const step = Math.min(SCENE_HERO_ROW_STEP,
+        (SCENE_HERO_FRONT_X - SCENE_HERO_REAR_MIN_X) / Math.max(1, rows - 1));
+    return SCENE_HERO_FRONT_X - r * step;
+}
+function sceneEnemyRowX(r) { return SCENE_ENEMY_FRONT_X + r * SCENE_ENEMY_ROW_STEP; }
+function sceneLaneY(c, n)  { return (n >= 4 ? [60, 68, 76, 84] : [64, 74, 84])[c]; }
 
 const sceneUnitElByKey = new Map(); // unit._domKey -> scene wrapper (FX routing)
 const sceneBattleLive = [];         // per-unit bindings for the per-frame update
 
 function sceneBattleSig(dims, enemyGrid, enemies) {
+    // Viewport + backdrop-readiness are part of the signature: positions are
+    // image-anchored, so a resize (or the backdrop finishing its load) must
+    // rebuild the structure — the other scene panels get this for free from
+    // their memoized strings.
     let sig = dims.rows + 'x' + dims.cols + '|' + enemyGrid.rows + 'x' + enemyGrid.cols
+        + '|' + window.innerWidth + 'x' + window.innerHeight + (sceneBgImg ? 'b' : '')
         + '|' + (kingdomLevel >= RAID_TRIGGER_LEVEL ? 1 : 0) + '|';
     for (const u of heroSquad) sig += u ? unitDomKey(u) + (sprites[unitSpriteKey(u)] ? 's' : 'l') + ',' : 'e,';
     sig += '/';
@@ -3328,18 +3484,21 @@ function sceneBattleUnitHtml(unit, index, xPct, yPct, h, isHero) {
     return `<div class="${cls}" data-ukey="${key}"${action}${title}
         style="left:${xPct.toFixed(2)}%;top:${yPct.toFixed(2)}%;z-index:${Math.round(yPct * 4) + 1}">
         ${bits.html}
-        <div class="plate" style="left:-75px;top:${(-h - 30).toFixed(0)}px">${unit.name}
+        <div class="plate" style="top:${(-h - 30).toFixed(0)}px">${unit.name}
             <div class="hp hp--${isHero ? 'hero' : 'enemy'}"><i></i></div></div>
         <span class="chillbadge" style="left:24px;top:${(-h - 8).toFixed(0)}px">❄</span>
     </div>`;
 }
 
 // Formation editing on the diorama: the same HTML5 drag pattern (and the same
-// swapHeroes state change) as the classic battle slots. Empty positions are
-// droppable via their ground tiles.
-function attachSceneDragHandlers(el, index) {
+// swapHeroes state change) as the classic battle slots. Every ground tile is a
+// drop target (occupied ones swap with their occupant) and tiles/units carry
+// oversized invisible hit halos in CSS — precision-dropping on the small
+// ellipse was genuinely hard (2026-07-19 feedback). isTile keeps tiles from
+// ever becoming drag SOURCES for the unit standing on them.
+function attachSceneDragHandlers(el, index, isTile = false) {
     const unit = heroSquad[index];
-    if (unit && unit.alive) {
+    if (!isTile && unit && unit.alive) {
         el.draggable = true;
         el.addEventListener('dragstart', e => {
             isDraggingHero = true;
@@ -3370,25 +3529,31 @@ function buildSceneBattle(el, dims, enemyGrid, enemies) {
     sceneBattleLive.length = 0;
     let html = '';
     const showHeroes = kingdomLevel >= RAID_TRIGGER_LEVEL;
-    // ground tiles for every grid position (capacity reads even when empty)
+    // ground tiles for every grid position (capacity reads even when empty);
+    // flat size — the per-lane depth growth left with the unit depth scaling
+    const tileHtml = (xImg, yImg, cls, attrs) => {
+        const [sx, sy] = sceneSpotToScreen([xImg, yImg]);
+        return `<span class="btile ${cls}"${attrs || ''} style="left:${sx.toFixed(2)}%;top:${sy.toFixed(2)}%;width:70px;height:21px;margin-left:-35px;margin-top:-10px;z-index:${Math.round(sy * 4) - 2}"></span>`;
+    };
     if (showHeroes) for (let r = 0; r < dims.rows; r++) for (let c = 0; c < dims.cols; c++) {
-        const w = 66 + c * 8;
         const tidx = r * dims.cols + c;
-        html += `<span class="btile btile--hero btile--drop" data-tidx="${tidx}" style="left:${sceneHeroRowX(r)}%;top:${sceneLaneY(c, dims.cols)}%;width:${w}px;height:${Math.round(w * 0.3)}px;margin-left:${-w / 2}px;margin-top:${-Math.round(w * 0.15)}px;z-index:${sceneLaneY(c, dims.cols) * 4 - 2}"></span>`;
+        html += tileHtml(sceneHeroRowX(r, dims.rows), sceneLaneY(c, dims.cols),
+            'btile--hero btile--drop', ` data-tidx="${tidx}"`);
     }
     for (let r = 0; r < enemyGrid.rows; r++) for (let c = 0; c < enemyGrid.cols; c++) {
-        const w = 66 + c * 8;
-        html += `<span class="btile btile--enemy" style="left:${sceneEnemyRowX(r)}%;top:${sceneLaneY(c, enemyGrid.cols)}%;width:${w}px;height:${Math.round(w * 0.3)}px;margin-left:${-w / 2}px;margin-top:${-Math.round(w * 0.15)}px;z-index:${sceneLaneY(c, enemyGrid.cols) * 4 - 2}"></span>`;
+        html += tileHtml(sceneEnemyRowX(r), sceneLaneY(c, enemyGrid.cols), 'btile--enemy');
     }
     if (showHeroes) heroSquad.forEach((unit, index) => {
         if (!unit) return;
         const r = Math.floor(index / dims.cols), c = index % dims.cols;
-        html += sceneBattleUnitHtml(unit, index, sceneHeroRowX(r), sceneLaneY(c, dims.cols), sceneLaneH(c), true);
+        const [sx, sy] = sceneSpotToScreen([sceneHeroRowX(r, dims.rows), sceneLaneY(c, dims.cols)]);
+        html += sceneBattleUnitHtml(unit, index, sx, sy, SCENE_BATTLE_UNIT_H, true);
     });
     enemies.forEach((unit, index) => {
         if (!unit) return;
         const r = Math.floor(index / enemyGrid.cols), c = index % enemyGrid.cols;
-        html += sceneBattleUnitHtml(unit, index, sceneEnemyRowX(r), sceneLaneY(c, enemyGrid.cols), sceneLaneH(c), false);
+        const [sx, sy] = sceneSpotToScreen([sceneEnemyRowX(r), sceneLaneY(c, enemyGrid.cols)]);
+        html += sceneBattleUnitHtml(unit, index, sx, sy, SCENE_BATTLE_UNIT_H, false);
     });
     el.innerHTML = html;
     // wire refs for FX routing + per-frame updates (unit objects mutate in place)
@@ -3408,10 +3573,10 @@ function buildSceneBattle(el, dims, enemyGrid, enemies) {
             if (bind.hidx >= 0) attachSceneDragHandlers(uel, bind.hidx);
         }
     });
-    // Empty hero positions accept drops via their ground tiles
+    // Every hero tile accepts drops — empty ones place, occupied ones swap
+    // (same result as dropping on the unit itself, just a bigger target).
     el.querySelectorAll('.btile--drop').forEach(t => {
-        const tidx = Number(t.dataset.tidx);
-        if (!heroSquad[tidx]) attachSceneDragHandlers(t, tidx);
+        attachSceneDragHandlers(t, Number(t.dataset.tidx), true);
     });
 }
 
@@ -3480,7 +3645,12 @@ function spawnSceneGhost(unitEl) {
 }
 
 let scenePlotOpen = null;
-function openScenePlot(id) { scenePlotOpen = id; renderScenePlotDrawer(); document.getElementById('scene-drawer').classList.remove('hidden'); }
+function openScenePlot(id) {
+    if (!seenPlots[id]) { seenPlots[id] = true; saveGame(); } // first look ends the new-unlock glow
+    scenePlotOpen = id;
+    renderScenePlotDrawer();
+    document.getElementById('scene-drawer').classList.remove('hidden');
+}
 function closeScenePlot() { scenePlotOpen = null; document.getElementById('scene-drawer').classList.add('hidden'); }
 function renderScenePlotDrawer() {
     const b = buildings[scenePlotOpen];
@@ -3515,12 +3685,12 @@ function renderScenePlotDrawer() {
         ? (nxt ? `${levels[kingdomLevel].name} cap reached — rises to ×${nxt.cap} at ${nxt.name}`
                : `Campaign maximum reached`)
         : `${cap - b.count} more can be built as a ${levels[kingdomLevel].name}${nxt ? ` · cap ×${nxt.cap} at ${nxt.name}` : ''}`;
-    const qtyRow = `<div style="margin:2px 0 4px;font-size:10px;color:#8a7f63">Buy:
+    const qtyRow = `<div style="margin:2px 0 4px;font-size:calc(11px * var(--uis));color:#8a7f63">Buy:
         ${[1, 5, 10, 'max'].map(q => `<button class="btn-qty ${buyQuantity === q ? 'btn-qty--active' : ''}" data-action="setBuyQuantity:${q}">×${q}</button>`).join('')}</div>`;
     const buildRow = `<div class="dw-cap">${capLine}</div>${qtyRow}
         <div style="margin:2px 0 10px;display:flex;gap:10px;align-items:center">
         <button class="btn-upgrade" data-action="buyBuilding:${scenePlotOpen}" ${info.canAfford ? '' : 'disabled'}>${atCap ? 'At cap' : 'Build'}</button>
-        <span style="font-size:11px;color:#8a7f63">${info.costLabel}</span></div>`;
+        <span style="font-size:calc(12px * var(--uis));color:#8a7f63">${info.costLabel}</span></div>`;
     setPanelHtml('scene-drawer-body',
         `<h3>${b.name} <span class="dw-count">×${b.count} / ${cap}</span></h3>
          <div class="meta">${b.residents.length} / ${totalSlots} residents · hire from the Town Square</div>
@@ -3554,6 +3724,27 @@ function renderScene() {
     sceneSetText('scene-raid-timer', formatTimer(invasionTimer));
     if (currentInvasion && escalationMult(currentInvasion) > 1) {
         sceneSetText('scene-esc-line', `The siege escalates! Enemy attack +${Math.round((escalationMult(currentInvasion) - 1) * 100)}%`);
+    }
+
+    // Buildable dots on the vista — "another one can be built right now"
+    // (under cap + affordable). Volatile class, never part of the memo string.
+    document.querySelectorAll('#scene-vista .dot').forEach(el => {
+        const b = buildings[el.getAttribute('data-dot')];
+        el.classList.toggle('dot--on', !!b && b.count < getBuildingCap(el.getAttribute('data-dot')) && gold >= b.cost);
+    });
+
+    // Build All + paid muster — label carries the live cost; both volatile.
+    const buildAllBtn = document.getElementById('scene-build-all');
+    if (buildAllBtn) {
+        buildAllBtn.disabled = !Object.keys(buildings).some(id =>
+            buildings[id].count < getBuildingCap(id) && gold >= buildings[id].cost);
+    }
+    const musterBtn = document.getElementById('scene-hero-refresh');
+    if (musterBtn) {
+        const cost = heroRefreshCost();
+        const label = `↻ Muster now — ${cost.toLocaleString()}g`;
+        if (musterBtn.textContent !== label) musterBtn.textContent = label;
+        musterBtn.disabled = gold < cost;
     }
 
     // Crowd affordability — volatile class, never part of the memo string
@@ -3662,6 +3853,8 @@ const UI_ACTIONS = {
     hireHero:        id => hireHero(Number(id)),
     fireResident:    (id, idx) => fireResident(id, Number(idx)),
     buyBuilding:     id => buyBuilding(id),
+    buildAllBuildings: () => buildAllBuildings(),
+    manualHeroRefresh: () => manualHeroRefresh(),
     toggleBuilding:  id => toggleBuilding(id),
     setBuyQuantity:  q => setBuyQuantity(q === 'max' ? 'max' : Number(q)),
     setAutoRecruit:  r => setAutoRecruit(r === 'null' ? null : r),
