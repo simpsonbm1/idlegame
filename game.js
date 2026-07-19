@@ -348,7 +348,9 @@ function loadMeta() {
         victory: state.victory ?? false,
         gameSeconds: state.gameSeconds ?? 0,
         reduceMotion: state.reduceMotion ?? false,
-        sceneView: state.sceneView ?? true // M15 scene/classic choice (default: scene)
+        sceneView: state.sceneView ?? true, // M15 scene/classic choice (default: scene)
+        soundVolume: state.soundVolume ?? 0.6, // M15 Phase 3 (additive — no SAVE_VERSION bump)
+        soundMuted: state.soundMuted ?? false
     };
 }
 
@@ -417,6 +419,7 @@ function buyUpgrade(id) {
     if (meta.legacy < cost) return;
     meta.legacy -= cost;
     meta.upgrades[id] = rank + 1;
+    playSfx('upgrade');
     if (id === 'squadsize') {
         resizeHeroSquad();
         saveGame();
@@ -679,6 +682,36 @@ function renderMotionToggle() {
              + `<button class="btn-speed${reduced ? ' btn-speed--active' : ''}" data-action="setReduceMotion:1" title="No shake, flashes, or floating numbers">Reduced</button>`;
     }
     setPanelHtml('motion-toggle', html);
+}
+
+// Sound settings row (classic admin panel; the scene mirrors these in its
+// corner chip). Rebuilds only on a settings click — no volatile content.
+function renderSoundControls() {
+    if (!document.getElementById('sound-controls')) return; // markup not present (stale cache)
+    const pct = Math.round(meta.soundVolume * 100);
+    setPanelHtml('sound-controls',
+        `<button class="btn-speed${meta.soundMuted ? ' btn-speed--active' : ''}" data-action="toggleSoundMute">${meta.soundMuted ? 'Muted' : 'Mute'}</button>
+         <button class="btn-speed" data-action="nudgeVolume:-1" title="Quieter">−</button>
+         <button class="btn-speed" data-action="nudgeVolume:1" title="Louder">+</button>
+         <span class="pool-timer" style="margin-left:4px">${pct}%</span>`);
+}
+
+// DEV-only audition board: every manifest entry as a play button — the
+// by-ear acceptance gate for the sound pass (mirrors the art-pilot loop).
+let soundBoardOpen = false;
+function renderSoundBoard() {
+    let el = document.getElementById('sound-board');
+    if (!soundBoardOpen) { if (el) el.remove(); return; }
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'sound-board';
+        document.body.appendChild(el);
+    }
+    el.innerHTML = `<b>SFX board</b> — click to audition (bypasses budgets)
+        <span class="sb-close" data-action="toggleSoundBoard" title="Close">✕</span>
+        <div>${Object.keys(SOUNDS).map(n =>
+            `<button data-action="playTestSfx:${n}">${n}${SOUNDS[n].synth ? ' ⚡' : ''}</button>`).join('')}</div>
+        <div class="sb-note">⚡ = synthesized (no file). Files pick a random variant per play.</div>`;
 }
 
 function bulkBuildingCost(id, n) {
@@ -1267,6 +1300,7 @@ function manualHeroRefresh() {
     heroRefreshCount++;
     heroPoolTimer = 0; // the muster drum restarts its count
     refreshHeroPool(true);
+    playSfx('muster');
     saveGame();
     updateUI();
 }
@@ -1284,6 +1318,7 @@ function hireHero(recruitId) {
     const cols = heroGridDims().cols;
     heroSquad[slotIndex] = generateHero(recruit.archetypeKey, recruit.rarity, Math.floor(slotIndex / cols), slotIndex % cols);
 
+    playSfx('hire_hero');
     saveGame();
     updateUI();
 }
@@ -1291,6 +1326,7 @@ function hireHero(recruitId) {
 function fireHero(slotIndex) {
     if (!heroSquad[slotIndex]) return;
     heroSquad[slotIndex] = null;
+    playSfx('dismiss');
     saveGame();
     updateUI();
 }
@@ -1457,6 +1493,7 @@ function winInvasion() {
 // run-summary overlay with the upgrade shop.
 function endRun(reason) {
     const fellTo = currentInvasion ? currentInvasion.name : getInvasionName(raidTierIndex, tierWave);
+    if (reason === 'overrun') playSfx('kingdom_fall'); // the fall sting; abandoning quietly is a choice
 
     // Lessons of the Last Siege (M13): a LOST Final Siege attempt pays a large
     // one-time bonus — the failed attempt visibly funds the winning one.
@@ -1564,6 +1601,7 @@ function foundNewAge() {
     refreshPool();
     renderRunSummary();
     playDawnTransition();
+    playSfx('dawn');
     saveGame();
     updateUI();
 }
@@ -1573,6 +1611,7 @@ function foundNewAge() {
 function campaignVictory() {
     meta.victory = true;
     meta.gameSeconds += runTime;
+    playSfx('victory');
     victoryPending = true;
     currentInvasion = null;
     invasionTimer = getRaidInterval();
@@ -2170,6 +2209,171 @@ function unitDomKey(unit) {
 // FX bus: combat emits typed events; drainFx runs once per RENDERED frame and
 // coalesces per unit (one number per unit per frame, float count capped), so
 // 100x dev speed produces the same on-screen effect density as 1x.
+// ==================================================================
+// M15 PHASE 3 — AUDIO. One SoundBoard engine: a manifest of named
+// sounds (CC0 files from assets/audio/, or synth recipes for what the
+// packs can't provide), played through a master gain + compressor.
+// The audio consumer drains the SAME FX bus as the visuals, so the
+// per-frame coalescing that keeps 100x from firing 100x the particles
+// keeps it from firing 100x the sounds; per-class wall-clock gaps and
+// a voice cap do the rest. Files degrade to silence when missing or on
+// file:// (fetch is blocked there exactly like canvas pixel access).
+// ==================================================================
+let audioCtx = null, sfxMaster = null;
+let sfxLoadBlocked = false;      // file:// or fetch failure — note shown like the sprite one
+const sfxBuffers = {};           // audio path -> decoded AudioBuffer
+let sfxVoices = 0;
+const SFX_MAX_VOICES = 8;
+const SFX_CLASS_GAP = { combat: 120, accent: 200, ui: 70, sting: 400, pulse: 300 };
+const sfxLastClass = {}, sfxLastName = {};
+
+const SFX_BASE = 'assets/audio/';
+const sfxVar = (dir, name, n) => Array.from({ length: n }, (_, i) => `${dir}/${name}_00${i}.ogg`);
+// The manifest: swap any sound by editing its line — a `files` list plays a
+// random variant (pitchVar de-machine-guns repeats); a `synth` name calls a
+// recipe below. `cls` picks the budget lane; `minGap` (ms) adds a per-sound
+// floor for repeat-prone one-shots; `rate` shifts base pitch.
+const SOUNDS = {
+    // combat (FX-bus driven)
+    hit_light:    { files: sfxVar('Impact', 'impactGeneric_light', 5), vol: 0.40, pitchVar: 0.12, cls: 'combat' },
+    hit_heavy:    { files: sfxVar('Impact', 'impactPlate_medium', 5),  vol: 0.55, pitchVar: 0.10, cls: 'combat' },
+    heal:         { synth: 'heal', vol: 0.45, cls: 'combat', minGap: 350 },
+    death_enemy:  { files: sfxVar('Impact', 'impactPunch_heavy', 5),   vol: 0.55, pitchVar: 0.08, cls: 'accent' },
+    death_hero:   { files: sfxVar('Impact', 'impactSoft_heavy', 5),    vol: 0.60, pitchVar: 0.06, cls: 'accent' },
+    revive:       { synth: 'revive', vol: 0.55, cls: 'accent' },
+    kingdom_hit:  { files: sfxVar('Impact', 'impactWood_heavy', 5),    vol: 0.65, pitchVar: 0.08, cls: 'accent' },
+    injury:       { files: sfxVar('Impact', 'impactMining', 5),        vol: 0.45, pitchVar: 0.10, cls: 'accent' },
+    heartbeat:    { synth: 'heartbeat', vol: 0.50, cls: 'pulse' },
+    // town / UI (mostly direct on the click paths)
+    click:        { files: ['UI/click1.ogg'],                          vol: 0.15, cls: 'ui' },
+    coins:        { files: ['RPG/handleCoins.ogg', 'RPG/handleCoins2.ogg'], vol: 0.50, pitchVar: 0.06, cls: 'ui', minGap: 400 },
+    build:        { files: sfxVar('Impact', 'impactPlank_medium', 5),  vol: 0.50, pitchVar: 0.10, cls: 'ui', minGap: 300 },
+    upgrade:      { files: ['RPG/bookFlip1.ogg', 'RPG/bookFlip2.ogg', 'RPG/bookFlip3.ogg'], vol: 0.55, cls: 'ui' },
+    hire_hero:    { files: ['RPG/drawKnife1.ogg', 'RPG/drawKnife2.ogg', 'RPG/drawKnife3.ogg'], vol: 0.50, cls: 'ui' },
+    muster:       { files: ['RPG/beltHandle1.ogg', 'RPG/beltHandle2.ogg'], vol: 0.50, cls: 'ui' },
+    dismiss:      { files: ['RPG/cloth2.ogg', 'RPG/cloth3.ogg'],       vol: 0.40, cls: 'ui' },
+    legacy:       { files: sfxVar('Impact', 'impactBell_heavy', 5), rate: 1.6, vol: 0.35, pitchVar: 0.04, cls: 'ui', minGap: 500 },
+    // stingers / moments
+    bell:         { files: sfxVar('Impact', 'impactBell_heavy', 5),    vol: 0.50, pitchVar: 0.05, cls: 'accent' },
+    levelup:      { synth: 'fanfare', vol: 0.55, cls: 'sting' },
+    raid_horn:    { synth: 'horn', vol: 0.65, cls: 'sting' },
+    repelled:     { synth: 'sting_win', vol: 0.55, cls: 'sting' },
+    kingdom_fall: { synth: 'sting_fall', vol: 0.65, cls: 'sting' },
+    victory:      { synth: 'fanfare_big', vol: 0.60, cls: 'sting' },
+    dawn:         { synth: 'dawn', vol: 0.50, cls: 'sting' }
+};
+
+// One enveloped oscillator, scheduled `at` seconds from now — the whole
+// synth vocabulary; recipes are just chords/arps/sweeps built from it.
+function sfxTone({ freq, freqEnd, type = 'sine', dur = 0.2, vol = 0.3, attack = 0.008, at = 0, filter }) {
+    const t0 = audioCtx.currentTime + at;
+    const osc = audioCtx.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t0);
+    if (freqEnd) osc.frequency.exponentialRampToValueAtTime(freqEnd, t0 + dur);
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(vol, t0 + attack);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    let dest = sfxMaster;
+    if (filter) {
+        const f = audioCtx.createBiquadFilter();
+        f.type = 'lowpass'; f.frequency.value = filter;
+        f.connect(sfxMaster); dest = f;
+    }
+    osc.connect(g); g.connect(dest);
+    osc.start(t0); osc.stop(t0 + dur + 0.05);
+}
+
+const SFX_SYNTHS = {
+    heal:      v => { sfxTone({ freq: 659, dur: 0.12, vol: v * 0.6 }); sfxTone({ freq: 880, dur: 0.22, vol: v * 0.5, at: 0.07 }); },
+    revive:    v => [440, 554, 659, 880].forEach((f, i) => sfxTone({ freq: f, type: 'triangle', dur: 0.3, vol: v * 0.5, at: i * 0.09 })),
+    // war horn: two detuned saws, lowpassed, rising a fourth
+    horn:      v => { sfxTone({ freq: 196, freqEnd: 261.6, type: 'sawtooth', dur: 1.1, vol: v * 0.7, attack: 0.15, filter: 900 });
+                      sfxTone({ freq: 197, freqEnd: 263, type: 'sawtooth', dur: 1.1, vol: v * 0.5, attack: 0.15, filter: 700 }); },
+    // lub-dub: pitch-swept sine kicks
+    heartbeat: v => { sfxTone({ freq: 150, freqEnd: 50, dur: 0.12, vol: v }); sfxTone({ freq: 130, freqEnd: 45, dur: 0.10, vol: v * 0.8, at: 0.16 }); },
+    sting_win: v => [523, 659, 784, 1047].forEach((f, i) => sfxTone({ freq: f, type: 'triangle', dur: 0.25, vol: v * 0.5, at: i * 0.07 })),
+    sting_fall: v => [220, 174.6, 146.8].forEach((f, i) => sfxTone({ freq: f, type: 'sawtooth', dur: 0.7, vol: v * 0.5, at: i * 0.28, filter: 600 })),
+    fanfare:   v => [392, 523, 659].forEach((f, i) => sfxTone({ freq: f, type: 'square', dur: 0.22, vol: v * 0.35, at: i * 0.09, filter: 1800 })),
+    fanfare_big: v => [[392, 0], [523, 0.12], [659, 0.24], [784, 0.42], [659, 0.6], [784, 0.72], [1047, 0.9]]
+                   .forEach(([f, at]) => sfxTone({ freq: f, type: 'square', dur: 0.35, vol: v * 0.35, at, filter: 2000 })),
+    dawn:      v => { sfxTone({ freq: 262, dur: 1.4, vol: v * 0.4, attack: 0.4 }); sfxTone({ freq: 392, dur: 1.4, vol: v * 0.3, attack: 0.5, at: 0.3 }); }
+};
+
+function loadSounds() {
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) { return; } // no Web Audio — game runs silent
+    sfxMaster = audioCtx.createGain();
+    const comp = audioCtx.createDynamicsCompressor(); // 100x-pileup clipping guard
+    sfxMaster.connect(comp);
+    comp.connect(audioCtx.destination);
+    applySoundVolume();
+    const paths = new Set();
+    for (const k in SOUNDS) (SOUNDS[k].files || []).forEach(f => paths.add(f));
+    for (const p of paths) {
+        fetch(SFX_BASE + p)
+            .then(r => { if (!r.ok) throw new Error(); return r.arrayBuffer(); })
+            .then(ab => audioCtx.decodeAudioData(ab))
+            .then(buf => { sfxBuffers[p] = buf; })
+            .catch(() => { if (location.protocol === 'file:') sfxLoadBlocked = true; });
+    }
+}
+// Browsers keep a context suspended until a user gesture; the delegated
+// pointer dispatch (bindActionDispatch) calls this on every pointerdown.
+function resumeAudio() {
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+}
+// Perceptual-ish volume curve; mute is just gain 0 (context keeps running).
+function applySoundVolume() {
+    if (sfxMaster) sfxMaster.gain.value = meta.soundMuted ? 0 : Math.pow(meta.soundVolume, 1.6);
+}
+
+function playSfx(name, volMult = 1, force = false) {
+    if (!audioCtx || audioCtx.state !== 'running' || meta.soundMuted) return;
+    const def = SOUNDS[name];
+    if (!def) return;
+    const now = performance.now();
+    const cls = def.cls || 'ui';
+    if (!force) {
+        if (now - (sfxLastClass[cls] || 0) < SFX_CLASS_GAP[cls]) return;
+        if (def.minGap && now - (sfxLastName[name] || 0) < def.minGap) return;
+        if (sfxVoices >= SFX_MAX_VOICES) return;
+    }
+    sfxLastClass[cls] = now;
+    sfxLastName[name] = now;
+    const vol = (def.vol || 0.5) * volMult;
+    if (def.synth) { SFX_SYNTHS[def.synth](vol); return; }
+    const file = def.files[Math.floor(Math.random() * def.files.length)];
+    const buf = sfxBuffers[file];
+    if (!buf) return; // not loaded (yet, or ever) — silence, never an error
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    const pv = def.pitchVar || 0;
+    src.playbackRate.value = (def.rate || 1) * (1 + (Math.random() * 2 - 1) * pv);
+    const g = audioCtx.createGain();
+    g.gain.value = vol;
+    src.connect(g); g.connect(sfxMaster);
+    sfxVoices++;
+    src.onended = () => { sfxVoices = Math.max(0, sfxVoices - 1); };
+    src.start();
+}
+
+// Escalation heartbeat — state-driven like the red wash, not bus-driven:
+// tempo and intensity track the live multiplier while a siege escalates.
+let nextHeartbeatAt = 0;
+function tickHeartbeat() {
+    if (!currentInvasion || runEnded) return;
+    const esc = escalationMult(currentInvasion);
+    if (esc <= 1) return;
+    const now = performance.now();
+    if (now < nextHeartbeatAt) return;
+    const intensity = Math.min(1, (esc - 1) * 2.5);
+    nextHeartbeatAt = now + (1100 - 550 * intensity);
+    playSfx('heartbeat', 0.35 + 0.65 * intensity);
+}
+
 const fxQueue = [];
 const FX_MAX_FLOATS = 14; // concurrent floats in the battle overlay layer
 const SYSTEM_REDUCED_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -2187,6 +2391,7 @@ function emitFx(type, unit, amount) {
         key: unit ? unitDomKey(unit) : null,
         side: unit ? unit.side : null,
         name: unit ? unit.name : null,
+        maxHp: unit ? unit.maxHp : 0, // lets the audio consumer grade hit weight
         amount: amount || 0
     });
 }
@@ -2290,8 +2495,9 @@ function drainFx() {
     const deaths = [], revives = [], builtIds = new Set();
     let kingdomHit = 0, injury = false, raidStart = false, repelledLoot = 0, legacyGain = 0;
     let hireGold = 0, hireHp = 0, levelUpLabel = null;
+    const hpByKey = new Map(); // target maxHp per key — hit-weight grading for audio
     for (const fx of fxQueue) {
-        if (fx.type === 'hit') dmg.set(fx.key, (dmg.get(fx.key) || 0) + fx.amount);
+        if (fx.type === 'hit') { dmg.set(fx.key, (dmg.get(fx.key) || 0) + fx.amount); if (fx.maxHp) hpByKey.set(fx.key, fx.maxHp); }
         else if (fx.type === 'heal') heal.set(fx.key, (heal.get(fx.key) || 0) + fx.amount);
         else if (fx.type === 'lunge') lunges.set(fx.key, fx.side);
         else if (fx.type === 'death') deaths.push(fx);
@@ -2307,6 +2513,30 @@ function drainFx() {
         else if (fx.type === 'levelup') levelUpLabel = fx.label;
     }
     fxQueue.length = 0;
+
+    // ---- audio consumer: one budgeted pass over the same aggregates ----
+    // The coalescing above means one drain = one frame's worth of events, so
+    // 100x sim produces ~1x soundscape; playSfx's class gaps do the rest.
+    if (deaths.some(d => d.side === 'hero')) playSfx('death_hero');
+    else if (deaths.length) playSfx('death_enemy');
+    if (revives.length) playSfx('revive');
+    if (kingdomHit > 0) playSfx('kingdom_hit');
+    if (injury) playSfx('injury');
+    if (dmg.size) {
+        let heavy = false;
+        for (const [key, amount] of dmg) {
+            const mh = hpByKey.get(key);
+            if (mh && amount / mh >= 0.3) { heavy = true; break; }
+        }
+        playSfx(heavy ? 'hit_heavy' : 'hit_light');
+    }
+    if (heal.size) playSfx('heal');
+    if (raidStart) playSfx('raid_horn');
+    if (repelledLoot > 0) { playSfx('repelled'); playSfx('coins'); }
+    if (legacyGain > 0) playSfx('legacy');
+    if (hireGold > 0 || hireHp > 0) playSfx('coins');
+    if (builtIds.size) playSfx('build');
+    if (levelUpLabel) { playSfx('levelup'); playSfx('bell'); }
 
     // Scene routing: when the scene view is open, the same events also land on
     // the scene's world units (sceneUnitElByKey) and chips. Classic targets
@@ -3257,9 +3487,15 @@ function renderSceneHud() {
            <button data-action="doResetGame" style="color:#e08080">Yes</button>
            <button data-action="cancelReset">No</button>`
         : `<button data-action="showResetConfirm" title="Dev wipe: run AND meta">Reset</button>`;
+    const soundBtns = `<button class="${meta.soundMuted ? 'on' : ''}" data-action="toggleSoundMute">${meta.soundMuted ? 'Muted' : 'Mute'}</button>
+        <button data-action="nudgeVolume:-1" title="Quieter">−</button>
+        <button data-action="nudgeVolume:1" title="Louder">+</button>
+        <span style="color:#8a7f63">${Math.round(meta.soundVolume * 100)}%</span>${
+        DEV_MODE ? ` <button class="${soundBoardOpen ? 'on' : ''}" data-action="toggleSoundBoard" title="Dev: audition every sound">SFX</button>` : ''}`;
     const cornerChip = `<div class="chip" id="scene-corner-chip">
         <span class="lbl">Speed</span> ${speedBtns}
         <span class="lbl" style="margin-left:8px">Motion</span> ${motionBtns}
+        <span class="lbl" style="margin-left:8px">Sound</span> ${soundBtns}
         <span style="margin-left:8px">${resetBtns}</span></div>`;
 
     // Raid chip over the battlefield — mirrors renderRaidStatusBar's states.
@@ -3767,8 +4003,8 @@ function renderScene() {
     }
 
     // file:// notice — placeholders should never look like a broken wire
-    sceneSetText('scene-note', spriteLoadBlocked
-        ? '⚠ Art needs http — double-click start-game-server.bat (file:// blocks sprite processing)'
+    sceneSetText('scene-note', (spriteLoadBlocked || sfxLoadBlocked)
+        ? '⚠ Art & sound need http — double-click start-game-server.bat (file:// blocks asset processing)'
         : 'Scene view — work in progress');
 }
 
@@ -3801,6 +4037,8 @@ function renderAll() {
     renderLeftPanel();
     renderSpeedButtons(); // locks lift the frame after Swift Seasons is bought
     renderMotionToggle();
+    renderSoundControls();
+    tickHeartbeat(); // escalation pulse — wall-clock gated, state-driven
     renderRaidStatusBar();
     renderBattleSquads();
     renderRecruitPool();
@@ -3870,6 +4108,16 @@ const UI_ACTIONS = {
     foundNewAge:     () => foundNewAge(),
     continueEndless: () => continueEndless(),
     setReduceMotion: v => { meta.reduceMotion = v === '1'; saveMeta(); updateUI(); },
+    toggleSoundMute: () => { meta.soundMuted = !meta.soundMuted; saveMeta(); applySoundVolume(); updateUI(); },
+    nudgeVolume: d => {
+        meta.soundVolume = Math.max(0, Math.min(1, Math.round((meta.soundVolume + 0.1 * Number(d)) * 10) / 10));
+        meta.soundMuted = false;
+        saveMeta(); applySoundVolume();
+        playSfx('coins', 1, true); // audible level reference at the new volume
+        updateUI();
+    },
+    toggleSoundBoard: () => { soundBoardOpen = !soundBoardOpen; renderSoundBoard(); updateUI(); },
+    playTestSfx: name => playSfx(name, 1, true),
     toggleSceneView: () => toggleSceneView(),
     openScenePlot:   id => openScenePlot(id),
     closeScenePlot:  () => closeScenePlot(),
@@ -3899,6 +4147,7 @@ let lastDispatched = { action: null, t: 0 };
 
 function bindActionDispatch() {
     document.addEventListener('pointerdown', e => {
+        resumeAudio(); // browsers unlock audio on the first real gesture
         const el = e.target.closest && e.target.closest('[data-action]');
         pressedActionStr = el && !el.disabled ? el.dataset.action : null;
     }, true);
@@ -3909,6 +4158,7 @@ function bindActionDispatch() {
         const el = e.target.closest && e.target.closest('[data-action]');
         if (!el || el.disabled || el.dataset.action !== pressed) return;
         lastDispatched = { action: pressed, t: performance.now() };
+        playSfx('click'); // quiet tactile layer under every real button press
         runUiAction(pressed);
     }, true);
     // Keyboard activation (Enter/Space) arrives as a click with no pointer
@@ -3939,6 +4189,7 @@ loadChrome();  // async — panel frame chrome pops in once the texture is keyed
 loadScene();   // async — M15 scene backdrop; the scene view is opt-in via #scene-toggle
 bindActionDispatch(); // delegated data-action dispatch — see UI_ACTIONS
 loadMeta();
+loadSounds(); // async decode; context resumes on first gesture (needs meta for volume)
 loadGame();
 resizeHeroSquad(); // no-save startups still need the squad sized to War Banners rank
 if (recruitPool.length === 0) refreshPool();

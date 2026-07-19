@@ -537,15 +537,30 @@ a 100× battle must not fire 100× the particles and sounds).
 - **Portrait/sprite pass:** the letter-portraits get real pixel art (or a polished CSS take) —
   the biggest pure-asset lift; scope decided at milestone start.
 
-### Sound (candidate scope)
-- **Web Audio API** — fits the no-build-step stack. Either tiny committed audio files or
-  procedurally synthesized chiptune-style SFX (zero asset files); decide at milestone start.
-- **Event coverage:** hits (light/heavy differentiated), unit death, heal, hero hire, building
-  buy, kingdom level-up, raid horn on arrival, an escalation heartbeat/drum that builds with the
-  multiplier, Repelled sting, Kingdom-fall sting, upgrade purchase, Final Siege victory fanfare.
-- **Discipline:** per-tick sound budget (throttled hard at dev speeds), master mute + volume
-  persisted in the save, and no audio before first user interaction (browser autoplay policy).
-- **Music:** stretch goal — one ambient town loop + one battle loop; decide at milestone start.
+### Sound — ✅ IMPLEMENTED 2026-07-19 (M15 Phase 3; developer's by-ear audition pending)
+- **Route (decided):** CC0 sample packs (Kenney RPG Audio / Impact Sounds / UI SFX — 232
+  .ogg committed flat under `assets/audio/{RPG,Impact,UI}`, licenses transcribed in
+  `assets/CREDITS.md`) through a per-sound-swappable manifest (`SOUNDS` in game.js): an
+  entry carries a `files` list (random variant + pitch variance) OR a `synth` recipe name
+  (Web Audio oscillator recipes cover what the packs can't: heal/revive chimes, war horn,
+  escalation heartbeat, win/fall stingers, level-up + victory fanfares, dawn motif).
+- **Engine:** lazy `AudioContext` resumed on first pointer gesture via `bindActionDispatch`;
+  per-sound gain → master gain (`meta.soundVolume`, perceptual curve) → compressor. The
+  **audio consumer drains the same FX bus as the visuals** (one budgeted pass over
+  `drainFx`'s per-frame aggregates — hit events now carry `maxHp` so ≥30%-of-target frames
+  play `hit_heavy`), so 100× sim produces ~1× soundscape (instrumented soak: 107 sim-seconds
+  of battle at ~36× → 15 hit sounds); per-class wall-clock gaps + per-sound `minGap` +
+  8-voice cap. Direct `playSfx` on click paths (hires, muster, upgrades, dismiss, quiet
+  generic click) and run moments (overrun sting, dawn, victory). Heartbeat is state-driven
+  off `escalationMult` like the red wash. `file://` degrades to silence (fetch blocked like
+  canvas — the scene note now says "Art & sound need http").
+- **Settings:** `meta.soundVolume` + `meta.soundMuted` (additive, no SAVE_VERSION bump);
+  UI in the scene corner chip and a classic admin "Sound" row. **DEV sound board** (SFX
+  button, corner chip) auditions every manifest entry — the by-ear acceptance gate.
+- **CREDITS mechanized:** `.githooks/pre-commit` (wired via `core.hooksPath`; run
+  `git config core.hooksPath .githooks` once per machine) fails any commit adding an
+  `assets/` file not covered by a staged CREDITS.md path or `dir/*` glob line.
+- **Music:** still deferred by design decision (manifest keeps a crossfade hook cheap).
 
 ### Feel-adjacent QoL
 - Reduced-motion / no-shake toggle alongside the volume controls.

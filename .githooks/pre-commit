@@ -1,0 +1,26 @@
+#!/bin/sh
+# CREDITS guard (M15 Phase 3 mechanization of the asset-provenance ritual):
+# every file ADDED under assets/ must be covered by assets/CREDITS.md IN THE
+# SAME COMMIT — either its exact path relative to assets/ (e.g.
+# `raw/raw_hero_knight_v3.png`) or a folder glob line (e.g. `audio/RPG/*.ogg`).
+# Checks the STAGED CREDITS.md, so the credit line must be staged too.
+# Constraint: asset filenames must not contain spaces (repo convention).
+credits=$(git show :assets/CREDITS.md 2>/dev/null) || credits=""
+fail=0
+for f in $(git diff --cached --name-only --diff-filter=ACR -- assets/); do
+    case "$f" in assets/CREDITS.md) continue ;; esac
+    rel=${f#assets/}
+    # exact-path mention anywhere in CREDITS.md
+    if printf '%s' "$credits" | grep -qF "$rel"; then continue; fi
+    # or a covering folder glob: `<ancestor-dir>/*`
+    covered=0
+    dir=$(dirname "$rel")
+    while [ "$dir" != "." ]; do
+        if printf '%s' "$credits" | grep -qF "$dir/*"; then covered=1; break; fi
+        dir=$(dirname "$dir")
+    done
+    if [ $covered -eq 1 ]; then continue; fi
+    echo "pre-commit: $f has no covering line in assets/CREDITS.md (add its path or a 'dir/*' glob in the same commit)" >&2
+    fail=1
+done
+exit $fail

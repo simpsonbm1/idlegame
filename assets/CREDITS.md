@@ -125,6 +125,22 @@ pair) and serve as interim/reference material until it lands:
   style). Sparkle watermark lower-right on magenta — will NOT key out; pipeline must
   corner-scrub.
 
+## Audio — Kenney CC0 packs (M15 Phase 3, 2026-07-19)
+Three sound packs by **Kenney Vleugels (kenney.nl)**, all **Creative Commons Zero (CC0)**
+— license verified 2026-07-19 from each pack's own bundled License.txt
+(http://creativecommons.org/publicdomain/zero/1.0/; credit appreciated, not required —
+given here anyway). Downloaded from kenney.nl by Ben Simpson, 2026-07-19. The packs'
+default folders (readme/license/preview) were dropped after this record was written;
+the sound files live flat under `assets/audio/`. **Every `.ogg` under these three
+folders is covered by this entry:**
+
+- `audio/RPG/*.ogg` — Kenney "RPG Audio" pack (51 sounds: swords, bows, magic, coins,
+  doors, footsteps, creatures)
+- `audio/Impact/*.ogg` — Kenney "Impact Sounds" pack v1.0, 19-12-2019 (130 sounds:
+  hits, thuds, breaks, metal/wood/glass impacts)
+- `audio/UI/*.ogg` — Kenney "UI SFX Set" pack (51 sounds: clicks, confirms, chimes,
+  toggles)
+
 ## Reference (not shipped in-game)
 - `reference/idlekingdommockup.png` — the developer's one-scene vision mockup (town →
   wall → battlefield), generated with Google Gemini by Ben Simpson, 2026-07-17; added to

@@ -113,22 +113,83 @@ observed, shroud beat → overlay reveal timings confirmed, dawn suppressed unde
 toggle persists across reload, zero console errors — including through an organic Age fall
 that happened mid-test at speed.
 
-## Phase 3 — Audio (SoundBoard engine + prefab CC0 assets)
-Engine (small, ~150–250 lines):
-- Web Audio API. `AudioContext` created/resumed on first user gesture (autoplay policy).
-- **Sound manifest**: `SOUNDS = { hit_light: {file:'assets/sfx/hit1.ogg', vol:0.5, pitchVar:0.1}, … }`
-  keyed by event name. Each entry is a file reference (or later, synth params) — **swapping in
-  the developer's own recordings is editing one line per sound**, which is the contract that
-  keeps prefabs non-committal.
-- Pitch-varied playback (±10%) so repeated hits don't machine-gun; per-window sound budget
-  shared with the FX bus (at 100×, hits collapse to a capped rate).
-- Master volume + mute, persisted in `meta` (additive field — no SAVE_VERSION bump needed).
-- Event coverage: light/heavy hits, death, heal, revive, hero hire, resident hire, building
-  buy, level-up, raid horn, escalation heartbeat (builds with the multiplier), Repelled sting,
-  Kingdom-fall sting, Legacy chime, upgrade purchase, Final Siege victory fanfare.
+## Phase 3 — Audio — ✅ IMPLEMENTED 2026-07-19 (browser-verified; the developer's
+## by-ear audition via the DEV sound board is the remaining acceptance gate)
+Shipped exactly per the plan below: engine + manifest (24 sounds: 15 file-backed from the
+three Kenney packs in `assets/audio/` — RPG/Impact/UI, 232 files committed, CC0 verified —
+and 9 synth recipes for the gaps: heal/revive chimes, war horn, heartbeat, win/fall
+stingers, fanfares, dawn), FX-bus audio consumer reading the same per-frame aggregates as
+the visuals, per-class wall-clock gaps + per-sound minGaps + 8-voice cap + master
+compressor, `meta.soundVolume`/`meta.soundMuted` with UI in the scene corner chip and the
+classic admin Sound row, state-driven escalation heartbeat, DEV "SFX board" (corner chip →
+SFX). Instrumented soak: 107 sim-seconds of battle at ~36× → 1 horn, 15 hits, 10 heals,
+4 deaths, 1 heartbeat, voices drained to 0, zero console errors. The CREDITS pre-commit
+guard is live (`.githooks/pre-commit` + `core.hooksPath`; fail/pass/idempotency
+scratch-tested; NOTE: each machine wires `git config core.hooksPath .githooks` once).
 
-Assets: CC0 packs (see sourcing below), a few hundred KB of .ogg committed to `assets/sfx/`.
-**Music is deliberately out of Phase 3** — see decisions.
+### Original firmed plan (2026-07-19) — kept for the record
+Sketch above superseded by this build plan (route recommendation: see decision 2).
+
+**Constraint check (new since the sketch):** Web Audio buffer loading (`fetch` +
+`decodeAudioData`) is blocked on `file://` exactly like canvas pixel access — same
+already-accepted constraint as sprites (http dev serving; M17 owns shipping). Loader
+degrades to silence per missing file, mirroring the letter-portrait fallback.
+
+**Engine (S, ~200 lines in game.js — same single-file convention as everything else):**
+- `AudioContext` lazily created/resumed on first pointer gesture, hooked into the existing
+  `bindActionDispatch` document listeners (mechanism reuse, satisfies autoplay policy).
+- Master chain: per-sound gain → master gain (from `meta.soundVolume`) →
+  `DynamicsCompressorNode` → destination. The compressor is the 100×-pileup clipping guard.
+- **Sound manifest**: `SOUNDS = { hit_light: { file:'assets/sfx/…', vol:0.5, pitchVar:0.1 }, … }`
+  — one entry per event name; an entry may instead carry `synth:` params (ZzFX-style) so the
+  route is swappable PER SOUND. Missing file = that sound is silent, never an error.
+- Playback: pitch variance (±8–12%) on repeat-prone sounds; per-class wall-clock rate
+  limits + a per-drain voice budget (below); voice cap ~8, lowest priority dropped.
+- **Settings**: `meta.soundVolume` (0–1, default ~0.6) + `meta.soundMuted` — additive meta
+  fields, no SAVE_VERSION bump; UI in the scene corner system chip + classic admin panel,
+  next to the Motion toggle (same pattern).
+
+**Integration — one stream, two consumers:** the audio consumer drains the SAME FX bus the
+visuals use (`drainFx`), with its own budget. Simulation-driven sounds ride existing bus
+types; user-initiated one-shots (clicks — already self-rate-limited) call `playSfx` direct.
+The **escalation heartbeat** is state-driven like the red wash, not bus-driven: a scheduled
+loop whose tempo/intensity tracks `escalationMult`, running only while a battle escalates.
+Hidden-tab silence falls out for free (rAF stops → no drain).
+
+**Event → sound map (budget class in brackets; bus type where it exists):**
+| Sound | Trigger | Class |
+|---|---|---|
+| hit_light / hit_heavy (by damage share) | bus `hit` | [combat: ≥70ms apart, ≤2/drain] |
+| heal chime | bus `heal` | [combat] |
+| unit death (hero vs enemy variants) | bus death path | [accent: ≥120ms, always allow boss] |
+| revive shimmer | bus revive | [accent] |
+| kingdom thud (pairs with shake/vignette) | bus `kingdomHit` | [accent] |
+| hire (hero / resident), building buy, upgrade buy, muster press | direct on click | [ui: ≥60ms] |
+| level-up fanfare, Legacy chime (wave bank) | bus `levelup` / repelled payout | [sting: one at a time] |
+| raid horn | `startInvasion` | [sting] |
+| escalation heartbeat | state-driven loop | [own scheduler] |
+| Repelled sting / Kingdom-fall sting / dawn motif / victory fanfare | run-event paths | [sting] |
+
+**Assets & workflow (mirrors the art loop — developer supplies, Claude integrates):**
+CC0 packs, a few hundred KB of .ogg into `assets/sfx/`; Kenney "RPG Audio" + "Impact
+Sounds" + "Interface Sounds" cover most of the map (horn + heartbeat likely freesound.org
+CC0). The DEVELOPER downloads the packs (license verified on the download page at grab
+time); Claude curates files out of them, normalizes names, wires the manifest, and logs
+every file in `assets/CREDITS.md` in the same commit. **Mechanize the CREDITS ritual now**
+(process-hygiene: first multi-file asset influx): a `.githooks/pre-commit` that fails if
+any file under `assets/` lacks a CREDITS.md line, wired via `core.hooksPath`.
+
+**Acceptance — the sound board:** a DEV_MODE-only in-game panel listing every manifest
+entry with a play button (reuses the live engine, no separate tool page). The developer's
+by-ear audition pass is the gate, exactly like the art pilot; plus a 100× soak with a
+voice-count instrument proving the budget holds (~1× soundscape at any sim speed) and
+zero console errors.
+
+**Build order:** S0 engine + settings UI + CREDITS pre-commit hook + 2 placeholder sounds
+proving the chain → developer downloads packs → S1 combat layer (hits/heals/deaths/
+kingdom) tuned at 1× and soaked at 100× → S2 UI one-shots + level-up/Legacy → S3 dramatic
+layer (horn, heartbeat, stingers, fanfare) → sound-board audition pass → done.
+**Music stays out of Phase 3** — see decision 3 (crossfade hook stays cheap to add later).
 
 ## Sprite pipeline — ✅ DONE 2026-07-17 (runtime, no build step; T2's foundation)
 The game loads the RAW magenta PNGs straight from `assets/raw/` and runs the whole pipeline
@@ -242,8 +303,12 @@ has a CREDITS.md line.)
    (`M15_ART_PILOT.md`) — pass/fail on consistency, downscale readability, keying, and
    chrome slicing before committing to the full run. Phase 0 note stands: battle-slot DOM
    is a layered positioned container (art layer + HP overlay + effect layer), not a text card.
-2. **Audio route** — CC0 sample packs (recommended: medieval-appropriate, manifest keeps them
-   swappable) vs ZzFX-style synthesis (zero assets, chiptune flavor).
+2. **Audio route** — RECOMMENDED 2026-07-19 (developer to confirm at Phase 3 start):
+   CC0 sample packs as the primary source — medieval foley (horns, steel, thuds) resists
+   convincing synthesis, and the art direction settled painterly-soft rather than harsh
+   8-bit, so recorded samples fit better than chiptune. The manifest keeps the route
+   swappable per sound: any entry can carry ZzFX-style `synth:` params instead of a file,
+   which is also the gap-filler when a needed sound can't be curated.
 3. **Music** — recommended: defer entirely; the manifest + a town/battle crossfade hook is
    cheap to add later, and the developer may want to compose these themselves. Prefab CC0
    music exists but is the weakest CC0 category.

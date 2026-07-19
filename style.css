@@ -1813,6 +1813,24 @@ body.scene-open #scene-toggle { color: #e8c96d; border-color: #7a6428; }
 #scene-raid-chip .rvict { color: #9dc97e; font-size: calc(12px * var(--uis)); margin-top: 2px; }
 @keyframes siegePulse { 50% { opacity: 0.45; } }
 
+/* DEV sound board: audition every manifest sound by ear (M15 Phase 3) */
+#sound-board {
+    position: fixed; left: 12px; bottom: 34px; z-index: 1300; width: 400px;
+    background: rgba(24,20,10,0.96); border: 1px solid #5a4a1e; border-radius: 4px;
+    padding: 10px 12px; font-size: 12px; color: #d8cba8;
+    box-shadow: 0 6px 26px rgba(0,0,0,0.6);
+}
+#sound-board b { color: #e8c96d; }
+#sound-board .sb-close { float: right; cursor: pointer; color: #8a7f63; }
+#sound-board .sb-close:hover { color: #e8c96d; }
+#sound-board button {
+    margin: 3px 3px 0 0; background: #2a2410; color: #c9a84c;
+    border: 1px solid #5a4a1e; border-radius: 3px; font-family: inherit;
+    font-size: 11px; padding: 2px 8px; cursor: pointer;
+}
+#sound-board button:hover { background: #3a3014; color: #e8c96d; }
+#sound-board .sb-note { margin-top: 6px; color: #8a7f63; font-size: 10.5px; }
+
 /* scene-scoped z bumps so body-level FX read above the full-screen scene */
 body.scene-open #fx-vignette { z-index: 1150; }
 body.scene-open #fx-levelup-banner { z-index: 1150; }
