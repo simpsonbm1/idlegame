@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Plot Placer — drag buildings, copy the coordinates</title>
+<style>
+/* Places buildings on a LETTERBOXED VIRTUAL STAGE (pick the aspect below), so
+   the window size/shape never matters: coordinates are exported in IMAGE space
+   (% of the painting) and the game glues them to the painted ground through
+   the same transform at any real viewport. Serve over http
+   (start-game-server.bat) — the sprite keying needs canvas pixel access. */
+html, body { margin: 0; height: 100%; overflow: hidden; background: #060504;
+             font-family: Georgia, serif; }
+#frame { position: absolute; overflow: hidden; background-repeat: no-repeat;
+         image-rendering: pixelated; outline: 1px solid #3a2e12; }
+#seam { position: absolute; top: 0; bottom: 0; width: 0;
+        border-left: 1px dashed rgba(232,201,109,0.5); pointer-events: none; }
+#seam span { position: absolute; top: 45%; left: 4px; color: rgba(232,201,109,0.7);
+             font-size: 11px; writing-mode: vertical-rl; }
+#crowd-zone { position: absolute; left: 0; width: 46%; top: 82%; bottom: 0;
+              border: 1px dashed rgba(150,180,255,0.35); pointer-events: none; }
+#crowd-zone span { color: rgba(150,180,255,0.55); font-size: 11px; position: absolute;
+                   left: 8px; top: 4px; }
+.plot { position: absolute; transform: translateX(-50%); cursor: grab;
+        text-align: center; user-select: none; touch-action: none; }
+.plot:active { cursor: grabbing; }
+.plot .art { position: relative; transform-origin: bottom center;
+             filter: drop-shadow(2px 4px 3px rgba(8,6,3,0.55)); pointer-events: none; }
+.plot .bldg-sprite { background-repeat: no-repeat; background-size: contain;
+                     background-position: bottom center; image-rendering: pixelated;
+                     display: block; margin: 0 auto; }
+.plot .lbl { position: absolute; left: 50%; transform: translateX(-50%);
+             bottom: -16px; white-space: nowrap; font-size: 10px; color: #e8c96d;
+             text-shadow: 1px 1px 0 #171008, -1px -1px 0 #171008,
+                          1px -1px 0 #171008, -1px 1px 0 #171008; }
+#panel { position: absolute; right: 12px; top: 12px; z-index: 999; width: 320px;
+         background: rgba(24,20,10,0.95); border: 1px solid #5a4a1e; border-radius: 4px;
+         padding: 12px 14px; color: #d8cba8; font-size: 12px; }
+#panel h1 { font-size: 14px; color: #e8c96d; margin: 0 0 6px; }
+#panel textarea { width: 100%; height: 190px; background: #171208; color: #c9d8a8;
+                  border: 1px solid #4a3a18; font: 11px monospace; resize: vertical;
+                  box-sizing: border-box; }
+#panel button { background: #3a2e12; border: 1px solid #b8942f; border-radius: 3px;
+                color: #e8c96d; font-family: Georgia, serif; padding: 3px 12px;
+                cursor: pointer; margin-top: 6px; }
+#panel button:hover { background: #4a3a16; }
+#panel button.on { background: #7a5c1e; border-color: #e8c96d; }
+#panel label { display: block; margin: 8px 0 2px; }
+#panel .hint { color: #8a7f63; font-size: 11px; margin-top: 8px; line-height: 1.5; }
+#copied { color: #9fd88a; margin-left: 8px; visibility: hidden; }
+</style>
+</head>
+<body>
+<div id="frame">
+  <div id="seam"><span>46% town/battle seam</span></div>
+  <div id="crowd-zone"><span>hiring crowd stands here</span></div>
+</div>
+<div id="panel">
+  <h1>Plot Placer</h1>
+  <div>Drag each building into place on the letterboxed stage. Window size doesn't
+       matter — coordinates are % of the painting itself.</div>
+  <div style="margin-top:6px">Preview aspect:
+    <button id="a169" class="on">16:9</button>
+    <button id="auw">ultrawide 3440×1440</button>
+  </div>
+  <label>Building art height: <span id="hval">134</span>px
+    <input id="hslider" type="range" min="60" max="160" value="134" style="width:100%">
+  </label>
+  <textarea id="out" readonly></textarea>
+  <button id="copy">Copy to clipboard</button><span id="copied">copied ✓</span>
+  <div class="hint">Paste the box contents back to Claude (or screenshot if easier) —
+       the numbers wire straight into <b>BUILDING_PLOTS</b> in game.js.
+       Flip the aspect toggle to confirm buildings stay glued to their painted
+       ground while the visible slice of painting changes — that's exactly how
+       the game now behaves on window resize.</div>
+</div>
+<script>
+// --- constants copied from game.js (keep in sync) ---
+const SCENE_WALL_FRAC = 1178 / 2400;
+const SCENE_COMP_ASPECT = 2400 / 1270;
+// Image-space plots: x = % of painting width, y = % of the kept composition
+// height (top edge of the plot), matching game.js BUILDING_PLOTS exactly.
+const BUILDING_PLOTS = {
+    keep: { x: 15.5, y: 57.7 }, library: { x: 13.4, y: 32.1 }, tower: { x: 20.1, y: 32.2 },
+    cathedral: { x: 26.4, y: 32 }, apothecary: { x: 33.1, y: 32.4 },
+    cottage: { x: 11.4, y: 45.5 }, tavern: { x: 20.7, y: 45.7 }, smithy: { x: 29.4, y: 46 },
+    workshop: { x: 38, y: 45.7 }
+};
+let artH = 134;
+let frameAspect = 16 / 9;
+
+// --- virtual stage: largest frameAspect rect that fits the window ---
+const frame = document.getElementById('frame');
+let bgImg = null;
+let fw = 0, fh = 0; // frame size in px
+function frameRect() {
+    const pad = 8, sw = innerWidth - pad * 2, sh = innerHeight - pad * 2;
+    fw = Math.min(sw, sh * frameAspect);
+    fh = fw / frameAspect;
+    frame.style.width = fw + 'px';
+    frame.style.height = fh + 'px';
+    frame.style.left = ((innerWidth - fw) / 2) + 'px';
+    frame.style.top = ((innerHeight - fh) / 2) + 'px';
+}
+// Same math as game.js sceneTransform(), against the frame instead of the window.
+function transform() {
+    if (!bgImg) return null;
+    const W = bgImg.width, H = bgImg.height;
+    const compH = Math.min(H, W / SCENE_COMP_ASPECT);
+    const s = Math.max(fh / compH, fw / W);
+    let ox = fw * 0.46 - SCENE_WALL_FRAC * W * s;
+    ox = Math.min(0, Math.max(fw - W * s, ox));
+    return { s, ox, oy: (fh - compH * s) / 2, W, H, compH };
+}
+function layout() {
+    frameRect();
+    const t = transform();
+    if (!t) return;
+    frame.style.backgroundImage = `url(${bgImg.src})`;
+    frame.style.backgroundSize = `${t.W * t.s}px ${t.H * t.s}px`;
+    frame.style.backgroundPosition = `${t.ox}px ${t.oy}px`;
+    for (const id in els) place(id);
+}
+const bg = new Image();
+bg.onload = () => { bgImg = bg; layout(); };
+bg.src = '../assets/raw/scene_backdrop_v2.png';
+addEventListener('resize', layout);
+
+// --- building sprites: same magenta keying + trim as processSprite() ---
+function keyAndTrim(img) {
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const data = ctx.getImageData(0, 0, c.width, c.height);
+    const p = data.data;
+    for (let i = 0; i < p.length; i += 4) {
+        const r = p[i], g = p[i + 1], b = p[i + 2];
+        const m = Math.max(r, b);
+        if (m > 130 && g < 0.65 * m && Math.min(r, b) > 0.45 * m) p[i + 3] = 0;
+    }
+    let minX = c.width, minY = c.height, maxX = -1, maxY = -1;
+    for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++)
+        if (p[(y * c.width + x) * 4 + 3] > 8) {
+            if (x < minX) minX = x; if (x > maxX) maxX = x;
+            if (y < minY) minY = y; if (y > maxY) maxY = y;
+        }
+    if (maxX < 0) return null;
+    ctx.putImageData(data, 0, 0);
+    const out = document.createElement('canvas');
+    out.width = maxX - minX + 1; out.height = maxY - minY + 1;
+    out.getContext('2d').drawImage(c, minX, minY, out.width, out.height, 0, 0, out.width, out.height);
+    return { url: out.toDataURL(), w: out.width, h: out.height };
+}
+
+// --- draggable plots, positioned through the transform (px inside the frame) ---
+const els = {};
+function place(id) {
+    const t = transform();
+    const p = BUILDING_PLOTS[id], el = els[id];
+    if (!el || !t) return;
+    el.style.left = (p.x / 100 * t.W * t.s + t.ox) + 'px';
+    el.style.top = (p.y / 100 * t.compH * t.s + t.oy) + 'px';
+    el.style.zIndex = Math.round(p.y * 4);
+}
+function refreshOut() {
+    const f = id => {
+        const p = BUILDING_PLOTS[id];
+        return `${id}: { x: ${p.x}, y: ${p.y} }`;
+    };
+    document.getElementById('out').value =
+`// image-space plots (% of painting) · art height: ${artH}px
+const BUILDING_PLOTS = {
+    ${f('keep')}, ${f('library')}, ${f('tower')},
+    ${f('cathedral')}, ${f('apothecary')},
+    ${f('cottage')}, ${f('tavern')}, ${f('smithy')},
+    ${f('workshop')}
+};`;
+}
+for (const id of Object.keys(BUILDING_PLOTS)) {
+    const img = new Image();
+    img.onload = () => {
+        const s = keyAndTrim(img);
+        if (!s) return;
+        const el = document.createElement('div');
+        el.className = 'plot';
+        el.dataset.id = id;
+        const w = Math.round(artH * (s.w / s.h));
+        el.innerHTML = `<div class="art"><div class="bldg-sprite" data-w="${s.w}" data-h="${s.h}"
+            style="width:${w}px;height:${artH}px;background-image:url(${s.url})"></div></div>
+            <span class="lbl">${id}</span>`;
+        frame.appendChild(el);
+        els[id] = el;
+        place(id);
+        refreshOut();
+    };
+    img.onerror = () => {}; // sprite not generated yet — skip
+    img.src = '../assets/raw/raw_bldg_' + id + '.png';
+}
+
+let drag = null;
+addEventListener('pointerdown', e => {
+    const el = e.target.closest('.plot');
+    if (!el) return;
+    const t = transform();
+    if (!t) return;
+    const p = BUILDING_PLOTS[el.dataset.id];
+    const fr = frame.getBoundingClientRect();
+    drag = { id: el.dataset.id,
+             dx: (e.clientX - fr.left) - (p.x / 100 * t.W * t.s + t.ox),
+             dy: (e.clientY - fr.top) - (p.y / 100 * t.compH * t.s + t.oy) };
+    el.setPointerCapture(e.pointerId);
+});
+addEventListener('pointermove', e => {
+    if (!drag) return;
+    const t = transform();
+    if (!t) return;
+    const fr = frame.getBoundingClientRect();
+    const p = BUILDING_PLOTS[drag.id];
+    p.x = Math.round((((e.clientX - fr.left) - drag.dx - t.ox) / (t.W * t.s)) * 100 * 10) / 10;
+    p.y = Math.round((((e.clientY - fr.top) - drag.dy - t.oy) / (t.compH * t.s)) * 100 * 10) / 10;
+    p.x = Math.max(0, Math.min(60, p.x));  // town lives in the painting's left half
+    p.y = Math.max(0, Math.min(98, p.y));
+    place(drag.id);
+    refreshOut();
+});
+addEventListener('pointerup', () => { drag = null; });
+
+document.getElementById('hslider').addEventListener('input', e => {
+    artH = +e.target.value;
+    document.getElementById('hval').textContent = artH;
+    for (const id in els) {
+        const sp = els[id].querySelector('.bldg-sprite');
+        sp.style.height = artH + 'px';
+        sp.style.width = Math.round(artH * (sp.dataset.w / sp.dataset.h)) + 'px';
+    }
+    refreshOut();
+});
+function setAspect(a, btn) {
+    frameAspect = a;
+    document.getElementById('a169').classList.toggle('on', btn === 'a169');
+    document.getElementById('auw').classList.toggle('on', btn === 'auw');
+    layout();
+}
+document.getElementById('a169').addEventListener('click', () => setAspect(16 / 9, 'a169'));
+document.getElementById('auw').addEventListener('click', () => setAspect(3440 / 1440, 'auw'));
+document.getElementById('copy').addEventListener('click', () => {
+    const out = document.getElementById('out');
+    const flash = () => {
+        const c = document.getElementById('copied');
+        c.style.visibility = 'visible';
+        setTimeout(() => c.style.visibility = 'hidden', 1200);
+    };
+    // navigator.clipboard needs a secure context and can reject silently over
+    // plain http — fall back to selecting the text + the legacy copy command.
+    const fallback = () => { out.select(); document.execCommand('copy'); flash(); };
+    if (navigator.clipboard && navigator.clipboard.writeText)
+        navigator.clipboard.writeText(out.value).then(flash, fallback);
+    else fallback();
+});
+</script>
+</body>
+</html>

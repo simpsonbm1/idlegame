@@ -611,6 +611,15 @@ function getBuildingCap(id) {
     return levels[kingdomLevel].caps[id];
 }
 
+// First future kingdom level that raises this building's cap (null = the
+// current cap is the campaign maximum). Drives the scene drawer's cap line.
+function nextBuildingCap(id) {
+    const cap = getBuildingCap(id);
+    for (let i = kingdomLevel + 1; i < levels.length; i++)
+        if (levels[i].caps[id] > cap) return { name: levels[i].name, cap: levels[i].caps[id] };
+    return null;
+}
+
 function setBuyQuantity(qty) {
     buyQuantity = qty;
     updateUI();
@@ -2955,36 +2964,44 @@ function loadScene() {
     img.onerror = () => {}; // absent — flat ground remains
     img.src = 'assets/raw/scene_backdrop_v2.png';
 }
-function layoutScene() {
-    const bg = document.getElementById('scene-bg');
-    if (!sceneBgImg || !bg) return;
+// The painting→screen transform, shared by the backdrop (layoutScene) and
+// everything anchored to painted features (building plots). Null until the
+// backdrop image is loaded.
+function sceneTransform() {
+    if (!sceneBgImg) return null;
     const sw = window.innerWidth, sh = window.innerHeight;
     const W = sceneBgImg.width, H = sceneBgImg.height;
     const compH = Math.min(H, W / SCENE_COMP_ASPECT); // margin cropped off
     const s = Math.max(sh / compH, sw / W);          // cover-fit the composition
     let ox = sw * 0.46 - SCENE_WALL_FRAC * W * s;    // seat wall on 46%
     ox = Math.min(0, Math.max(sw - W * s, ox));      // clamp: no edge gaps
+    return { s, ox, oy: (sh - compH * s) / 2, W, H, compH };
+}
+function layoutScene() {
+    const bg = document.getElementById('scene-bg');
+    const t = sceneTransform();
+    if (!t || !bg) return;
     bg.style.backgroundImage = `url(${sceneBgImg.src})`;
-    bg.style.backgroundSize = `${W * s}px ${H * s}px`;
-    bg.style.backgroundPosition = `${ox}px ${(sh - compH * s) / 2}px`;
+    bg.style.backgroundSize = `${t.W * t.s}px ${t.H * t.s}px`;
+    bg.style.backgroundPosition = `${t.ox}px ${t.oy}px`;
 }
 window.addEventListener('resize', () => { if (sceneOpen) layoutScene(); });
 
-// Fixed building plots (x,y in % of the town region = left 46% of the
-// stage; y is the plot's TOP edge). Fixed positions — never free placement —
-// is what keeps the vista affordable (spec T3). Re-seated 2026-07-19 for
-// scene_backdrop_v2.png: its wall band runs to ~30% of screen height (v1's
-// ended ~23%), the round plaza spans ~64-90%, and the crowd stands on the
-// plaza's lower half. Back row tucks under the wall (31-32), mid row on the
-// open grass above the plaza (39-43); nothing stands on the plaza or road.
+// Fixed building plots in IMAGE space (2026-07-19): x is % of the painting's
+// width, y is % of its kept composition height (the 1270-row region), and y
+// is the plot's TOP edge. renderVista pushes these through sceneTransform(),
+// so buildings stay glued to their painted ground at any window size or
+// aspect — same mechanism that keeps the wall on its painted spot. Fixed
+// positions — never free placement — is what keeps the vista affordable
+// (spec T3). Layout hand-placed by the user in tools/plot-placer.html
+// against scene_backdrop_v2.png: two even rows on the grass between the
+// wall band and the plaza, Keep alone in the pocket left of the plaza.
+// All buildings render at the same flat art height.
 const BUILDING_PLOTS = {
-    // back row, along the north wall (smaller with depth)
-    keep:      { x: 8,  y: 31 }, library: { x: 22, y: 30 }, tower:    { x: 36, y: 29 },
-    cathedral: { x: 52, y: 30 }, apothecary: { x: 68, y: 32 },
-    // mid row, upper grass above the plaza — cottage leftmost (the first
-    // building every run buys reads first); all bases clear of the plaza
-    cottage:   { x: 12, y: 41 }, tavern:  { x: 32, y: 39 }, smithy:   { x: 52, y: 41 },
-    workshop:  { x: 66, y: 43 }
+    keep: { x: 15.5, y: 57.7 }, library: { x: 13.4, y: 32.1 }, tower: { x: 20.1, y: 32.2 },
+    cathedral: { x: 26.4, y: 32 }, apothecary: { x: 33.1, y: 32.4 },
+    cottage: { x: 11.4, y: 45.5 }, tavern: { x: 20.7, y: 45.7 }, smithy: { x: 29.4, y: 46 },
+    workshop: { x: 38, y: 45.7 }
 };
 
 // Schematic SVG placeholders shown until raw_bldg_<id>.png lands (then
@@ -3033,24 +3050,31 @@ const BUILDING_ART = {
 function buildingArtHtml(id) {
     const s = sprites['bldg_' + id];
     if (s) {
-        const h = 104, w = Math.round(h * (s.w / s.h));
+        const h = 134, w = Math.round(h * (s.w / s.h)); // user-tuned in plot-placer
         return `<div class="bldg-sprite" style="width:${w}px;height:${h}px;background-image:url(${s.url})"></div>`;
     }
     return (BUILDING_ART[id] || BUILDING_ART.cottage)();
 }
 
 function renderVista() {
+    // Image-space plots → screen through the shared transform. Positions land
+    // in the memoized html string, so a resize changes the string and the
+    // panel rebuilds itself on the next frame — no extra wiring. Fallback
+    // (backdrop missing/not yet loaded): treat coords as rough viewport %.
+    const t = sceneTransform();
+    const sw = window.innerWidth, sh = window.innerHeight;
     let html = '';
     for (const id in BUILDING_PLOTS) {
         const b = buildings[id];
         if (!b) continue;
         const p = BUILDING_PLOTS[id];
-        const leftPct = (p.x / 100) * TOWN_REGION_FRAC * 100; // % of stage width
-        // nearer = larger; the upper band holds four buildings side by side,
-        // so the back rows scale down harder than the old prototype curve
-        const depth = 0.85 + (p.y / 100) * 1.75;
-        const z = Math.round(p.y * 4);
-        const pos = `left:${leftPct.toFixed(2)}%;top:${p.y}%;z-index:${z}`;
+        const leftPct = t ? (p.x / 100 * t.W * t.s + t.ox) / sw * 100 : p.x;
+        const topPct = t ? (p.y / 100 * t.compH * t.s + t.oy) / sh * 100 : p.y;
+        // No depth scaling (dropped 2026-07-19, user call from the plot-placer
+        // test): every building renders at the same size; z-order alone keeps
+        // lower-on-screen buildings painted over higher ones where they touch.
+        const z = Math.round(topPct * 4);
+        const pos = `left:${leftPct.toFixed(2)}%;top:${topPct.toFixed(2)}%;z-index:${z}`;
 
         if (getBuildingCap(id) <= 0) {
             const lvl = levels.find(l => l.caps[id] > 0);
@@ -3058,7 +3082,7 @@ function renderVista() {
                 <div class="ghost"><span class="nm">${b.name}</span><br>Unlocks at ${lvl ? lvl.name : '???'}</div></div>`;
             continue;
         }
-        const art = `<div class="art" style="transform:scale(${depth.toFixed(2)})">${buildingArtHtml(id)}`;
+        const art = `<div class="art">${buildingArtHtml(id)}`;
         if (b.count === 0) {
             // Ghost-preview: desaturated, NOT washed out — a fresh save shows
             // several of these at once and stacked transparency read as a bug.
@@ -3482,13 +3506,23 @@ function renderScenePlotDrawer() {
     // so baking it into the memo string can't thrash; a mid-click rebuild is
     // survivable anyway (delegated data-action dispatch).
     const info = buildingPurchaseInfo(scenePlotOpen);
+    // Cap context (2026-07-19 feedback): the drawer must answer "how many more
+    // can I build, and which kingdom tier raises that" without leaving the scene.
+    const cap = getBuildingCap(scenePlotOpen);
+    const nxt = nextBuildingCap(scenePlotOpen);
+    const atCap = b.count >= cap;
+    const capLine = atCap
+        ? (nxt ? `${levels[kingdomLevel].name} cap reached — rises to ×${nxt.cap} at ${nxt.name}`
+               : `Campaign maximum reached`)
+        : `${cap - b.count} more can be built as a ${levels[kingdomLevel].name}${nxt ? ` · cap ×${nxt.cap} at ${nxt.name}` : ''}`;
     const qtyRow = `<div style="margin:2px 0 4px;font-size:10px;color:#8a7f63">Buy:
         ${[1, 5, 10, 'max'].map(q => `<button class="btn-qty ${buyQuantity === q ? 'btn-qty--active' : ''}" data-action="setBuyQuantity:${q}">×${q}</button>`).join('')}</div>`;
-    const buildRow = `${qtyRow}<div style="margin:2px 0 10px;display:flex;gap:10px;align-items:center">
-        <button class="btn-upgrade" data-action="buyBuilding:${scenePlotOpen}" ${info.canAfford ? '' : 'disabled'}>Build</button>
+    const buildRow = `<div class="dw-cap">${capLine}</div>${qtyRow}
+        <div style="margin:2px 0 10px;display:flex;gap:10px;align-items:center">
+        <button class="btn-upgrade" data-action="buyBuilding:${scenePlotOpen}" ${info.canAfford ? '' : 'disabled'}>${atCap ? 'At cap' : 'Build'}</button>
         <span style="font-size:11px;color:#8a7f63">${info.costLabel}</span></div>`;
     setPanelHtml('scene-drawer-body',
-        `<h3>${b.name} ×${b.count}</h3>
+        `<h3>${b.name} <span class="dw-count">×${b.count} / ${cap}</span></h3>
          <div class="meta">${b.residents.length} / ${totalSlots} residents · hire from the Town Square</div>
          ${buildRow}
          <div class="dw-list"><div class="dw-slots">${slots || '<div class="dw-empty">No resident slots.</div>'}</div></div>`);
