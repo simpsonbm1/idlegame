@@ -23,4 +23,17 @@ for f in $(git diff --cached --name-only --diff-filter=ACR -- assets/); do
     echo "pre-commit: $f has no covering line in assets/CREDITS.md (add its path or a 'dir/*' glob in the same commit)" >&2
     fail=1
 done
+
+# Checkpoint delegation audit (interim delivery channel while Claude Code discards
+# SessionStart hook output - anthropics/claude-code#79299): hook stdout lands in the
+# committing session's tool result, which always reaches the model. Own 24h throttle
+# (-StateSuffix commit), roster nudge skipped (-AuditOnly). Best-effort: never blocks
+# a commit. Remove this block once #79299 is fixed (see ~/.claude/CLAUDE.md).
+advisor="$HOME/.claude/hooks/delegation-advisor.ps1"
+if [ -f "$advisor" ]; then
+    repo_win=$(pwd -W 2>/dev/null || pwd)
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$advisor" \
+        -Cwd "$repo_win" -StateSuffix commit -AuditOnly 2>/dev/null || true
+fi
+
 exit $fail

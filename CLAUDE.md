@@ -26,6 +26,20 @@ untracked, respecting `.gitignore`) to a disposable `wip/<hostname>` branch on `
 incoming `wip/<other-hostname>` branch (stop and ask on conflict), then **delete the remote branch
 immediately after the cherry-pick succeeds**.
 
+## Model-tiered subagent delegation
+This project has its own agent roster in `.claude/agents/` — **game-implementer** (Sonnet:
+fully-designed code changes, `node --check` gate, sim-mirror sync), **balance-analyst** (Haiku:
+sim runs reported as deltas vs the documented baseline), **browser-verifier** (Sonnet:
+checklist-driven browser passes with evidence) — plus the generic user-level roster
+(`implementer`/`doc-worker`/`log-triager`; routing table in `~/.claude/CLAUDE.md`). Full
+routing rules, the delegation-prompt checklist, and how verifier reports interact with the
+browser-verified convention: **`AGENT_DELEGATION.md`**. Division of labor: the main thread
+plans, decides, and diagnoses; agents execute and report — delegate proactively (standing
+authorization). Doc passes on this file route to `doc-worker` with surgical prompts.
+**Interim (temporary, grep marker `#79299`):** while Claude Code discards SessionStart hook
+output (anthropics/claude-code#79299), `.githooks/pre-commit` also runs the delegation audit
+so `[delegation-audit]` lines arrive in commit output; unwind rule in the global CLAUDE.md.
+
 ## Tech stack
 Plain HTML + CSS + JavaScript. No frameworks, no build step. Open `index.html` in a browser to
 run — but **serve over http to see sprites**: double-click `start-game-server.bat` (serves

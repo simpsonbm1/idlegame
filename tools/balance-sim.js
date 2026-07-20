@@ -683,7 +683,7 @@ function siegePhaseSquad(phaseDef) {
 // Endgame kingdom defaults: Reinforced Walls maxed (2000 HP, and since M14.1
 // +3 Kingdom defense per rank -> 15+12=27) and a Realm-level Builder corps
 // (8 slots, uncapped rarity, Master Builders) ~25 hp/s regen.
-function finalSiegeRate(squadSpec, trials = 60, doctrines = null, regen = 25, khpMax = 2000, kdef = 27) {
+function finalSiegeRate(squadSpec, trials = 500, doctrines = null, regen = 25, khpMax = 2000, kdef = 27) {
     let wins = 0;
     const saved = DOCTRINES;
     const savedKdef = CFG.KINGDOM_DEFENSE;
@@ -777,7 +777,7 @@ for (const [label, spec, doc] of [
     ['16 leg x2.0, no doctrines', sixteen(10, 2, 2), null],
     ['16 leg x2.0 + doctrines',  sixteen(10, 2, 2), REALM_DOCTRINES],
 ]) {
-    console.log(`${label.padEnd(28)} win ${Math.round(finalSiegeRate(spec, 60, doc) * 100)}%`);
+    console.log(`${label.padEnd(28)} win ${Math.round(finalSiegeRate(spec, 500, doc) * 100)}%`);
 }
 
 console.log('\n=== Fair-fight win durations (median s; must sit under the ' + CFG.SIEGE_ESCALATION_GRACE + 's escalation grace) ===');
