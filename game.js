@@ -38,6 +38,8 @@ let tickInterval = null;
 let lastSaveTime = 0; // wall-clock save throttle (M15 Phase 0)
 let isDraggingHero = false;
 let draggingRecruitId = null; // hero-pool drag-to-hire in flight — suppresses pool/battle rebuilds
+let tutorialPaused = false;   // an active pause-beat freezes tick() (same gate pattern as runEnded)
+let tutorialKingdomHit = false; // run flag: the walls took a hit (triggers the "Kingdom bleeds" beat)
 let armedHeroSlot = null;
 let armedHeroSlotTime = 0;
 
@@ -265,25 +267,25 @@ const ENEMY_ARCHETYPES = {
 // `role` is the one-line job description shown on the hover stat card (M16
 // phase 1) — the only place an archetype's identity is stated in-game.
 const HERO_ARCHETYPES = {
-    guardian: { names: ['Knight', 'Sentinel', 'Vanguard', 'Paragon'],    baseCost: 1000, role: 'Taunt tank — shields whoever shares its row',
+    guardian: { names: ['Knight', 'Sentinel', 'Vanguard', 'Paragon'],    baseCost: 1000, role: 'Taunt tank: shields whoever shares its row',
                 base: { defense: 35, hp: 140, attack: { power: 8,  speed: 0.7 }, guard: 3 } },
     fighter:  { names: ['Footman', 'Sellsword', 'Blademaster', 'Warlord'], baseCost: 1100, role: 'Frontline damage-dealer',
                 base: { defense: 18, hp: 95, attack: { power: 14, speed: 1.0 }, guard: 1.5 } },
-    ranged:   { names: ['Archer', 'Sharpshooter', 'Hunter', 'Marksman'], baseCost: 750,  role: 'Fast attacker — fragile, keep it behind the front',
+    ranged:   { names: ['Archer', 'Sharpshooter', 'Hunter', 'Marksman'], baseCost: 750,  role: 'Fast attacker: fragile, keep it behind the front',
                 base: { defense: 5,  hp: 60,  attack: { power: 18, speed: 1.3 } } },
-    mender:   { names: ['Acolyte', 'Cleric', 'Druid', 'Saint'],          baseCost: 850,  role: 'Healer — always tends the most wounded ally',
+    mender:   { names: ['Acolyte', 'Cleric', 'Druid', 'Saint'],          baseCost: 850,  role: 'Healer: always tends the most wounded ally',
                 base: { defense: 8,  hp: 65,  heal:   { power: 22, speed: 0.7 } } },
-    paladin:  { names: ['Squire', 'Paladin', 'Crusader', 'Highlord'],    baseCost: 1300, unlock: 'paladin', role: 'Hybrid — attacks and heals on separate timers',
+    paladin:  { names: ['Squire', 'Paladin', 'Crusader', 'Highlord'],    baseCost: 1300, unlock: 'paladin', role: 'Hybrid: attacks and heals on separate timers',
                 base: { defense: 25, hp: 120, attack: { power: 9, speed: 0.7 }, heal: { power: 9, speed: 0.55 }, guard: 2 } },
-    assassin: { names: ['Rogue', 'Assassin', 'Nightblade', 'Phantom'],   baseCost: 950,  unlock: 'assassin', role: 'Backline hunter — deadly, but folds if caught',
+    assassin: { names: ['Rogue', 'Assassin', 'Nightblade', 'Phantom'],   baseCost: 950,  unlock: 'assassin', role: 'Backline hunter: deadly, but folds if caught',
                 base: { defense: 3,  hp: 45,  attack: { power: 26, speed: 1.2 }, backlineChance: 0.9, guard: 0.5 } },
     // M11 archetypes exercising the new engine features. Banneret's aura and
     // Frost Adept's chill are fixed effects — rarity scales their own stats.
-    battlemage: { names: ['Adept', 'Battlemage', 'Warmage', 'Archmage'], baseCost: 1600, unlock: 'battlemage', role: 'Row-sweeper — burns down clustered squads',
+    battlemage: { names: ['Adept', 'Battlemage', 'Warmage', 'Archmage'], baseCost: 1600, unlock: 'battlemage', role: 'Row-sweeper: burns down clustered squads',
                 base: { defense: 8,  hp: 70,  attack: { power: 12, speed: 0.8, aoe: 'row' } } },
-    banneret: { names: ['Herald', 'Banneret', 'Marshal', 'High Marshal'], baseCost: 1500, unlock: 'banneret', role: 'Standard-bearer — stronger allies beside it',
+    banneret: { names: ['Herald', 'Banneret', 'Marshal', 'High Marshal'], baseCost: 1500, unlock: 'banneret', role: 'Standard-bearer: stronger allies beside it',
                 base: { defense: 25, hp: 110, attack: { power: 6, speed: 0.6 }, aura: { power: 0.15, range: 'adjacent' }, guard: 2 } },
-    frostadept: { names: ['Frost Apprentice', 'Frost Adept', 'Rimecaller', "Winter's Voice"], baseCost: 1400, unlock: 'frost', role: 'Controller — slows enemies to a crawl',
+    frostadept: { names: ['Frost Apprentice', 'Frost Adept', 'Rimecaller', "Winter's Voice"], baseCost: 1400, unlock: 'frost', role: 'Controller: slows enemies to a crawl',
                 base: { defense: 6,  hp: 65,  attack: { power: 10, speed: 1.0, chill: { mult: 1.35, duration: 6 } } } }
 };
 
@@ -334,7 +336,13 @@ function defaultMeta() {
         reduceMotion: false,   // manual no-shake/no-float toggle (M15 Phase 2; additive field)
         sceneView: true,       // M15 increment 4: the scene IS the game; classic is the escape hatch
         soundVolume: 0.6,      // M15 Phase 3 — keep in sync with loadMeta's ?? defaults
-        soundMuted: false
+        soundMuted: false,
+        // M16 phase 2: the guided first Age. Fresh profiles start it; loadMeta
+        // grandfathers pre-feature saves out (?? true) — veterans never see it.
+        tutorialDone: false,
+        tutorialStep: 0,        // index into TUTORIAL_BEATS (ordered chain)
+        tutorialWallSeen: false, // the floating "Kingdom bleeds" event beat fired
+        tutorialBossSeen: false  // the floating first-boss event beat fired
     };
 }
 
@@ -359,7 +367,13 @@ function loadMeta() {
         reduceMotion: state.reduceMotion ?? false,
         sceneView: state.sceneView ?? true, // M15 scene/classic choice (default: scene)
         soundVolume: state.soundVolume ?? 0.6, // M15 Phase 3 (additive — no SAVE_VERSION bump)
-        soundMuted: state.soundMuted ?? false
+        soundMuted: state.soundMuted ?? false,
+        // Pre-feature saves default tutorialDone TRUE — only profiles born
+        // after M16 phase 2 (no meta save at all → defaultMeta) get the tutorial.
+        tutorialDone: state.tutorialDone ?? true,
+        tutorialStep: state.tutorialStep ?? 0,
+        tutorialWallSeen: state.tutorialWallSeen ?? false,
+        tutorialBossSeen: state.tutorialBossSeen ?? false
     };
 }
 
@@ -1084,6 +1098,7 @@ function attackKingdom(attacker) {
     const power = effectiveAttackPower(attacker) * escalationMult(currentInvasion);
     const dmg = Math.max(1, Math.round(power * (1 - getKingdomDefense() / 100)));
     kingdomHP = Math.max(0, kingdomHP - dmg);
+    tutorialKingdomHit = true; // one-time "Kingdom bleeds" teaching beat
     emitFx('kingdomHit', null, dmg);
 }
 
@@ -1526,6 +1541,10 @@ function endRun(reason) {
     meta.gameSeconds += runTime;
     kingdomFallRecord = { name: fellTo, level: kingdomLevel };
     meta.fallHistory.push({ age: meta.age, name: fellTo, level: kingdomLevel, waves: runWavesCleared, legacy: runLegacyEarned });
+    // The first fall completes the tutorial: one framing line on the summary
+    // (persisted in runSummary so a reload mid-summary keeps it).
+    const tutorialNote = !meta.tutorialDone;
+    if (tutorialNote) { meta.tutorialDone = true; tutorialPaused = false; }
     runSummary = {
         age: meta.age,
         reason,
@@ -1533,7 +1552,8 @@ function endRun(reason) {
         levelName: levels[kingdomLevel].name,
         waves: runWavesCleared,
         legacy: runLegacyEarned,
-        lessons
+        lessons,
+        tutorialNote
     };
     runEnded = true;
     currentInvasion = null;
@@ -1785,8 +1805,9 @@ function doResetGame() {
 
 function tick() {
     // The world is frozen while the run-summary screen is up — the next Age
-    // starts when the player founds it. Same for the victory screen.
-    if (runEnded || victoryPending) return;
+    // starts when the player founds it. Same for the victory screen, and for
+    // a tutorial pause-beat (M16 phase 2: the big teaching moments).
+    if (runEnded || victoryPending || tutorialPaused) return;
 
     runTime++;
     // Authoritative recompute each tick: picks up injury expiries automatically
@@ -1868,6 +1889,18 @@ function buyBuilding(id) {
     gold -= totalCost;
     b.cost = Math.floor(b.cost * Math.pow(b.costGrowth, affordable));
     b.count += affordable;
+    // Tutorial teaching hook (M16 phase 2): the very first Cottage of a
+    // guided first Age comes with a free Villager — the building→resident
+    // link shown, not told, before the Town Square beat teaches hiring.
+    // Gated on the build beat not yet being passed, so it fires exactly once.
+    if (!meta.tutorialDone && id === 'cottage' && b.residents.length === 0
+        && meta.tutorialStep <= TUT_BUILD_INDEX) {
+        const t = recruitTypes.villager;
+        const income = Math.max(1, t.incomeMin + Math.floor(Math.random() * (t.incomeMax - t.incomeMin + 1)));
+        b.residents.push({ typeId: 'villager', name: 'Villager', rarity: 'common', income });
+        goldPerSecond += income;
+        emitFxData('hireGold', { amount: income });
+    }
     emitFxData('built', { id });
     saveGame();
     updateUI();
@@ -3162,6 +3195,7 @@ function renderRunSummary() {
 
     let html = `<div class="summary-title">${s.reason === 'abandoned' ? `Age ${s.age} Concluded` : 'The Kingdom Has Fallen'}</div>
         <div class="summary-sub">${s.reason === 'abandoned' ? 'Abandoned during' : 'Fell to'} ${s.fellTo} at ${s.levelName} level</div>
+        ${s.tutorialNote ? `<div class="summary-sub summary-tutorial-note">Every kingdom falls. That is how a Legacy begins. Spend it below, then found a new Age: stronger from its very first morning.</div>` : ''}
         ${s.lessons ? `<div class="summary-lessons">Lessons of the Last Siege: the failed assault taught the realm much. <strong>+${s.lessons.toLocaleString()} Legacy</strong></div>` : ''}
         <div class="summary-stats">
             <div class="summary-stat"><span class="summary-stat-value">${s.waves}</span> wave${s.waves === 1 ? '' : 's'} repelled this Age</div>
@@ -3294,20 +3328,20 @@ function scHeader(name, rarity, role) {
 function scAbilityLines(u) {
     const lines = [];
     if (u.attack && u.attack.aoe === 'row') lines.push('Strikes an entire row at once');
-    if (u.attack && u.attack.chill) lines.push(`Attacks chill the target — actions ${Math.round((u.attack.chill.mult - 1) * 100)}% slower for ${u.attack.chill.duration}s`);
-    if (u.aura) lines.push(`${u.aura.range === 'all' ? 'War cry — every ally' : 'Banner aura — adjacent allies'} +${Math.round(u.aura.power * 100)}% power`);
+    if (u.attack && u.attack.chill) lines.push(`Attacks chill the target: actions ${Math.round((u.attack.chill.mult - 1) * 100)}% slower for ${u.attack.chill.duration}s`);
+    if (u.aura) lines.push(`${u.aura.range === 'all' ? 'War cry: every ally' : 'Banner aura: adjacent allies'} +${Math.round(u.aura.power * 100)}% power`);
     if (u.enrage) {
         const bits = [];
         if (u.enrage.speed > 1) bits.push('faster');
         if (u.enrage.power > 1) bits.push('harder-hitting');
-        lines.push(`Enrages below half health — ${bits.join(', ') || 'fiercer'} attacks`);
+        lines.push(`Enrages below half health: ${bits.join(', ') || 'fiercer'} attacks`);
     }
     if (u.reviveCharges) lines.push(`Raises fallen allies (${u.reviveCharges} charge${u.reviveCharges > 1 ? 's' : ''} left)`);
-    if (u.targetsKingdom) lines.push('Ignores heroes and attacks the Kingdom — hits can injure townsfolk');
-    if ((u.backlineChance || 0) >= 0.4) lines.push(`Backline hunter — ${Math.round(u.backlineChance * 100)}% of attacks go for the rear rows`);
+    if (u.targetsKingdom) lines.push('Ignores heroes and attacks the Kingdom; hits can injure townsfolk');
+    if ((u.backlineChance || 0) >= 0.4) lines.push(`Backline hunter: ${Math.round(u.backlineChance * 100)}% of attacks go for the rear rows`);
     if (u.guard && u.guard !== 1) lines.push(u.guard > 1
-        ? `Guard ×${u.guard} — draws ${u.guard}× the enemy attention in its row`
-        : `Slippery (guard ×${u.guard}) — enemies mostly overlook it`);
+        ? `Guard ×${u.guard}: draws ${u.guard}× the enemy attention in its row`
+        : `Slippery (guard ×${u.guard}): enemies mostly overlook it`);
     return lines.map(l => `<div class="sc-ability">${l}</div>`).join('');
 }
 
@@ -3346,7 +3380,7 @@ function statCardHtml(kind, a, b) {
         if (base.heal) rows += scRow('Heals', `${p(base.heal.power)} · every ${scActionInterval(base.heal.speed)}s`);
         rows += scRow('Defense', `blocks ${base.defense}% of damage`);
         return scHeader(r.name, r.rarity, arch.role) + rows + scAbilityLines(base)
-            + `<div class="sc-hint">${r.cost.toLocaleString()}g — click to hire, or drag onto a squad seat</div>`;
+            + `<div class="sc-hint">${r.cost.toLocaleString()}g · click to hire, or drag onto a squad seat</div>`;
     }
     if (kind === 'trecruit') {
         const r = recruitPool.find(x => x.id === Number(a));
@@ -3363,7 +3397,7 @@ function statCardHtml(kind, a, b) {
             + scRow(isHp ? 'Repairs' : 'Earns', `${lo}-${hi} ${isHp ? 'hp' : 'g'}/s`)
             + scRow('Home', home.name)
             + `<div class="sc-ability">The exact value is rolled once, on hire</div>`
-            + `<div class="sc-hint">${r.cost.toLocaleString()}g — click to hire</div>`;
+            + `<div class="sc-hint">${r.cost.toLocaleString()}g · click to hire</div>`;
     }
     if (kind === 'resident') {
         const home = buildings[a];
@@ -3372,8 +3406,8 @@ function statCardHtml(kind, a, b) {
         const isHp = home.type === 'hpregen';
         return scHeader(r.name, r.rarity || 'common', null)
             + scRow(isHp ? 'Repairs' : 'Earns', `${r.income} ${isHp ? 'hp' : 'g'}/s`)
-            + (isInjured(r) ? `<div class="sc-ability sc-ability--bad">✚ Injured — recovering, no ${isHp ? 'repairs' : 'income'} for now</div>` : '')
-            + `<div class="sc-hint">Click to dismiss (free) — a fresh hire re-rolls the value</div>`;
+            + (isInjured(r) ? `<div class="sc-ability sc-ability--bad">✚ Injured: recovering, no ${isHp ? 'repairs' : 'income'} for now</div>` : '')
+            + `<div class="sc-hint">Click to dismiss (free); a fresh hire re-rolls the value</div>`;
     }
     return null;
 }
@@ -3417,6 +3451,227 @@ function refreshStatCard() {
     const card = statCardEl();
     if (card._html !== html) { card._html = html; card.innerHTML = html; }
     positionStatCard();
+}
+
+// ---------- M16 Phase 2: the guided first Age ----------
+// A chain of teaching beats for fresh profiles only (loadMeta grandfathers
+// existing saves out). Each beat spotlights a real element and advances when
+// the player DOES the taught thing (state predicates, not "Next" buttons);
+// only the big moments hard-pause the world (pause: true — welcome, raid
+// warning, first battle, first wall hit) via the tick() gate. Scene-only by
+// design: the classic toggle is hidden until the tutorial completes (the
+// first fall — endRun marks tutorialDone and adds the summary framing line).
+// `done` beats auto-skip if their state is already satisfied, so a reload
+// mid-tutorial resumes cleanly; `trigger` beats stay invisible until their
+// moment arrives.
+const TUTORIAL_BEATS = [
+    { id: 'welcome', pause: true, button: 'Begin',
+      title: 'Your kingdom awaits',
+      text: 'Raiders are coming. Gold builds the town; heroes hold the gate. Survive as long as you can: every Age that falls makes the next one stronger.' },
+    { id: 'build',
+      target: () => document.querySelector('#scene-vista [data-action="openScenePlot:cottage"]'),
+      text: 'Start with a home: click the glowing plot to build a Cottage.',
+      done: () => buildings.cottage.count > 0 },
+    { id: 'hire',
+      target: () => document.querySelector('#scene-crowd [data-stat^="trecruit"]'),
+      avoid: () => sceneCrowdRect(),
+      text: 'Your first villager moved in free. Villagers earn gold every second, and more folk wait in the square: click one to hire them. Colored names are rarer, and roll stronger.',
+      done: () => totalResidents() >= 2 },
+    // Info beat (button, not action): the drawer is usually already open from
+    // the build step, so an "open the drawer" predicate would self-skip and
+    // the free-reroll lesson — the game's core optimization loop — would be lost.
+    { id: 'drawer', button: 'Got it',
+      target: () => scenePlotOpen ? document.getElementById('scene-drawer')
+                                  : document.querySelector('#scene-vista [data-action="openScenePlot:cottage"]'),
+      text: 'Click a building any time to look inside. Dismissing a worker is free, and a fresh hire rolls a fresh value: cull weak earners without mercy.' },
+    { id: 'level', trigger: () => gold >= levels[1].cost || kingdomLevel >= 1,
+      target: () => document.getElementById('hud-level'),
+      text: 'Your treasury can found a Village. Levelling the kingdom raises building caps and unlocks new buildings to earn faster.',
+      done: () => kingdomLevel >= 1 },
+    { id: 'raid-warning', pause: true, button: 'To the gates', trigger: () => raidsStarted,
+      target: () => document.getElementById('scene-raid-chip'),
+      title: 'Raiders approach!',
+      text: 'When this timer runs out, they attack your walls. Heroes meet them on the field, so muster some before the raid arrives.' },
+    { id: 'hire-hero',
+      target: () => document.querySelector('#scene-crowd [data-stat^="hrecruit"]'),
+      avoid: () => sceneCrowdRect(),
+      text: 'Heroes gather along the gate road. Click one to hire, or drag them onto the exact seat you want. The front row takes the hits; keep healers and archers behind it. Hover anyone to see what they do.',
+      done: () => heroSquad.some(h => h) },
+    { id: 'battle', pause: true, button: 'Hold the line', trigger: () => !!currentInvasion,
+      // #scene-battle is a full-screen container (inset 0) — spotlighting it
+      // dims nothing. Frame the actual combatants instead (union of unit
+      // sprites), falling back to the raid chip before units render.
+      target: () => sceneBattleUnitsRect() || document.getElementById('scene-raid-chip'),
+      title: 'The battle begins',
+      text: 'Combat runs itself. Your job is who fights, and where they stand. You can hire reinforcements mid-battle; new heroes join the fight at once.' },
+    { id: 'repelled', button: 'Got it', trigger: () => !!lastVictory,
+      target: () => document.getElementById('scene-raid-chip'),
+      text: 'Repelled! Every newly beaten wave banks Legacy: permanent power that survives your kingdom\'s fall. Push as deep as you can.' }
+];
+const TUT_BUILD_INDEX = TUTORIAL_BEATS.findIndex(b => b.id === 'build');
+const TUT_BATTLE_INDEX = TUTORIAL_BEATS.findIndex(b => b.id === 'battle');
+// Floating event beats: these can't be ordered — a good player may never
+// wipe, and the first boss arrives whenever the ladder is climbed to it.
+const TUTORIAL_WALL_BEAT = { id: 'kingdom-hit', pause: true, button: 'Got it',
+    target: () => document.getElementById('hud-wall'),
+    title: 'The Kingdom bleeds',
+    text: 'With no hero standing, raiders batter the walls themselves. At zero Kingdom HP the Age ends. Builders in a Workshop mend the walls over time, and you can still hire heroes into the fight.' };
+const TUTORIAL_BOSS_BEAT = { id: 'boss-wave', pause: true, button: 'Stand fast',
+    target: () => {
+        for (const b of sceneBattleLive) {
+            if (b.hidx < 0 && b.unit.alive && b.unit.spriteKey && b.unit.spriteKey.startsWith('boss_')) {
+                const img = b.el.querySelector('.sprite, .letter-chip');
+                if (img) return img;
+            }
+        }
+        return document.getElementById('scene-raid-chip');
+    },
+    title: 'Their warlord takes the field',
+    text: 'A boss leads this wave, far stronger than anything before it. Slay it to break into the next, deadlier tier. If it brings the Kingdom down instead, the Age ends, and your Legacy builds the next one stronger. Hover it to gauge its strength.' };
+
+function totalResidents() {
+    let n = 0;
+    for (const id in buildings) n += buildings[id].residents.length;
+    return n;
+}
+
+// Union rect of the whole hiring crowd (sprites + nameplates) — the hire
+// beats keep their card OUT of this region, or it covers the very villagers
+// and heroes the player is being told to click (2026-07-19 feedback: a
+// covered crowd tempts "Skip tutorial" just to clear the pane).
+function sceneCrowdRect() {
+    let u = null;
+    document.querySelectorAll('#scene-crowd [data-stat]').forEach(el => {
+        for (const node of el.querySelectorAll('.sprite, .letter-chip, .plate')) {
+            const r = node.getBoundingClientRect();
+            if (!r.width && !r.height) continue;
+            u = u ? { left: Math.min(u.left, r.left), top: Math.min(u.top, r.top),
+                      right: Math.max(u.right, r.right), bottom: Math.max(u.bottom, r.bottom) }
+                  : { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+        }
+    });
+    return u;
+}
+
+// Union rect of every living unit sprite on the diorama (both sides) — the
+// battle beat's spotlight. Returns a plain rect (renderTutorial accepts
+// elements or rects) or null before the diorama has built.
+function sceneBattleUnitsRect() {
+    let u = null;
+    for (const b of sceneBattleLive) {
+        if (!b.unit.alive || !b.el.isConnected) continue;
+        const img = b.el.querySelector('.sprite, .letter-chip');
+        if (!img) continue;
+        const r = img.getBoundingClientRect();
+        u = u ? { left: Math.min(u.left, r.left), top: Math.min(u.top, r.top),
+                  right: Math.max(u.right, r.right), bottom: Math.max(u.bottom, r.bottom) }
+              : { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+    }
+    // Full DOMRect shape — the positioning code reads .bottom/.right too.
+    return u ? { left: u.left, top: u.top, right: u.right, bottom: u.bottom,
+                 width: u.right - u.left, height: u.bottom - u.top } : null;
+}
+
+let tutActiveId = null; // beat currently displayed (rebuild the layer only on change)
+
+function tutorialLayerEl() {
+    let el = document.getElementById('tutorial-layer');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'tutorial-layer';
+        el.className = 'hidden';
+        document.body.appendChild(el);
+    }
+    return el;
+}
+
+// Ordered-chain resolver: auto-advances past already-satisfied beats (reload
+// resume, actions performed before their beat appeared), waits on triggers.
+function tutorialCurrentBeat() {
+    for (let guard = 0; guard < TUTORIAL_BEATS.length + 1; guard++) {
+        const beat = TUTORIAL_BEATS[meta.tutorialStep];
+        if (!beat) return null;
+        if (beat.done && beat.done()) { meta.tutorialStep++; saveMeta(); continue; }
+        if (beat.trigger && !beat.trigger()) return null;
+        return beat;
+    }
+    return null;
+}
+
+function renderTutorial() {
+    const layer = tutorialLayerEl();
+    const toggle = document.getElementById('scene-toggle');
+    if (toggle) toggle.classList.toggle('hidden', !meta.tutorialDone && sceneOpen);
+    let beat = null;
+    if (!meta.tutorialDone && !runEnded && !victoryPending && sceneOpen) {
+        if (tutorialKingdomHit && !meta.tutorialWallSeen && meta.tutorialStep > TUT_BATTLE_INDEX)
+            beat = TUTORIAL_WALL_BEAT;
+        else if (!meta.tutorialBossSeen && meta.tutorialStep > TUT_BATTLE_INDEX
+                 && currentInvasion && !currentInvasion.finalSiege && isBossWave(raidTierIndex, tierWave))
+            beat = TUTORIAL_BOSS_BEAT;
+        else
+            beat = tutorialCurrentBeat();
+    }
+    tutorialPaused = !!(beat && beat.pause);
+    if (!beat) {
+        if (tutActiveId !== null) { tutActiveId = null; layer.classList.add('hidden'); }
+        return;
+    }
+    if (tutActiveId !== beat.id) {
+        tutActiveId = beat.id;
+        layer.innerHTML = `
+            ${beat.pause ? '<div class="tut-block"></div>' : ''}
+            <div class="tut-ring hidden"></div>
+            <div class="tut-card">
+                ${beat.title ? `<div class="tut-title">${beat.title}</div>` : ''}
+                <div class="tut-text">${beat.text}</div>
+                <div class="tut-actions">
+                    ${beat.button ? `<button class="tut-btn" data-action="tutorialNext">${beat.button}</button>` : ''}
+                    <span class="tut-skip" data-action="tutorialSkip">Skip tutorial</span>
+                </div>
+            </div>`;
+        layer.classList.remove('hidden');
+    }
+    // Position ring + card against the live target every frame (chips move,
+    // plots re-seat on resize). The dim-with-cutout lives on the ring's huge
+    // box-shadow; a target-less pause beat dims via the blocker instead.
+    const target = beat.target ? beat.target() : null;
+    const ring = layer.querySelector('.tut-ring');
+    const card = layer.querySelector('.tut-card');
+    const block = layer.querySelector('.tut-block');
+    if (block) block.classList.toggle('tut-block--dim', !target);
+    if (target) {
+        // target() may return an element or a plain {left,top,width,height} rect
+        const r = target.getBoundingClientRect ? target.getBoundingClientRect() : target;
+        const pad = 10;
+        ring.classList.remove('hidden');
+        ring.classList.toggle('tut-ring--dim', !!beat.pause);
+        ring.style.left = (r.left - pad) + 'px';
+        ring.style.top = (r.top - pad) + 'px';
+        ring.style.width = (r.width + pad * 2) + 'px';
+        ring.style.height = (r.height + pad * 2) + 'px';
+        // Card below the target if there's room, else above; clamped on-screen.
+        const cw = card.offsetWidth, ch = card.offsetHeight;
+        let cx = Math.max(12, Math.min(window.innerWidth - cw - 12, r.left + r.width / 2 - cw / 2));
+        let cy = r.bottom + pad + 14;
+        if (cy + ch > window.innerHeight - 12) cy = r.top - pad - ch - 14;
+        if (cy < 12) cy = Math.min(window.innerHeight - ch - 12, r.bottom + pad + 14);
+        // Beats with an `avoid` region (the hiring crowd) place the card
+        // entirely outside it — above the cluster if it fits, else below —
+        // so the pane never covers the elements the player must click.
+        const avoid = beat.avoid ? beat.avoid() : null;
+        if (avoid) {
+            cy = avoid.top - ch - 14;
+            if (cy < 12) cy = Math.min(window.innerHeight - ch - 12, avoid.bottom + 14);
+        }
+        card.style.left = Math.round(cx) + 'px';
+        card.style.top = Math.round(Math.max(12, cy)) + 'px';
+    } else {
+        ring.classList.add('hidden');
+        const cw = card.offsetWidth, ch = card.offsetHeight;
+        card.style.left = Math.round((window.innerWidth - cw) / 2) + 'px';
+        card.style.top = Math.round(window.innerHeight * 0.38 - ch / 2) + 'px';
+    }
 }
 
 // --- M15 Phase 0: the render loop ---
@@ -4113,8 +4368,8 @@ function renderScenePlotDrawer() {
         ? ` · ${isHp ? Math.round(buildingTotal * 10) / 10 + ' hp/s' : buildingTotal.toLocaleString() + ' g/s'} total`
         : '';
     const descLine = scenePlotOpen === 'keep'
-        ? `Improves hero recruit rarity${b.count > 0 ? ` — +${b.count} rarity bias now` : ''}`
-        : (isHp ? `Adds ${b.slotsPerBuilding} resident slots each — Builders repair the Kingdom walls`
+        ? `Improves hero recruit rarity${b.count > 0 ? ` (+${b.count} rarity bias now)` : ''}`
+        : (isHp ? `Adds ${b.slotsPerBuilding} resident slots each; Builders repair the Kingdom walls`
                 : `Adds ${b.slotsPerBuilding} resident slots each`);
     setPanelHtml('scene-drawer-body',
         `<h3>${b.name} <span class="dw-count">×${b.count} / ${cap}</span></h3>
@@ -4235,6 +4490,7 @@ function renderAll() {
     renderBuildings();
     renderHeroRecruitPool();
     renderScene(); // M15 scene view (no-op unless toggled open)
+    renderTutorial(); // M16 phase 2 guided first Age (no-op once tutorialDone)
 
     refreshVolatileUI();
 
@@ -4311,6 +4567,21 @@ const UI_ACTIONS = {
     toggleSceneView: () => toggleSceneView(),
     openScenePlot:   id => openScenePlot(id),
     closeScenePlot:  () => closeScenePlot(),
+    // M16 phase 2: tutorial pause-beat buttons + the always-available skip.
+    tutorialNext: () => {
+        if (tutActiveId === 'kingdom-hit') meta.tutorialWallSeen = true;
+        else if (tutActiveId === 'boss-wave') meta.tutorialBossSeen = true;
+        else meta.tutorialStep++;
+        tutorialPaused = false;
+        saveMeta();
+        updateUI();
+    },
+    tutorialSkip: () => {
+        meta.tutorialDone = true;
+        tutorialPaused = false;
+        saveMeta();
+        updateUI();
+    },
     // Scene battle hero click: same shared armed-to-dismiss state as the
     // classic battle slots (arming in one view shows in the other).
     sceneHeroClick:  i => {
