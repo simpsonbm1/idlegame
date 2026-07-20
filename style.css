@@ -1885,3 +1885,30 @@ body.chrome-ready #scene-drawer {
 #scene-drawer .btn-upgrade:hover:not(:disabled) { background: #4a3a16; border-color: #e8c96d; }
 #scene-drawer .dw-slots { display: flex; flex-wrap: wrap; gap: 8px; }
 #scene-drawer .dw-empty { color: #8a7f63; font-style: italic; font-size: 12px; padding: 6px 0; }
+
+/* ---------- M16 Phase 1: the stat card ---------- */
+/* One floating hover card explains units, recruits, and residents — replaces
+   the native title tooltips (instant, styled, HP numbers + role + abilities).
+   pointer-events: none so it never steals the hover it's explaining. */
+#stat-card {
+    position: fixed; z-index: 10000; pointer-events: none;
+    width: max-content; max-width: 270px;
+    background: rgba(22, 17, 9, 0.97);
+    border: 1px solid #6a5426; border-radius: 6px;
+    padding: 9px 11px;
+    font-size: 12.5px; line-height: 1.45; color: #d8cba8;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55);
+}
+#stat-card.hidden { display: none; }
+#stat-card .sc-name { font-weight: bold; font-size: 13.5px; color: #e8c96d; }
+#stat-card .sc-role { color: #b8a878; font-style: italic; margin: 1px 0 5px; }
+#stat-card .sc-row { display: flex; justify-content: space-between; gap: 16px; }
+#stat-card .sc-row span { color: #8a7f63; }
+#stat-card .sc-row b { color: #e8dcc0; font-weight: 600; text-align: right; }
+#stat-card .sc-ability { color: #8fb98f; margin-top: 4px; }
+#stat-card .sc-ability--bad { color: #d98c7a; }
+#stat-card .sc-hint {
+    margin-top: 6px; padding-top: 5px;
+    border-top: 1px solid rgba(120, 100, 50, 0.35);
+    color: #8a7f63; font-size: 11.5px;
+}

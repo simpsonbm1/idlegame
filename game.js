@@ -37,6 +37,7 @@ let gameSpeed = 1;
 let tickInterval = null;
 let lastSaveTime = 0; // wall-clock save throttle (M15 Phase 0)
 let isDraggingHero = false;
+let draggingRecruitId = null; // hero-pool drag-to-hire in flight — suppresses pool/battle rebuilds
 let armedHeroSlot = null;
 let armedHeroSlotTime = 0;
 
@@ -261,22 +262,28 @@ const ENEMY_ARCHETYPES = {
 // enrage; FF beats GG vs bandit/dark heal-walls), paladin-stacks are a
 // specialist choice, and slippery assassins don't go degenerate (row-AoE
 // ignores guard; a full back pool still lands ~6% of its fire on them).
+// `role` is the one-line job description shown on the hover stat card (M16
+// phase 1) — the only place an archetype's identity is stated in-game.
 const HERO_ARCHETYPES = {
-    guardian: { names: ['Knight', 'Sentinel', 'Vanguard', 'Paragon'],    baseCost: 1000, base: { defense: 35, hp: 140, attack: { power: 8,  speed: 0.7 }, guard: 3 } },
-    fighter:  { names: ['Footman', 'Sellsword', 'Blademaster', 'Warlord'], baseCost: 1100, base: { defense: 18, hp: 95, attack: { power: 14, speed: 1.0 }, guard: 1.5 } },
-    ranged:   { names: ['Archer', 'Sharpshooter', 'Hunter', 'Marksman'], baseCost: 750,  base: { defense: 5,  hp: 60,  attack: { power: 18, speed: 1.3 } } },
-    mender:   { names: ['Acolyte', 'Cleric', 'Druid', 'Saint'],          baseCost: 850,  base: { defense: 8,  hp: 65,  heal:   { power: 22, speed: 0.7 } } },
-    paladin:  { names: ['Squire', 'Paladin', 'Crusader', 'Highlord'],    baseCost: 1300, unlock: 'paladin',
+    guardian: { names: ['Knight', 'Sentinel', 'Vanguard', 'Paragon'],    baseCost: 1000, role: 'Taunt tank — shields whoever shares its row',
+                base: { defense: 35, hp: 140, attack: { power: 8,  speed: 0.7 }, guard: 3 } },
+    fighter:  { names: ['Footman', 'Sellsword', 'Blademaster', 'Warlord'], baseCost: 1100, role: 'Frontline damage-dealer',
+                base: { defense: 18, hp: 95, attack: { power: 14, speed: 1.0 }, guard: 1.5 } },
+    ranged:   { names: ['Archer', 'Sharpshooter', 'Hunter', 'Marksman'], baseCost: 750,  role: 'Fast attacker — fragile, keep it behind the front',
+                base: { defense: 5,  hp: 60,  attack: { power: 18, speed: 1.3 } } },
+    mender:   { names: ['Acolyte', 'Cleric', 'Druid', 'Saint'],          baseCost: 850,  role: 'Healer — always tends the most wounded ally',
+                base: { defense: 8,  hp: 65,  heal:   { power: 22, speed: 0.7 } } },
+    paladin:  { names: ['Squire', 'Paladin', 'Crusader', 'Highlord'],    baseCost: 1300, unlock: 'paladin', role: 'Hybrid — attacks and heals on separate timers',
                 base: { defense: 25, hp: 120, attack: { power: 9, speed: 0.7 }, heal: { power: 9, speed: 0.55 }, guard: 2 } },
-    assassin: { names: ['Rogue', 'Assassin', 'Nightblade', 'Phantom'],   baseCost: 950,  unlock: 'assassin',
+    assassin: { names: ['Rogue', 'Assassin', 'Nightblade', 'Phantom'],   baseCost: 950,  unlock: 'assassin', role: 'Backline hunter — deadly, but folds if caught',
                 base: { defense: 3,  hp: 45,  attack: { power: 26, speed: 1.2 }, backlineChance: 0.9, guard: 0.5 } },
     // M11 archetypes exercising the new engine features. Banneret's aura and
     // Frost Adept's chill are fixed effects — rarity scales their own stats.
-    battlemage: { names: ['Adept', 'Battlemage', 'Warmage', 'Archmage'], baseCost: 1600, unlock: 'battlemage',
+    battlemage: { names: ['Adept', 'Battlemage', 'Warmage', 'Archmage'], baseCost: 1600, unlock: 'battlemage', role: 'Row-sweeper — burns down clustered squads',
                 base: { defense: 8,  hp: 70,  attack: { power: 12, speed: 0.8, aoe: 'row' } } },
-    banneret: { names: ['Herald', 'Banneret', 'Marshal', 'High Marshal'], baseCost: 1500, unlock: 'banneret',
+    banneret: { names: ['Herald', 'Banneret', 'Marshal', 'High Marshal'], baseCost: 1500, unlock: 'banneret', role: 'Standard-bearer — stronger allies beside it',
                 base: { defense: 25, hp: 110, attack: { power: 6, speed: 0.6 }, aura: { power: 0.15, range: 'adjacent' }, guard: 2 } },
-    frostadept: { names: ['Frost Apprentice', 'Frost Adept', 'Rimecaller', "Winter's Voice"], baseCost: 1400, unlock: 'frost',
+    frostadept: { names: ['Frost Apprentice', 'Frost Adept', 'Rimecaller', "Winter's Voice"], baseCost: 1400, unlock: 'frost', role: 'Controller — slows enemies to a crawl',
                 base: { defense: 6,  hp: 65,  attack: { power: 10, speed: 1.0, chill: { mult: 1.35, duration: 6 } } } }
 };
 
@@ -325,7 +332,9 @@ function defaultMeta() {
         victory: false,        // the Final Siege has been won — endless mode unlocked
         gameSeconds: 0,        // lifetime game-time across all Ages (victory-screen stat)
         reduceMotion: false,   // manual no-shake/no-float toggle (M15 Phase 2; additive field)
-        sceneView: true        // M15 increment 4: the scene IS the game; classic is the escape hatch
+        sceneView: true,       // M15 increment 4: the scene IS the game; classic is the escape hatch
+        soundVolume: 0.6,      // M15 Phase 3 — keep in sync with loadMeta's ?? defaults
+        soundMuted: false
     };
 }
 
@@ -1306,12 +1315,20 @@ function manualHeroRefresh() {
 }
 
 function hireHero(recruitId) {
+    hireHeroInto(recruitId, heroSquad.findIndex(h => h === null));
+}
+
+// Drag-to-hire lands here: a pool recruit dropped on a specific squad seat.
+// Only an empty seat accepts the hire — dropping on an occupied one is a
+// no-op, never a replace (a mis-drop must not dismiss a hero). A slotIndex
+// of -1 (no empty seat) falls through the same guard: heroSquad[-1] is
+// undefined, not null.
+function hireHeroInto(recruitId, slotIndex) {
     const index = heroRecruitPool.findIndex(r => r.id === recruitId);
     if (index === -1) return;
+    if (heroSquad[slotIndex] !== null) return;
     const recruit = heroRecruitPool[index];
-
-    const slotIndex = heroSquad.findIndex(h => h === null);
-    if (slotIndex === -1 || gold < recruit.cost) return;
+    if (gold < recruit.cost) return;
 
     gold -= recruit.cost;
     heroRecruitPool.splice(index, 1);
@@ -1363,8 +1380,9 @@ function attachHeroDragHandlers(slot, index) {
     slot.addEventListener('drop', e => {
         e.preventDefault();
         slot.classList.remove('drag-over');
-        const sourceIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
-        swapHeroes(sourceIndex, index);
+        const data = e.dataTransfer.getData('text/plain');
+        if (data.startsWith('hire:')) { hireHeroInto(Number(data.slice(5)), index); return; }
+        swapHeroes(parseInt(data, 10), index);
     });
 }
 
@@ -1943,7 +1961,7 @@ function renderRecruitPool() {
             if (!buildingUnlocked) hint = `Needs ${b.name}`;
             else if (!hasSlot) hint = `No open slots`;
 
-            html += `<div class="recruit-card recruit-card--${recruit.rarity}">
+            html += `<div class="recruit-card recruit-card--${recruit.rarity}" data-stat="trecruit:${recruit.id}">
                 <div class="portrait portrait--${recruit.rarity}" data-type="${recruit.typeId}">
                     ${portraitInner('town_' + recruit.typeId, letter)}
                 </div>
@@ -2044,15 +2062,10 @@ function renderBuildings() {
 
             sorted.forEach((r) => {
                 const letter = r.name ? r.name[0].toUpperCase() : '?';
-                const valueLabel = isHpregen ? `${r.income} hp/s` : `${r.income} g/s`;
-                const rarityInfo = rarityTiers[r.rarity] || rarityTiers.common;
                 const injured = isInjured(r);
-                // Injury recovery countdown is volatile — refreshVolatileUI
-                // maintains the title so the ticking clock doesn't rebuild
-                // the whole buildings panel every game-second.
-                const injuredTitle = injured ? `&#10;INJURED — recovering (no income)` : '';
+                // Name/rarity/value/injury detail lives on the hover stat card.
                 html += `<div class="portrait portrait--${r.rarity || 'common'}${injured ? ' portrait--injured' : ''}" data-type="${r.typeId || 'villager'}"
-                    title="${r.name} (${rarityInfo.name}) — ${valueLabel}${injuredTitle}&#10;Click to dismiss"
+                    data-stat="resident:${id}:${r.originalIndex}"
                     data-action="fireResident:${id}:${r.originalIndex}">
                     ${injured ? '<span class="portrait-letter">✚</span>' : portraitInner('town_' + (r.typeId || 'villager'), letter)}
                     <span class="portrait-stat">${r.income}</span>
@@ -2938,6 +2951,7 @@ function buildSquad(el, squad, sideClass, columnOrder, interactive, cols) {
                 slot.className = 'battle-slot empty';
             } else {
                 slot.className = 'battle-slot' + (unit.alive ? '' : ' dead');
+                slot.dataset.stat = (interactive ? 'hero:' : 'enemy:') + index;
                 const statParts = [];
                 if (unit.attack) statParts.push(`ATK ${unit.attack.power}`);
                 if (unit.heal) statParts.push(`HLR ${unit.heal.power}`);
@@ -3006,7 +3020,6 @@ function updateSquad(el, squad, columnOrder, interactive, cols) {
                 if (interactive) {
                     const armed = armedHeroSlot === index && Date.now() - armedHeroSlotTime < ARM_TIMEOUT_MS;
                     slot.classList.toggle('armed', armed);
-                    slot.title = armed ? 'Click again to dismiss' : 'Click to dismiss';
                 }
             }
             slot = slot.nextElementSibling;
@@ -3026,7 +3039,7 @@ function renderSquad(containerId, squad, sideClass, columnOrder, interactive, co
 }
 
 function renderBattleSquads() {
-    if (isDraggingHero) return;
+    if (isDraggingHero || draggingRecruitId !== null) return;
     // Between battles, show the upcoming tier's grid as the empty frame.
     const enemyGrid = currentInvasion ? currentInvasion.grid : RAID_TIERS[raidTierIndex].grid;
     const enemies = currentInvasion ? currentInvasion.enemies : new Array(enemyGrid.rows * enemyGrid.cols).fill(null);
@@ -3049,7 +3062,21 @@ function renderBattleSquads() {
         esc > 1 ? `rgba(160, 30, 20, ${Math.min(0.35, (esc - 1) * 0.5)})` : '';
 }
 
+// Compact ATK/HLR/DEF/GRD line for hero recruit surfaces (classic card +
+// scene crowd nameplate); the hover stat card spells the abbreviations out.
+function heroRecruitStatLine(archetypeKey, rarity) {
+    const base = HERO_ARCHETYPES[archetypeKey].base;
+    const tier = rarityTiers[rarity];
+    const parts = [];
+    if (base.attack) parts.push(`ATK ${Math.round(base.attack.power * tier.incomeMult * heroPowerMult())}`);
+    if (base.heal) parts.push(`HLR ${Math.round(base.heal.power * tier.incomeMult * heroPowerMult())}`);
+    parts.push(`DEF ${base.defense}%`);
+    if (base.guard) parts.push(`GRD ×${base.guard}`);
+    return parts.join(' · ');
+}
+
 function renderHeroRecruitPool() {
+    if (draggingRecruitId !== null) return; // rebuild would destroy the drag source
     if (kingdomLevel < RAID_TRIGGER_LEVEL) {
         setPanelHtml('hero-recruit-pool',
             `<div class="pool-empty">Unlocks at ${levels[RAID_TRIGGER_LEVEL].name}</div>`);
@@ -3067,28 +3094,20 @@ function renderHeroRecruitPool() {
     } else {
         const hasSlot = heroSquad.some(h => h === null);
         heroRecruitPool.forEach(recruit => {
-            const archetype = HERO_ARCHETYPES[recruit.archetypeKey];
             const tier = rarityTiers[recruit.rarity];
-            const base = archetype.base;
-            const statParts = [];
-            if (base.attack) statParts.push(`ATK ${Math.round(base.attack.power * tier.incomeMult * heroPowerMult())}`);
-            if (base.heal) statParts.push(`HLR ${Math.round(base.heal.power * tier.incomeMult * heroPowerMult())}`);
-            statParts.push(`DEF ${base.defense}%`);
-            if (base.guard) statParts.push(`GRD ×${base.guard}`);
-
             const letter = recruit.name[0].toUpperCase();
 
             let hint = '';
             if (!hasSlot) hint = 'Squad full';
 
-            html += `<div class="recruit-card recruit-card--${recruit.rarity}">
+            html += `<div class="recruit-card recruit-card--${recruit.rarity}" draggable="true" data-drag-hire="${recruit.id}" data-stat="hrecruit:${recruit.id}">
                 <div class="portrait portrait--${recruit.rarity}" data-type="${recruit.archetypeKey}">
                     ${portraitInner(heroSpriteKey(recruit.archetypeKey, recruit.rarity), letter)}
                 </div>
                 <div class="recruit-info">
                     <div class="recruit-name">${recruit.name}</div>
                     <div class="recruit-rarity" style="color:${tier.color}">${tier.name}</div>
-                    <div class="recruit-stat">${statParts.join(' &middot; ')}</div>
+                    <div class="recruit-stat">${heroRecruitStatLine(recruit.archetypeKey, recruit.rarity)}</div>
                     ${hint ? `<div class="recruit-hint">${hint}</div>` : ''}
                 </div>
                 <div class="recruit-action">
@@ -3230,6 +3249,174 @@ function refreshVolatileUI() {
     if (currentInvasion) {
         setText('raid-esc-line', `The siege escalates! Enemy attack +${Math.round((escalationMult(currentInvasion) - 1) * 100)}%`);
     }
+    refreshStatCard();
+}
+
+// ---------- M16 Phase 1: the stat card ----------
+// One floating card explains any unit-ish thing on hover — full stats with
+// the abbreviations spelled out, HP numbers (shown nowhere else in the
+// scene), a role line, and ability text derived from live unit data so tier
+// traits and boss signatures describe themselves. It also carries the
+// click/drag affordances that used to hide in native title tooltips (which
+// are gone from these elements — two tooltips would race). Elements opt in
+// via data-stat="kind:a[:b]"; content re-resolves every rendered frame while
+// visible so HP, injuries, and the armed-dismiss hint stay live, and a
+// vanished subject (death, hire, panel rebuild) hides the card.
+let statCardBound = null; // { el, kind, a, b }
+
+function statCardEl() {
+    let el = document.getElementById('stat-card');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'stat-card';
+        el.className = 'hidden';
+        document.body.appendChild(el);
+    }
+    return el;
+}
+
+function scActionInterval(speed) {
+    return (BASE_ATTACK_INTERVAL / 1000 / speed).toFixed(1);
+}
+
+function scRow(label, value) {
+    return `<div class="sc-row"><span>${label}</span><b>${value}</b></div>`;
+}
+
+function scHeader(name, rarity, role) {
+    const tier = rarity ? rarityTiers[rarity] : null;
+    return `<div class="sc-name">${name}${tier ? ` <span style="color:${tier.color}">· ${tier.name}</span>` : ''}</div>`
+        + (role ? `<div class="sc-role">${role}</div>` : '');
+}
+
+// Ability lines derived from whatever the unit (or archetype base) actually
+// carries — no parallel text table to fall out of sync with balance.
+function scAbilityLines(u) {
+    const lines = [];
+    if (u.attack && u.attack.aoe === 'row') lines.push('Strikes an entire row at once');
+    if (u.attack && u.attack.chill) lines.push(`Attacks chill the target — actions ${Math.round((u.attack.chill.mult - 1) * 100)}% slower for ${u.attack.chill.duration}s`);
+    if (u.aura) lines.push(`${u.aura.range === 'all' ? 'War cry — every ally' : 'Banner aura — adjacent allies'} +${Math.round(u.aura.power * 100)}% power`);
+    if (u.enrage) {
+        const bits = [];
+        if (u.enrage.speed > 1) bits.push('faster');
+        if (u.enrage.power > 1) bits.push('harder-hitting');
+        lines.push(`Enrages below half health — ${bits.join(', ') || 'fiercer'} attacks`);
+    }
+    if (u.reviveCharges) lines.push(`Raises fallen allies (${u.reviveCharges} charge${u.reviveCharges > 1 ? 's' : ''} left)`);
+    if (u.targetsKingdom) lines.push('Ignores heroes and attacks the Kingdom — hits can injure townsfolk');
+    if ((u.backlineChance || 0) >= 0.4) lines.push(`Backline hunter — ${Math.round(u.backlineChance * 100)}% of attacks go for the rear rows`);
+    if (u.guard && u.guard !== 1) lines.push(u.guard > 1
+        ? `Guard ×${u.guard} — draws ${u.guard}× the enemy attention in its row`
+        : `Slippery (guard ×${u.guard}) — enemies mostly overlook it`);
+    return lines.map(l => `<div class="sc-ability">${l}</div>`).join('');
+}
+
+function scUnitHtml(u, hint) {
+    const arch = u.archetypeKey ? HERO_ARCHETYPES[u.archetypeKey] : null;
+    let rows = scRow('Health', `${Math.max(0, Math.round(u.hp))} / ${u.maxHp}`);
+    if (u.attack) rows += scRow('Attack', `${u.attack.power} · every ${scActionInterval(u.attack.speed)}s`);
+    if (u.heal) rows += scRow('Heals', `${u.heal.power} · every ${scActionInterval(u.heal.speed)}s`);
+    rows += scRow('Defense', `blocks ${u.defense}% of damage`);
+    return scHeader(u.name, u.rarity, arch && arch.role) + rows + scAbilityLines(u)
+        + (hint ? `<div class="sc-hint">${hint}</div>` : '');
+}
+
+function statCardHtml(kind, a, b) {
+    if (kind === 'hero') {
+        const i = Number(a);
+        const u = heroSquad[i];
+        if (!u) return null;
+        const armed = armedHeroSlot === i && Date.now() - armedHeroSlotTime < ARM_TIMEOUT_MS;
+        return scUnitHtml(u, armed ? 'Click again to dismiss' : 'Click to dismiss · drag to move');
+    }
+    if (kind === 'enemy') {
+        const u = currentInvasion && currentInvasion.enemies[Number(a)];
+        if (!u) return null;
+        return scUnitHtml(u, null);
+    }
+    if (kind === 'hrecruit') {
+        const r = heroRecruitPool.find(x => x.id === Number(a));
+        if (!r) return null;
+        const arch = HERO_ARCHETYPES[r.archetypeKey];
+        const base = arch.base;
+        const tier = rarityTiers[r.rarity];
+        const p = v => Math.round(v * tier.incomeMult * heroPowerMult());
+        let rows = scRow('Health', Math.round(base.hp * Math.sqrt(tier.incomeMult) * heroHpMult()));
+        if (base.attack) rows += scRow('Attack', `${p(base.attack.power)} · every ${scActionInterval(base.attack.speed)}s`);
+        if (base.heal) rows += scRow('Heals', `${p(base.heal.power)} · every ${scActionInterval(base.heal.speed)}s`);
+        rows += scRow('Defense', `blocks ${base.defense}% of damage`);
+        return scHeader(r.name, r.rarity, arch.role) + rows + scAbilityLines(base)
+            + `<div class="sc-hint">${r.cost.toLocaleString()}g — click to hire, or drag onto a squad seat</div>`;
+    }
+    if (kind === 'trecruit') {
+        const r = recruitPool.find(x => x.id === Number(a));
+        if (!r) return null;
+        const type = recruitTypes[r.typeId];
+        const tier = rarityTiers[r.rarity];
+        const home = buildings[r.buildingId];
+        const isHp = home.type === 'hpregen';
+        const lo = isHp ? Math.max(0.1, Math.round(type.incomeMin * tier.incomeMult * 10) / 10)
+                        : Math.max(1, Math.floor(type.incomeMin * tier.incomeMult));
+        const hi = isHp ? Math.max(0.1, Math.round(type.incomeMax * tier.incomeMult * 10) / 10)
+                        : Math.floor(type.incomeMax * tier.incomeMult);
+        return scHeader(r.name, r.rarity, isHp ? 'Repairs the Kingdom walls while housed' : 'Earns gold while housed')
+            + scRow(isHp ? 'Repairs' : 'Earns', `${lo}-${hi} ${isHp ? 'hp' : 'g'}/s`)
+            + scRow('Home', home.name)
+            + `<div class="sc-ability">The exact value is rolled once, on hire</div>`
+            + `<div class="sc-hint">${r.cost.toLocaleString()}g — click to hire</div>`;
+    }
+    if (kind === 'resident') {
+        const home = buildings[a];
+        const r = home && home.residents[Number(b)];
+        if (!r) return null;
+        const isHp = home.type === 'hpregen';
+        return scHeader(r.name, r.rarity || 'common', null)
+            + scRow(isHp ? 'Repairs' : 'Earns', `${r.income} ${isHp ? 'hp' : 'g'}/s`)
+            + (isInjured(r) ? `<div class="sc-ability sc-ability--bad">✚ Injured — recovering, no ${isHp ? 'repairs' : 'income'} for now</div>` : '')
+            + `<div class="sc-hint">Click to dismiss (free) — a fresh hire re-rolls the value</div>`;
+    }
+    return null;
+}
+
+function bindStatCard(el) {
+    const [kind, a, b] = el.dataset.stat.split(':');
+    const html = statCardHtml(kind, a, b);
+    if (!html) return;
+    statCardBound = { el, kind, a, b };
+    const card = statCardEl();
+    card._html = html;
+    card.innerHTML = html;
+    card.classList.remove('hidden');
+    positionStatCard();
+}
+
+function hideStatCard() {
+    if (!statCardBound) return;
+    statCardBound = null;
+    statCardEl().classList.add('hidden');
+}
+
+function positionStatCard() {
+    const card = statCardEl();
+    const r = statCardBound.el.getBoundingClientRect();
+    const cw = card.offsetWidth, ch = card.offsetHeight;
+    let x = r.right + 12;
+    if (x + cw > window.innerWidth - 8) x = r.left - cw - 12;
+    if (x < 8) x = 8;
+    const y = Math.max(8, Math.min(window.innerHeight - ch - 8, r.top + r.height / 2 - ch / 2));
+    card.style.left = Math.round(x) + 'px';
+    card.style.top = Math.round(y) + 'px';
+}
+
+function refreshStatCard() {
+    if (!statCardBound) return;
+    const { el, kind, a, b } = statCardBound;
+    if (!el.isConnected) { hideStatCard(); return; }
+    const html = statCardHtml(kind, a, b);
+    if (!html) { hideStatCard(); return; }
+    const card = statCardEl();
+    if (card._html !== html) { card._html = html; card.innerHTML = html; }
+    positionStatCard();
 }
 
 // --- M15 Phase 0: the render loop ---
@@ -3604,6 +3791,7 @@ function sceneSpotToScreen(spot) {
 }
 
 function renderSceneCrowd() {
+    if (draggingRecruitId !== null) return; // rebuild would destroy the drag source
     let html = '';
     recruitPool.forEach((recruit, i) => {
         const spot = TOWN_CROWD_SPOTS[i % TOWN_CROWD_SPOTS.length];
@@ -3621,6 +3809,7 @@ function renderSceneCrowd() {
         else if (b.residents.length >= b.count * b.slotsPerBuilding) hint = 'No open slots';
         const bits = sceneUnitBits('town_' + recruit.typeId, h, recruit.name[0].toUpperCase(), recruit.rarity);
         html += `<div class="sunit sunit--recruit" data-action="hireRecruit:${recruit.id}" data-recruit-id="${recruit.id}"
+            data-stat="trecruit:${recruit.id}"
             style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%;z-index:${Math.round(y * 4)}">
             ${bits.html}
             <div class="plate" style="top:6px">${recruit.name}
@@ -3639,10 +3828,12 @@ function renderSceneCrowd() {
             const hint = hasSlot ? `Hire — ${recruit.cost.toLocaleString()}g` : 'Squad full';
             const bits = sceneUnitBits(heroSpriteKey(recruit.archetypeKey, recruit.rarity), h, recruit.name[0].toUpperCase(), recruit.rarity);
             html += `<div class="sunit sunit--recruit" data-action="hireHero:${recruit.id}" data-hero-id="${recruit.id}"
+                draggable="true" data-drag-hire="${recruit.id}" data-stat="hrecruit:${recruit.id}"
                 style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%;z-index:${Math.round(y * 4)}">
                 ${bits.html}
                 <div class="plate" style="top:6px">${recruit.name}
                     <div class="sub" style="color:${tier.color}">${tier.name}</div>
+                    <div class="sub">${heroRecruitStatLine(recruit.archetypeKey, recruit.rarity)}</div>
                     <div class="cost">${recruit.cost.toLocaleString()}g</div></div>
                 <div class="hint" style="top:${(-h - 26).toFixed(0)}px"><span>${hint}</span></div>
             </div>`;
@@ -3698,15 +3889,6 @@ function sceneBattleSig(dims, enemyGrid, enemies) {
     return sig;
 }
 
-function unitStatStr(unit) {
-    const parts = [];
-    if (unit.attack) parts.push(`ATK ${unit.attack.power}`);
-    if (unit.heal) parts.push(`HLR ${unit.heal.power}`);
-    parts.push(`DEF ${unit.defense}%`);
-    if (unit.guard) parts.push(`GRD ×${unit.guard}`);
-    return parts.join(' · ');
-}
-
 function sceneBattleUnitHtml(unit, index, xPct, yPct, h, isHero) {
     const key = unitDomKey(unit);
     const boss = !isHero && unit.spriteKey && unit.spriteKey.startsWith('boss_');
@@ -3714,10 +3896,9 @@ function sceneBattleUnitHtml(unit, index, xPct, yPct, h, isHero) {
     const bits = sceneUnitBits(unitSpriteKey(unit), h, unit.name[0].toUpperCase(), isHero ? unit.rarity : null);
     const cls = 'sunit' + (isHero ? ' sunit--hero' : ' sunit--enemy') + (boss ? ' sunit--boss' : '');
     const action = isHero ? ` data-action="sceneHeroClick:${index}" data-hidx="${index}"` : '';
-    // Enemies get their stat tooltip at build time; heroes get theirs in the
-    // per-frame update (folded into the armed/unarmed dismiss hint).
-    const title = isHero ? '' : ` title="${unit.name} — ${unitStatStr(unit)}"`;
-    return `<div class="${cls}" data-ukey="${key}"${action}${title}
+    // Stats live on the hover stat card (M16 phase 1) — no native titles.
+    const stat = ` data-stat="${isHero ? 'hero' : 'enemy'}:${index}"`;
+    return `<div class="${cls}" data-ukey="${key}"${action}${stat}
         style="left:${xPct.toFixed(2)}%;top:${yPct.toFixed(2)}%;z-index:${Math.round(yPct * 4) + 1}">
         ${bits.html}
         <div class="plate" style="top:${(-h - 30).toFixed(0)}px">${unit.name}
@@ -3756,7 +3937,9 @@ function attachSceneDragHandlers(el, index, isTile = false) {
     el.addEventListener('drop', e => {
         e.preventDefault();
         el.classList.remove('drag-over');
-        swapHeroes(parseInt(e.dataTransfer.getData('text/plain'), 10), index);
+        const data = e.dataTransfer.getData('text/plain');
+        if (data.startsWith('hire:')) { hireHeroInto(Number(data.slice(5)), index); return; }
+        swapHeroes(parseInt(data, 10), index);
     });
 }
 
@@ -3803,8 +3986,7 @@ function buildSceneBattle(el, dims, enemyGrid, enemies) {
         if (bind) {
             sceneBattleLive.push({
                 el: uel, unit: bind.unit, hidx: bind.hidx,
-                hpFill: uel.querySelector('.hp i'),
-                statStr: unitStatStr(bind.unit)
+                hpFill: uel.querySelector('.hp i')
             });
             if (bind.hidx >= 0) attachSceneDragHandlers(uel, bind.hidx);
         }
@@ -3817,7 +3999,8 @@ function buildSceneBattle(el, dims, enemyGrid, enemies) {
 }
 
 function renderSceneBattle() {
-    if (isDraggingHero) return; // a rebuild would destroy the dragged element
+    // a rebuild would destroy the dragged element / the tile drop targets
+    if (isDraggingHero || draggingRecruitId !== null) return;
     const el = document.getElementById('scene-battle');
     const dims = heroGridDims();
     const enemyGrid = currentInvasion ? currentInvasion.grid : RAID_TIERS[raidTierIndex].grid;
@@ -3836,8 +4019,6 @@ function renderSceneBattle() {
         if (b.hidx >= 0) {
             const armed = armedHeroSlot === b.hidx && Date.now() - armedHeroSlotTime < ARM_TIMEOUT_MS;
             b.el.classList.toggle('sunit--armed', armed);
-            const title = `${u.name} — ${b.statStr}\n${armed ? 'Click again to dismiss · drag to move' : 'Click to dismiss · drag to move'}`;
-            if (b.el.title !== title) b.el.title = title;
         }
     }
 }
@@ -3898,10 +4079,8 @@ function renderScenePlotDrawer() {
     for (const r of sorted) {
         const letter = r.name ? r.name[0].toUpperCase() : '?';
         const injured = isInjured(r);
-        const val = isHp ? `${r.income} hp/s` : `${r.income} g/s`;
-        const rinfo = rarityTiers[r.rarity] || rarityTiers.common;
         slots += `<div class="portrait portrait--${r.rarity || 'common'}${injured ? ' portrait--injured' : ''}"
-            title="${r.name} (${rinfo.name}) — ${val}&#10;Click to dismiss" data-action="fireResident:${scenePlotOpen}:${r.originalIndex}">
+            data-stat="resident:${scenePlotOpen}:${r.originalIndex}" data-action="fireResident:${scenePlotOpen}:${r.originalIndex}">
             ${injured ? '<span class="portrait-letter">✚</span>' : portraitInner('town_' + (r.typeId || 'villager'), letter)}
             <span class="portrait-stat">${r.income}</span></div>`;
     }
@@ -3927,9 +4106,20 @@ function renderScenePlotDrawer() {
         <div style="margin:2px 0 10px;display:flex;gap:10px;align-items:center">
         <button class="btn-upgrade" data-action="buyBuilding:${scenePlotOpen}" ${info.canAfford ? '' : 'disabled'}>${atCap ? 'At cap' : 'Build'}</button>
         <span style="font-size:calc(12px * var(--uis));color:#8a7f63">${info.costLabel}</span></div>`;
+    // What the building actually does — the classic panel always said this,
+    // the drawer never did (the Keep was unexplainable from the scene alone).
+    const buildingTotal = b.residents.reduce((s, r) => s + r.income, 0);
+    const totalLabel = buildingTotal > 0
+        ? ` · ${isHp ? Math.round(buildingTotal * 10) / 10 + ' hp/s' : buildingTotal.toLocaleString() + ' g/s'} total`
+        : '';
+    const descLine = scenePlotOpen === 'keep'
+        ? `Improves hero recruit rarity${b.count > 0 ? ` — +${b.count} rarity bias now` : ''}`
+        : (isHp ? `Adds ${b.slotsPerBuilding} resident slots each — Builders repair the Kingdom walls`
+                : `Adds ${b.slotsPerBuilding} resident slots each`);
     setPanelHtml('scene-drawer-body',
         `<h3>${b.name} <span class="dw-count">×${b.count} / ${cap}</span></h3>
-         <div class="meta">${b.residents.length} / ${totalSlots} residents · hire from the Town Square</div>
+         <div class="meta">${descLine}</div>
+         ${b.slotsPerBuilding > 0 ? `<div class="meta">${b.residents.length} / ${totalSlots} residents${totalLabel} · hire from the Town Square</div>` : ''}
          ${buildRow}
          <div class="dw-list"><div class="dw-slots">${slots || '<div class="dw-empty">No resident slots.</div>'}</div></div>`);
 }
@@ -4161,6 +4351,38 @@ function bindActionDispatch() {
         playSfx('click'); // quiet tactile layer under every real button press
         runUiAction(pressed);
     }, true);
+    // Drag-to-hire: hero recruits (classic pool cards and scene crowd units)
+    // carry data-drag-hire and can be dragged onto a squad seat. Delegated
+    // like the click dispatch so the handlers survive panel rebuilds. While
+    // the drag is in flight, pool and battle rebuilds are suppressed (the
+    // render guards check draggingRecruitId) so neither the drag source nor
+    // the drop targets get destroyed mid-drag.
+    document.addEventListener('dragstart', e => {
+        hideStatCard(); // any drag — the card would hover over stale geometry
+        const el = e.target.closest && e.target.closest('[data-drag-hire]');
+        if (!el) return;
+        draggingRecruitId = Number(el.dataset.dragHire);
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', 'hire:' + el.dataset.dragHire);
+    });
+    // dragend fires on the source after drop OR cancel; the drop handler has
+    // already hired by then. Formation drags keep their own dragend handlers
+    // (draggingRecruitId is null for those, so this is a no-op).
+    document.addEventListener('dragend', () => {
+        if (draggingRecruitId !== null) { draggingRecruitId = null; updateUI(); }
+    });
+    // Stat card: hover any [data-stat] element (units, recruits, residents).
+    // mouseover fires for every element the cursor crosses, so moving onto
+    // anything without a data-stat ancestor hides the card — no mouseout
+    // bookkeeping needed (mouseout only covers leaving the window).
+    document.addEventListener('mouseover', e => {
+        const el = e.target.closest && e.target.closest('[data-stat]');
+        if (el) { if (!statCardBound || statCardBound.el !== el) bindStatCard(el); }
+        else hideStatCard();
+    });
+    document.addEventListener('mouseout', e => {
+        if (!e.relatedTarget) hideStatCard(); // cursor left the window
+    });
     // Keyboard activation (Enter/Space) arrives as a click with no pointer
     // press. Dispatch it — but swallow the synthetic click that trails a
     // pointerup we already handled, or every mouse press would fire twice.
