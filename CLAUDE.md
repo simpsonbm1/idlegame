@@ -36,9 +36,6 @@ routing rules, the delegation-prompt checklist, and how verifier reports interac
 browser-verified convention: **`AGENT_DELEGATION.md`**. Division of labor: the main thread
 plans, decides, and diagnoses; agents execute and report — delegate proactively (standing
 authorization). Doc passes on this file route to `doc-worker` with surgical prompts.
-**Interim (temporary, grep marker `#79299`):** while Claude Code discards SessionStart hook
-output (anthropics/claude-code#79299), `.githooks/pre-commit` also runs the delegation audit
-so `[delegation-audit]` lines arrive in commit output; unwind rule in the global CLAUDE.md.
 
 ## Tech stack
 Plain HTML + CSS + JavaScript. No frameworks, no build step. Open `index.html` in a browser to
