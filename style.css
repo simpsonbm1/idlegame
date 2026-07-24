@@ -1691,17 +1691,17 @@ body.scene-open #scene-toggle { color: #e8c96d; border-color: #7a6428; }
 .sunit .ring--rare      { border-color: rgba(90,150,220,0.75); }
 .sunit .ring--epic      { border-color: rgba(170,100,220,0.8); }
 .sunit .ring--legendary { border-color: rgba(232,190,80,0.9); }
-/* Smooth sampling, NOT pixelated (2026-07-19 art feedback): the processed
-   asset is already a high-quality 160px downscale, and world units render at
-   0.5-0.97x of it. Nearest-neighbor kept the sprite's fine pixel grid nearly
-   intact at battle sizes, reading sharper/higher-res than the painterly
-   backdrop; bilinear gives the softer look that blends with it (the crowd's
-   smaller scale melted the grid anyway — this makes both halves match).
-   Panel portraits and the backdrop keep their pixelated rendering. */
-.sunit .sprite { position: absolute; image-rendering: auto;
+/* Sharp sampling (2026-07-23 playtest: user prefers the crisp pixel grid on
+   characters over the softer bilinear that blended into the backdrop). The bob
+   is a translate, NOT a scaleY: a scale animation put the sprite on a
+   compositor layer that sampled soft while moving and re-rasterized crisp at
+   the quasi-static apex, so sharp sampling visibly flickered soft->sharp each
+   breath. Translating the whole sprite is raster-stable, so it stays crisp.
+   To revert to the soft look: image-rendering: auto on this rule and .sghost. */
+.sunit .sprite { position: absolute; image-rendering: pixelated;
                  animation: sunit-bob 2.6s ease-in-out infinite;
                  transform-origin: 50% 100%; transition: filter 0.15s; }
-@keyframes sunit-bob { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.014); } }
+@keyframes sunit-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.3px); } }
 .sunit .letter-chip { position: absolute; width: 34px; height: 40px; line-height: 40px;
                  text-align: center; font-size: 19px; color: #d8cba8;
                  background: rgba(24,20,10,0.85); border: 1px solid #4a3a18; border-radius: 4px; }
@@ -1762,7 +1762,7 @@ body.scene-open #scene-toggle { color: #e8c96d; border-color: #7a6428; }
 
 /* scene death ghost: a detached sprite copy fading out where the hero fell
    (sampling matches .sunit .sprite so the ghost doesn't sharpen at death) */
-.sghost { position: absolute; image-rendering: auto; pointer-events: none;
+.sghost { position: absolute; image-rendering: pixelated; pointer-events: none;
           animation: sghost-fade 1.1s ease-out forwards; }
 @keyframes sghost-fade { 0% { opacity: 0.9; } 100% { opacity: 0; transform: translateY(-26px); } }
 
