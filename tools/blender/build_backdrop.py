@@ -28,6 +28,7 @@ import bpy, math, os, sys, importlib
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.append(HERE)
+from mathutils import noise as bnoise, Vector
 import pixelrig as P
 importlib.reload(P)
 OUT = P.out_dir()
@@ -169,12 +170,18 @@ for i in range(78):
         flat.append(t_)
 
 
-# Flatter than it needs to be for TEXTURE, because smooth shading now extracts
-# plenty of tonal variation from very little slope: crossing one ramp stop in the
-# lit cluster takes about 2.3 degrees of tilt, and even this amplitude reaches
-# roughly 15. The relief was cranked up when the ground was flat-shaded and every
-# tone had to come from a visible facet.
-AMP = 0.16
+# Flatter than it needs to be for TEXTURE, because smooth shading extracts plenty
+# of tonal variation from very little slope: crossing one ramp stop in the lit
+# cluster takes about 2.3 degrees of tilt. The relief was cranked up when the
+# ground was flat-shaded and every tone had to come from a visible facet.
+AMP = 0.60
+
+# Patches where the relief eases off. The plaza already produced one of these as a
+# side effect of being flattened for the paving, and that break was the part of the
+# ground that read best, so the effect is now placed deliberately.
+CALM = ((-24.0, -3.0, 6.5), (-11.5, 3.5, 5.0), (3.0, -12.5, 6.5),
+        (14.5, -1.5, 5.5), (23.0, -14.0, 6.0), (-6.5, -17.0, 5.0),
+        (26.5, 4.5, 5.0), (-19.0, -15.0, 4.5))
 PLAZA = (-16.8, -8.6)
 
 
@@ -187,14 +194,22 @@ def flatten(x, y):
     return k
 
 
+def calm(x, y):
+    """Ease the relief toward flat inside the CALM patches."""
+    k = 1.0
+    for cx, cy, r in CALM:
+        d = math.hypot(x - cx, y - cy) / r
+        k = min(k, max(0.10, min(1.0, d * d)))
+    return k
+
+
 def hgt(x, y):
-    # Weighted toward the FINE octaves. The broad rolls are what read as hills, and
-    # they are the part worth losing; the fine ones carry the surface nuance.
-    return AMP * flatten(x, y) * (
-        0.70 * math.sin(x * 0.33) * math.cos(y * 0.29)
-        + 0.30 * math.sin(x * 0.12 + 1.7) * math.cos(y * 0.17 + 0.9)
-        + 0.55 * math.sin(x * 1.15 + 0.4) * math.cos(y * 1.05 + 2.1)
-        + 0.32 * math.sin(x * 2.3 + 2.6) * math.cos(y * 2.1 + 0.5))
+    # Fractal noise, NOT a stack of sines. Separable sin(x)*cos(y) terms are a
+    # regular lattice by construction, and however many octaves are added they
+    # still line their peaks up in rows, which is what produced the diagonal
+    # ribbons. Perlin has no preferred direction and no repeat.
+    n = bnoise.fractal(Vector((x * 0.15, y * 0.15, 0.0)), 0.85, 2.0, 5)
+    return AMP * flatten(x, y) * calm(x, y) * n
 
 
 ROAD_PTS = []

@@ -198,6 +198,16 @@ only get sharper edges. With smooth normals the shading varies across each quad,
 the ramp's steps set the band edges and those follow the terrain's contours instead
 of its topology.
 
+Displace with **fractal noise, never a stack of sines**. Separable `sin(x)*cos(y)`
+terms are a regular lattice by construction, and no number of octaves fixes that:
+they keep lining their peaks up in rows, which renders as diagonal ribbons across
+the ground. `mathutils.noise.fractal` has no preferred direction and no repeat.
+
+Then scatter a few CALM patches where the relief eases toward flat. The plaza
+produced one of these as a side effect of being flattened for its paving, and that
+break was the part of the ground that read best, so the effect is worth placing
+deliberately rather than leaving to accident.
+
 Once shading is smooth, drop the amplitude hard. Crossing one ramp stop in the lit
 cluster takes about 2.3 degrees of tilt, so very little slope produces plenty of
 tone. High relief is only needed while the ground is flat-shaded and every tone has
