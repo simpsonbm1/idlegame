@@ -36,6 +36,8 @@ Renders land in `tools/blender/out/`, which is gitignored. Paths resolve from
 | `compose_battle.py` | battle band with sprites composited at matched scale (run after `build_scene`) |
 | `compose_lineup.py` | all character sprites on one strip, to make style drift visible |
 | `build_attack.py` | attack animations as horizontal sprite sheets (`knight()`, `goblin()`) |
+| `build_backdrop.py` | the game backdrop at the locked watchtower camera, wall on 46% |
+| `compose_vista.py` | characters seated on the backdrop by world coordinate (run after both) |
 
 ## How the style is produced
 
@@ -158,6 +160,31 @@ until frame 1 gained a backward dip as anticipation.
 Every frame passes through the same rig, so palette, outline weight and pixel grid
 hold across a sheet by construction. Hand-drawn frames are where sprite animation
 usually gets expensive; here a new attack is a list of angles.
+
+## The backdrop
+
+`build_backdrop.py` targets what game.js already expects of the painted backdrop:
+the locked "strategy-map-from-a-watchtower" camera, the wall seated so
+`SCENE_WALL_FRAC` puts its centre on 46% across, the 2400/1270 kept-region aspect,
+and clear ground across the `BUILDING_PLOTS` band because game.js draws the
+buildings itself.
+
+It renders at exactly **2x SPRITE_PX**, the density `M15_ASSET_SPECS.md` recorded
+as the sweet spot. Holding that density while covering a whole town and
+battlefield is what sets the resolution: 60 world units at 2x needs 768 pixels
+across. `compose_vista.py` then displays it at 2x, which makes one screen pixel
+equal one character pixel, so sprites drop on at 1:1 seated by world coordinate.
+
+Two things an orthographic camera forces, both of which cost a debugging round:
+
+1. **There is no horizon.** Distance never thins anything out, so the ground plane
+   would run off the top of the frame. End the ground at a chosen depth and stand
+   the range and a sky panel just beyond it. Hide the cut with a haze strip and a
+   continuous distant treeline.
+2. **Distant scenery must be a standing flat, not a solid.** A cone wide enough to
+   read as a mountain is equally wide in DEPTH, so its near edge reaches forward
+   past everything in front of it. One mountain was poking through the town wall
+   and out onto the grass. Squash distant cones to about 0.16 in Y.
 
 ## Cost, measured on the pilot
 
