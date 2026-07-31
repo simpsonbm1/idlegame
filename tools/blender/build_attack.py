@@ -24,6 +24,11 @@ arm straight through the torso, and on a two-handed swing it drives the shoulder
 up through the head. Lift moves the arc forward in depth so it passes in front of
 the body instead. Any frame with a real swing needs a real lift.
 
+One hand on the weapon means the arm can be turned rigidly about the shoulder.
+Two hands is a closed loop and needs the reverse: drive the weapon, then solve
+each arm to reach its grip point with two-bone IK. knight() shows the first,
+goblin() the second.
+
 Run:
     import build_attack; build_attack.knight(); build_attack.goblin()
 """
@@ -42,11 +47,13 @@ def _rig(scn, groups, figure_root_name):
 
     A pivot MUST sit on the joint the limb actually rotates about. Put it
     anywhere else and the limb translates as well as turns, which reads as the
-    arm coming away from the shoulder. A two-handed weapon therefore needs three
-    pivots -- one at each shoulder, plus one at their midpoint carrying the
-    weapon. The hands stay the correct distance apart because each arm turns by
-    the same amount about its own joint, and the weapon tracks the midpoint of
-    the two hands exactly.
+    arm coming away from the shoulder.
+
+    Good for a ONE-HANDED weapon only. Rotating two arms about their own
+    shoulders does not keep their hands a fixed distance apart, because the gap
+    between the shoulders is fixed while each hand's offset from its shoulder
+    rotates, so a two-handed weapon comes loose from the fists. See goblin(),
+    which drives the weapon and solves the arms with IK instead.
 
     groups: list of (pivot_location, part_names). Returns (pivots, figure_root).
     """
@@ -114,32 +121,70 @@ def knight():
 def goblin():
     """Two-handed overhead smash: raise high, drive down, settle.
 
-    Three pivots. Each arm turns about its own shoulder ball, so the shoulder end
-    of the arm stays welded to the torso, and the club rides the midpoint of the
-    two shoulders, which is exactly where the midpoint of the two hands goes.
-    A single shared pivot in front of the chest was what made the arms look
-    detached, because it translated them as well as turning them.
+    The club is driven and the ARMS FOLLOW IT, solved with two-bone IK. Turning
+    each arm rigidly about its own shoulder keeps the shoulders attached but lets
+    the hands drift apart, because the gap between the shoulders is fixed while
+    each hand's offset from its shoulder rotates. The club then floats between
+    the fists. Driving the club and reaching for it fixes both ends at once.
     """
+    from mathutils import Matrix, Euler, Vector
     import build_goblin
     importlib.reload(build_goblin)
     scn = P.get_scene()
-    pivot, root = _rig(scn, [
-        ((-0.80, -0.10, 2.24), ("gshoulderL", "gupperL", "gforeL", "gfistL")),
-        ((0.80, -0.10, 2.26), ("gshoulderR", "gupperR", "gforeR", "gfistR", "gpauldron")),
-        ((0.0, -0.10, 2.25), ("club_root",)),
-    ], "goblin_root")
-    #          lift  swing  lunge
+    root = P.find(scn, "goblin_root")[0]
+    club = P.find(scn, "club_root")[0]
+
+    # Bone lengths are the cylinder depths from build_goblin.
+    ARMS = [
+        {"S": Vector((-0.80, -0.10, 2.24)), "a": 0.68, "b": 0.56, "pole": Vector((-0.55, 0.35, -1.0)),
+         "up": P.find(scn, "gupperL")[0], "fo": P.find(scn, "gforeL")[0], "fi": P.find(scn, "gfistL")[0]},
+        {"S": Vector((0.80, -0.10, 2.26)), "a": 0.66, "b": 0.60, "pole": Vector((0.55, 0.35, -1.0)),
+         "up": P.find(scn, "gupperR")[0], "fo": P.find(scn, "gforeR")[0], "fi": P.find(scn, "gfistR")[0]},
+    ]
+    # Where each fist grips the shaft, expressed in the club's own space, taken
+    # from the rest pose so frame 0 reproduces the static sprite exactly.
+    club_rest = club.matrix_basis.copy()
+    for arm in ARMS:
+        arm["grip"] = club_rest.inverted() @ arm["fi"].location.copy()
+
+    # Swing the club about a point BELOW the shoulder line. Pivoting on the
+    # shoulders themselves lifts the grip to head height at full raise, which
+    # folds both forearms across the face.
+    MID = Vector((0.0, -0.22, 1.98))
+    base_loc = tuple(root.location)
+
+    def pose_for(lift, swing, lunge):
+        def pose():
+            R = Euler((math.radians(lift), math.radians(swing), 0), 'XYZ').to_matrix().to_4x4()
+            club.matrix_basis = (Matrix.Translation(MID) @ R
+                                 @ Matrix.Translation(-MID) @ club_rest)
+            for arm in ARMS:
+                target = club.matrix_basis @ arm["grip"]
+                elbow, hand = P.two_bone_ik(arm["S"], target, arm["a"], arm["b"], arm["pole"])
+                P.aim_segment(arm["up"], arm["S"], elbow)
+                P.aim_segment(arm["fo"], elbow, hand)
+                arm["fi"].location = hand
+            root.location = (base_loc[0], base_loc[1] + lunge, base_loc[2])
+        return pose
+
     # His club already points forward at rest, so a plain raise-and-drop returns
-    # to a pose that looks like the rest frame. Frame 1 dips the club backward
-    # first: the anticipation makes the raise register and gives the smash a
-    # visibly different endpoint than where it started.
+    # to a pose resembling the rest frame. Frame 1 dips the club backward first:
+    # the anticipation makes the raise register and gives the smash a visibly
+    # different endpoint than where it started.
     #          lift  swing  lunge
     frames = [(0, 0, 0),
-              (-16, -20, 0.06),
-              (-38, 96, 0.10),
-              (-34, 60, 0.06),
-              (-40, -54, -0.26),
-              (-30, -36, -0.20),
-              (-14, -15, -0.08),
+              (-14, -18, 0.06),
+              (-30, 78, 0.10),
+              (-27, 48, 0.06),
+              (-34, -52, -0.26),
+              (-25, -34, -0.20),
+              (-12, -14, -0.08),
               (0, 0, 0)]
-    return _swing(scn, pivot, root, frames, "atk_goblin")
+    P.sprite_cam(scn, res=128, target_z=2.11)
+    path = P.render_strip(scn, [pose_for(*f) for f in frames],
+                          os.path.join(OUT, "atk_goblin.png"))
+    P.upscale_nearest(path, os.path.join(OUT, "atk_goblin_big.png"), 4, bg="#2a2320")
+    print("atk_goblin ->", len(frames), "frames (IK arms)")
+    return path
+
+

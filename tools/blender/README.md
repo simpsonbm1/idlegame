@@ -120,10 +120,20 @@ body. Any frame with a real swing needs a real lift, roughly a third of it.
 
 **A pivot must sit on the joint the limb actually turns about.** Anywhere else and
 the limb translates as well as rotates, which reads unmistakably as the arm coming
-away from the shoulder. A two-handed weapon therefore takes three pivots, not one:
-one on each shoulder ball, plus one at their midpoint carrying the weapon. The
-hands stay the right distance apart because each arm turns by the same amount
-about its own joint, and the weapon tracks the midpoint of the two hands exactly.
+away from the shoulder.
+
+**One hand on the weapon is a pivot problem. Two hands is an IK problem.** Turning
+each arm about its own shoulder keeps both shoulders attached, but it does not keep
+the hands a fixed distance apart: the gap between the shoulders is fixed while each
+hand's offset from its shoulder rotates, so the separation drifts and the weapon
+floats between the fists. A two-handed grip is a closed loop. Drive the weapon,
+then solve each arm to reach its grip point with `two_bone_ik()`, which is what
+`goblin()` does. Grip points are captured from the rest pose, so frame 0 still
+reproduces the static sprite.
+
+Swing a two-handed weapon about a point BELOW the shoulder line. Pivoting on the
+shoulders themselves lifts the grip to head height at full raise, and both
+forearms fold across the face.
 
 Two more things that only showed up in playback. A weapon overlapping the body has
 to separate by **value**, since at this size an outline alone will not carry it;

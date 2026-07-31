@@ -364,6 +364,48 @@ def reparent_keep(root, objs):
         ob.matrix_parent_inverse = root.matrix_world.inverted()
 
 
+def two_bone_ik(shoulder, target, len_a, len_b, pole):
+    """Planar two-bone solve. Returns (elbow, reachable_target).
+
+    Needed for a two-handed grip, which is a closed loop: both hands must stay
+    ON the weapon. Turning each arm rigidly about its own shoulder does NOT keep
+    the hands a fixed distance apart, because the gap between the shoulders is
+    fixed while each hand's offset from its shoulder rotates. The weapon then
+    floats free of the fists. The fix is to drive the weapon and let the arms
+    reach for it.
+
+    `pole` steers which way the elbow breaks; only its component perpendicular
+    to the shoulder-to-target line matters. If the target is out of reach the
+    returned target is pulled in to arm's length.
+    """
+    from mathutils import Vector
+    S, H, p = Vector(shoulder), Vector(target), Vector(pole)
+    v = H - S
+    if v.length < 1e-6:
+        v = Vector((0, 0, -1))
+    d = min(max(v.length, abs(len_a - len_b) + 1e-4), len_a + len_b - 1e-4)
+    u = v.normalized()
+    H = S + u * d
+    cos_a = max(-1.0, min(1.0, (len_a * len_a + d * d - len_b * len_b) / (2 * len_a * d)))
+    alpha = math.acos(cos_a)
+    n = p - u * p.dot(u)
+    if n.length < 1e-6:
+        n = Vector((0, 0, 1)) - u * u.z
+    if n.length < 1e-6:
+        n = Vector((1, 0, 0))
+    n.normalize()
+    E = S + (u * math.cos(alpha) + n * math.sin(alpha)) * len_a
+    return E, H
+
+
+def aim_segment(ob, a, b):
+    """Place a Z-axis cylinder so it spans a -> b (its length is unchanged)."""
+    from mathutils import Vector
+    A, B = Vector(a), Vector(b)
+    ob.location = (A + B) / 2.0
+    ob.rotation_euler = (B - A).to_track_quat('Z', 'Y').to_euler()
+
+
 def render_to(scn, path):
     scn.render.filepath = path
     bpy.ops.render.render(write_still=True, scene=scn.name)
