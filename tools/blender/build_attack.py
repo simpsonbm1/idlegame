@@ -136,9 +136,9 @@ def goblin():
 
     # Bone lengths are the cylinder depths from build_goblin.
     ARMS = [
-        {"S": Vector((-0.80, -0.10, 2.24)), "a": 0.68, "b": 0.56, "pole": Vector((-0.55, 0.35, -1.0)),
+        {"S": Vector((-0.80, -0.10, 2.24)), "a": 0.68, "b": 0.56, "pole": Vector((-1.1, 0.30, -0.8)),
          "up": P.find(scn, "gupperL")[0], "fo": P.find(scn, "gforeL")[0], "fi": P.find(scn, "gfistL")[0]},
-        {"S": Vector((0.80, -0.10, 2.26)), "a": 0.66, "b": 0.60, "pole": Vector((0.55, 0.35, -1.0)),
+        {"S": Vector((0.80, -0.10, 2.26)), "a": 0.66, "b": 0.60, "pole": Vector((1.1, 0.30, -0.8)),
          "up": P.find(scn, "gupperR")[0], "fo": P.find(scn, "gforeR")[0], "fi": P.find(scn, "gfistR")[0]},
     ]
     # Where each fist grips the shaft, expressed in the club's own space, taken
@@ -150,7 +150,7 @@ def goblin():
     # Swing the club about a point BELOW the shoulder line. Pivoting on the
     # shoulders themselves lifts the grip to head height at full raise, which
     # folds both forearms across the face.
-    MID = Vector((0.0, -0.22, 1.98))
+    MID = Vector((0.0, -0.26, 1.86))
     base_loc = tuple(root.location)
 
     def pose_for(lift, swing, lunge):
@@ -160,9 +160,10 @@ def goblin():
                                  @ Matrix.Translation(-MID) @ club_rest)
             for arm in ARMS:
                 target = club.matrix_basis @ arm["grip"]
-                elbow, hand = P.two_bone_ik(arm["S"], target, arm["a"], arm["b"], arm["pole"])
-                P.aim_segment(arm["up"], arm["S"], elbow)
-                P.aim_segment(arm["fo"], elbow, hand)
+                elbow, hand, la, lb = P.two_bone_ik(
+                    arm["S"], target, arm["a"], arm["b"], arm["pole"], stretch=0.22)
+                P.aim_segment(arm["up"], arm["S"], elbow, arm["a"])
+                P.aim_segment(arm["fo"], elbow, hand, arm["b"])
                 arm["fi"].location = hand
             root.location = (base_loc[0], base_loc[1] + lunge, base_loc[2])
         return pose
@@ -173,12 +174,12 @@ def goblin():
     # different endpoint than where it started.
     #          lift  swing  lunge
     frames = [(0, 0, 0),
-              (-14, -18, 0.06),
-              (-30, 78, 0.10),
-              (-27, 48, 0.06),
-              (-34, -52, -0.26),
-              (-25, -34, -0.20),
-              (-12, -14, -0.08),
+              (-16, -20, 0.06),
+              (-40, 92, 0.10),
+              (-36, 60, 0.06),
+              (-42, -52, -0.26),
+              (-30, -34, -0.20),
+              (-13, -14, -0.08),
               (0, 0, 0)]
     P.sprite_cam(scn, res=128, target_z=2.11)
     path = P.render_strip(scn, [pose_for(*f) for f in frames],

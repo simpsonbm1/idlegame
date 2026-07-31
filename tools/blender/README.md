@@ -135,6 +135,19 @@ Swing a two-handed weapon about a point BELOW the shoulder line. Pivoting on the
 shoulders themselves lifts the grip to head height at full raise, and both
 forearms fold across the face.
 
+**Give the solver stretch.** The goblin's rest pose already holds his arms at 94
+percent of full extension, so almost any motion puts a hand past arm's length.
+Clamped, the hand drops off the club; stretched up to about 20 percent it stays
+on, and at this resolution the lengthening is invisible. A fully extended arm also
+has no elbow left to steer, so the pole vector stops working entirely, which is
+worth knowing before spending time tuning one.
+
+**Check clearance with arithmetic, not with your eyes.** Sample each arm segment
+and measure its distance to the head volume, then read the per-frame number. Two
+rounds were spent adjusting poses that looked plausible in the strip, and the
+measurement located the real culprit immediately: the left elbow sitting 0.10
+units inside the jaw box, on one frame.
+
 Two more things that only showed up in playback. A weapon overlapping the body has
 to separate by **value**, since at this size an outline alone will not carry it;
 the knight's blade sat inside the armour's own tone range and looked embedded in

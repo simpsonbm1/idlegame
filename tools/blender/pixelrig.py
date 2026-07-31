@@ -364,8 +364,8 @@ def reparent_keep(root, objs):
         ob.matrix_parent_inverse = root.matrix_world.inverted()
 
 
-def two_bone_ik(shoulder, target, len_a, len_b, pole):
-    """Planar two-bone solve. Returns (elbow, reachable_target).
+def two_bone_ik(shoulder, target, len_a, len_b, pole, stretch=0.0):
+    """Planar two-bone solve. Returns (elbow, hand, len_a, len_b).
 
     Needed for a two-handed grip, which is a closed loop: both hands must stay
     ON the weapon. Turning each arm rigidly about its own shoulder does NOT keep
@@ -375,15 +375,27 @@ def two_bone_ik(shoulder, target, len_a, len_b, pole):
     reach for it.
 
     `pole` steers which way the elbow breaks; only its component perpendicular
-    to the shoulder-to-target line matters. If the target is out of reach the
-    returned target is pulled in to arm's length.
+    to the shoulder-to-target line matters, so a fully extended arm cannot be
+    steered at all.
+
+    `stretch` is the fraction the bones may lengthen to reach a target beyond
+    arm's length, e.g. 0.2 for twenty percent. Without it an out-of-reach target
+    is clamped, which drops the hand off the weapon it is meant to be gripping.
+    Figures posed with nearly straight arms need this, because almost any motion
+    then puts a hand out of reach. At sprite resolution the stretch is invisible.
+    Pass the returned lengths to aim_segment so the limb actually spans the gap.
     """
     from mathutils import Vector
     S, H, p = Vector(shoulder), Vector(target), Vector(pole)
     v = H - S
     if v.length < 1e-6:
         v = Vector((0, 0, -1))
-    d = min(max(v.length, abs(len_a - len_b) + 1e-4), len_a + len_b - 1e-4)
+    d = v.length
+    reach = len_a + len_b
+    if d > reach and stretch > 0.0:
+        k = min(d / reach, 1.0 + stretch)
+        len_a, len_b, reach = len_a * k, len_b * k, reach * k
+    d = min(max(d, abs(len_a - len_b) + 1e-4), reach - 1e-4)
     u = v.normalized()
     H = S + u * d
     cos_a = max(-1.0, min(1.0, (len_a * len_a + d * d - len_b * len_b) / (2 * len_a * d)))
@@ -395,15 +407,22 @@ def two_bone_ik(shoulder, target, len_a, len_b, pole):
         n = Vector((1, 0, 0))
     n.normalize()
     E = S + (u * math.cos(alpha) + n * math.sin(alpha)) * len_a
-    return E, H
+    return E, H, len_a, len_b
 
 
-def aim_segment(ob, a, b):
-    """Place a Z-axis cylinder so it spans a -> b (its length is unchanged)."""
+def aim_segment(ob, a, b, rest_len=None):
+    """Place a Z-axis cylinder so it spans a -> b.
+
+    With rest_len given, the cylinder is scaled along Z to span the gap exactly,
+    which is what keeps a stretched limb solid instead of leaving a hole at the
+    elbow.
+    """
     from mathutils import Vector
     A, B = Vector(a), Vector(b)
     ob.location = (A + B) / 2.0
     ob.rotation_euler = (B - A).to_track_quat('Z', 'Y').to_euler()
+    if rest_len:
+        ob.scale = (ob.scale[0], ob.scale[1], (B - A).length / rest_len)
 
 
 def render_to(scn, path):
