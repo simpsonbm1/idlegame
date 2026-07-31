@@ -6,3 +6,7 @@ SESSION_HANDOFF.md
 
 # Disposable seam-marriage eval composite (regenerated per candidate round)
 seam-preview.png
+
+# Blender pixel-art rig renders (regenerated on demand from tools/blender/*.py)
+tools/blender/out/
+tools/blender/__pycache__/

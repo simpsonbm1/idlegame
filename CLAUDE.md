@@ -79,6 +79,11 @@ Shipping the game to players who can't run a server is **M17: distribution & pac
   Rerun for any balance change. **Keep its constant tables in sync with game.js.**
 - `tools/process-art.html` / `tools/plot-placer.html` / `tools/scene-prototype.html` — art
   pipeline and layout tools
+- `tools/blender/` — Blender pixel-art rig (pilot, style verdict pending): Python that
+  models and renders sprites as 3D pixel art, driven over the Blender MCP connection.
+  Renders go to the gitignored `tools/blender/out/`. Read `tools/blender/README.md` before
+  touching it; two invariants there (one root per part, depth-separate overlapping parts)
+  cost real debugging time.
 - `assets/` — sprites and audio; every committed asset file must be covered by a
   `assets/CREDITS.md` line (pre-commit enforced; run `git config core.hooksPath .githooks`
   once per machine)
