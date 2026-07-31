@@ -104,15 +104,18 @@ ROSTER = [
           "BOSS: the Demon Empress, the series showpiece"),
 
     # ---- buildings (near-isometric camera, not the sprite camera) -----------
-    Asset(47, "cottage", "build_cottage", "out_cottage.png", "buildings", 128),
-    _todo(48, "tavern", "buildings", 128),
-    _todo(49, "smithy", "buildings", 128),
-    _todo(50, "workshop", "buildings", 128),
-    _todo(51, "library", "buildings", 128),
-    _todo(52, "keep", "buildings", 128),
-    _todo(53, "apothecary", "buildings", 128),
-    _todo(54, "tower", "buildings", 144),
-    _todo(55, "cathedral", "buildings", 160),
+    # Buildings render at the CHARACTER pixel density (see building_kit.py), so
+    # their cells are large: a building stands about twice a character's height
+    # and the density is the same, so it needs about twice the pixels.
+    Asset(47, "cottage", "build_cottage", "out_cottage.png", "buildings", 192),
+    Asset(48, "tavern", "build_tavern", "out_tavern.png", "buildings", 224),
+    Asset(49, "smithy", "build_smithy", "out_smithy.png", "buildings", 192),
+    Asset(50, "workshop", "build_workshop", "out_workshop.png", "buildings", 192),
+    Asset(51, "library", "build_library", "out_library.png", "buildings", 224),
+    Asset(52, "keep", "build_keep", "out_keep.png", "buildings", 224),
+    Asset(53, "apothecary", "build_apothecary", "out_apothecary.png", "buildings", 192),
+    Asset(54, "tower", "build_tower", "out_tower.png", "buildings", 256),
+    Asset(55, "cathedral", "build_cathedral", "out_cathedral.png", "buildings", 256),
 
     # ---- townsfolk ----------------------------------------------------------
     _todo(9, "town_villager", "townsfolk", 96),
