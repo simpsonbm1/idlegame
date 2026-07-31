@@ -275,6 +275,27 @@ Two things an orthographic camera forces, both of which cost a debugging round:
    past everything in front of it. One mountain was poking through the town wall
    and out onto the grass. Squash distant cones to about 0.16 in Y.
 
+## Grounding the units
+
+Sprites are composited, so they get no shadow from the backdrop's sun. Without one
+they float. `compose_vista.py` draws a contact ellipse under each unit, offset the
+way the sun throws it, which on this backdrop is right and slightly down.
+
+It is a CONTACT shadow, not a projection. A geometrically correct one would run
+about 94 screen pixels from a figure 40 pixels wide, and a formation would turn
+into a thicket.
+
+The ellipse darkens the ground it covers and then snaps the result back onto the
+backdrop's own palette, so a shadow never introduces a colour the scene does not
+already contain. A plain translucent overlay would, and it reads immediately as a
+layer sitting on top rather than as part of the art.
+
+**Keep the battle line out of the wall's cast shadow.** The wall throws its shadow
+right, over roughly x = -1.8 to 1.9, which is the field side where the fighting
+happens. A fully lit sprite standing in a shaded band looks pasted on. Moving the
+line clear is free; darkening sprites that stand in shadow means the game has to
+know the shadow's shape at runtime, which is a much bigger commitment.
+
 ## Cost, measured on the pilot
 
 | Asset | Primitives | Render passes to acceptable |
