@@ -131,5 +131,6 @@ def ghostflame(scn, M, loc, scale=1.0, hot=None, cool=None):
 
 
 def finish(scn, px, key, figure, detail, noline, roots=(), skip_extra=(),
-           facing=FACING):
-    return S.finish(scn, px, key, figure, detail, noline, roots, skip_extra, facing)
+           facing=FACING, role=None, body_roots=()):
+    return S.finish(scn, px, key, figure, detail, noline, roots, skip_extra,
+                    facing, role, body_roots)

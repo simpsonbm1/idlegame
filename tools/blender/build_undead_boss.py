@@ -96,4 +96,4 @@ soul = [P.add_sphere(scn, "soulcore", (0, 0, 1.81), 0.145, M["teal"], segs=10, r
 P.parent_all(st_root, staff + soul)
 
 U.finish(scn, px, "undead_boss", figure, detail, noline, roots=[st_root],
-         skip_extra=tuple(o.name for o in soul))
+         skip_extra=tuple(o.name for o in soul), role="boss")

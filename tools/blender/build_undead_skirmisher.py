@@ -111,4 +111,4 @@ for name, rot, loc in (("bladeL_root", (0, 156, 0), (-0.83, -0.74, 1.68)),
                       P.add_box(scn, "bladeguard", (0, 0, 0.02), (0.24, 0.10, 0.06), M["iron"])])
     blade_roots.append(br)
 
-U.finish(scn, px, "undead_skirmisher", figure, detail, noline, roots=blade_roots)
+U.finish(scn, px, "undead_skirmisher", figure, detail, noline, roots=blade_roots, role="skirmisher")

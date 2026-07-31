@@ -10,7 +10,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.append(HERE)
 import pixelrig as P
+import spritekit as S
 importlib.reload(P)
+importlib.reload(S)
 OUT = P.out_dir()
 
 scn = P.get_scene()
@@ -91,10 +93,5 @@ for i, z in enumerate((0.98, 1.20, 1.40)):
                                     rot=(0, math.radians(s * 90), 0), verts=5))
 P.parent_all(cl_root, clubparts)
 
-root = P.make_root(scn, "goblin_root", rot=(0, 0, -30))
-P.parent_all(root, figure + detail + [cl_root])
-
-P.outline_all(scn, px, width_px=1.75, skip=tuple(d.name for d in detail))
-P.render_to(scn, os.path.join(OUT, "out_goblin.png"))
-P.upscale_nearest(os.path.join(OUT, "out_goblin.png"), os.path.join(OUT, "out_goblin_big.png"), 8, bg="#ff00ff")
-print("goblin done, figure parts:", len(figure), "| club parts:", len(clubparts))
+S.finish(scn, px, "goblin", figure, detail, [], roots=[cl_root],
+         facing=S.FACE_LEFT, role="brute")

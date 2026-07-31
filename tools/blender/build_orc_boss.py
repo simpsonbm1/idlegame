@@ -102,4 +102,4 @@ axe = [P.add_cyl(scn, "oaxehaft", (0, 0, 0.66), 0.115, 2.40, M["wood"], verts=6)
 P.parent_all(ax_root, axe)
 
 O.finish(scn, px, "orc_boss", figure, detail, noline, roots=[tors_root, ax_root],
-         skip_extra=tuple(o.name for o in hd_det))
+         skip_extra=tuple(o.name for o in hd_det), role="boss", body_roots=[tors_root])

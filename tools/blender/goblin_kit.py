@@ -119,5 +119,6 @@ def hunch(scn, M, hip_z, chest_r=0.34, lean=18):
 
 
 def finish(scn, px, key, figure, detail, noline, roots=(), skip_extra=(),
-           facing=FACING):
-    return S.finish(scn, px, key, figure, detail, noline, roots, skip_extra, facing)
+           facing=FACING, role=None, body_roots=()):
+    return S.finish(scn, px, key, figure, detail, noline, roots, skip_extra,
+                    facing, role, body_roots)

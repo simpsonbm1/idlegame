@@ -28,7 +28,7 @@ importlib.reload(S)
 importlib.reload(G)
 
 scn = P.get_scene()
-px = G.start(scn, res=128)
+px = G.start(scn, res=144)
 M = G.palette()
 
 figure, detail, noline = [], [], []
@@ -112,4 +112,4 @@ sword = [P.add_prism(scn, "gblade", blade, 0.12, M["rust"]),
 P.parent_all(bl_root, sword)
 
 G.finish(scn, px, "goblin_boss", figure, detail, noline,
-         roots=[hn_root, bl_root])
+         roots=[hn_root, bl_root], role="boss")

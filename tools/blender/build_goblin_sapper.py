@@ -25,7 +25,7 @@ importlib.reload(S)
 importlib.reload(G)
 
 scn = P.get_scene()
-px = G.start(scn, res=96)
+px = G.start(scn, res=112)
 M = G.palette()
 
 figure, detail, noline = [], [], []
@@ -79,4 +79,4 @@ P.parent_all(pk_root, pick)
 
 G.finish(scn, px, "goblin_sapper", figure, detail, noline,
          roots=[tors_root, pk_root],
-         skip_extra=tuple(o.name for o in hd_det + candleflame))
+         skip_extra=tuple(o.name for o in hd_det + candleflame), role="sapper", body_roots=[tors_root])

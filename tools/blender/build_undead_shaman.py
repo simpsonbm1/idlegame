@@ -79,4 +79,4 @@ flame = U.ghostflame(scn, M, (0, -0.02, 1.62), scale=1.15)
 P.parent_all(st_root, staff + flame)
 
 U.finish(scn, px, "undead_shaman", figure, detail, noline, roots=[st_root],
-         skip_extra=tuple(o.name for o in flame))
+         skip_extra=tuple(o.name for o in flame), role="shaman")

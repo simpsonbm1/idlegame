@@ -25,7 +25,7 @@ importlib.reload(S)
 importlib.reload(O)
 
 scn = P.get_scene()
-px = O.start(scn, res=128)
+px = O.start(scn, res=112)
 M = O.palette()
 
 figure, detail, noline = [], [], []
@@ -91,4 +91,4 @@ for name, rot, loc in (("axeL_root", (0, -34, 0), (-1.44, -0.54, 3.06)),
 
 O.finish(scn, px, "orc_skirmisher", figure, detail, noline,
          roots=[tors_root] + axe_roots,
-         skip_extra=tuple(o.name for o in hd_det + tors_det))
+         skip_extra=tuple(o.name for o in hd_det + tors_det), role="skirmisher", body_roots=[tors_root])

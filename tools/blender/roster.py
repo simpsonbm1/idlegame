@@ -49,23 +49,23 @@ ROSTER = [
     # ---- goblin raid (face left) -------------------------------------------
     Asset(0, "goblin", "build_goblin", "out_goblin.png", "goblin", 112,
           "the brute; the family's body plan"),
-    # The commons render in a 96 cell because they stand 2.5 world units against
-    # the brute's 3.3 -- "noticeably smaller" is world height, not fill fraction.
-    Asset(17, "goblin_skirmisher", "build_goblin_skirmisher", "out_goblin_skirmisher.png", "goblin", 96),
-    Asset(18, "goblin_caster", "build_goblin_caster", "out_goblin_caster.png", "goblin", 96),
-    Asset(19, "goblin_shaman", "build_goblin_shaman", "out_goblin_shaman.png", "goblin", 96),
-    Asset(20, "goblin_sapper", "build_goblin_sapper", "out_goblin_sapper.png", "goblin", 96),
-    Asset(21, "goblin_boss", "build_goblin_boss", "out_goblin_boss.png", "goblin", 128,
+    # USER RULING 2026-07-31: normal enemies and heroes are all roughly one size
+    # and bosses are much bigger, so height is set by ROLE in spritekit.py, not
+    # per family. A goblin is a goblin because he is WIRY, not because he is short.
+    Asset(17, "goblin_skirmisher", "build_goblin_skirmisher", "out_goblin_skirmisher.png", "goblin", 112),
+    Asset(18, "goblin_caster", "build_goblin_caster", "out_goblin_caster.png", "goblin", 112),
+    Asset(19, "goblin_shaman", "build_goblin_shaman", "out_goblin_shaman.png", "goblin", 112),
+    Asset(20, "goblin_sapper", "build_goblin_sapper", "out_goblin_sapper.png", "goblin", 112),
+    Asset(21, "goblin_boss", "build_goblin_boss", "out_goblin_boss.png", "goblin", 144,
           "BOSS: the Goblin Warmaster"),
 
     # ---- orc warband --------------------------------------------------------
-    # Commons stand 3.6 world units against a goblin common's 2.5: "hulking" is
-    # measured against the family the player meets first, not against the cell.
-    Asset(22, "orc_brute", "build_orc_brute", "out_orc_brute.png", "orc", 128),
-    Asset(23, "orc_skirmisher", "build_orc_skirmisher", "out_orc_skirmisher.png", "orc", 128),
-    Asset(24, "orc_caster", "build_orc_caster", "out_orc_caster.png", "orc", 128),
-    Asset(25, "orc_shaman", "build_orc_shaman", "out_orc_shaman.png", "orc", 128),
-    Asset(26, "orc_sapper", "build_orc_sapper", "out_orc_sapper.png", "orc", 128),
+    # Orcs are the BROAD family, not the tall one -- see the ruling above.
+    Asset(22, "orc_brute", "build_orc_brute", "out_orc_brute.png", "orc", 112),
+    Asset(23, "orc_skirmisher", "build_orc_skirmisher", "out_orc_skirmisher.png", "orc", 112),
+    Asset(24, "orc_caster", "build_orc_caster", "out_orc_caster.png", "orc", 112),
+    Asset(25, "orc_shaman", "build_orc_shaman", "out_orc_shaman.png", "orc", 112),
+    Asset(26, "orc_sapper", "build_orc_sapper", "out_orc_sapper.png", "orc", 112),
     Asset(27, "orc_boss", "build_orc_boss", "out_orc_boss.png", "orc", 144,
           "BOSS: the Orc Warlord"),
 
@@ -75,10 +75,10 @@ ROSTER = [
     _todo(30, "bandit_caster", "bandit"),
     _todo(31, "bandit_shaman", "bandit"),
     _todo(32, "bandit_sapper", "bandit"),
-    _todo(33, "bandit_boss", "bandit", 128, "BOSS: the Bandit King"),
+    _todo(33, "bandit_boss", "bandit", 144, "BOSS: the Bandit King"),
 
     # ---- undead legion ------------------------------------------------------
-    Asset(34, "undead_brute", "build_undead_brute", "out_undead_brute.png", "undead", 128),
+    Asset(34, "undead_brute", "build_undead_brute", "out_undead_brute.png", "undead", 112),
     Asset(35, "undead_skirmisher", "build_undead_skirmisher", "out_undead_skirmisher.png", "undead", 112),
     Asset(36, "undead_caster", "build_undead_caster", "out_undead_caster.png",
           "undead", 112, "the necromancer; built from spec prose with no reference"),
@@ -88,11 +88,11 @@ ROSTER = [
           "BOSS: the Lich Commander"),
 
     # ---- infernal siege -----------------------------------------------------
-    _todo(40, "infernal_brute", "infernal", 128),
-    _todo(41, "infernal_skirmisher", "infernal", 128, "hellhound: four legs, side-on"),
+    _todo(40, "infernal_brute", "infernal", 112),
+    _todo(41, "infernal_skirmisher", "infernal", 112, "hellhound: four legs, side-on"),
     _todo(42, "infernal_caster", "infernal"),
     _todo(43, "infernal_shaman", "infernal"),
-    _todo(44, "infernal_sapper", "infernal", 96, "cinder imp: small and winged"),
+    _todo(44, "infernal_sapper", "infernal", 112, "cinder imp: small and winged"),
     _todo(45, "infernal_boss", "infernal", 144, "BOSS: the Demon Empress"),
 
     # ---- buildings (near-isometric camera, not the sprite camera) -----------

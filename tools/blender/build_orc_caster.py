@@ -23,7 +23,7 @@ importlib.reload(P)
 importlib.reload(O)
 
 scn = P.get_scene()
-px = O.start(scn, res=128)
+px = O.start(scn, res=112)
 M = O.palette()
 
 figure, detail, noline = [], [], []
@@ -92,4 +92,4 @@ eyes = [P.add_box(scn, "ostaffeye", (s * 0.085, -0.22, 1.66), (0.08, 0.05, 0.07)
 P.parent_all(st_root, staff + eyes)
 
 O.finish(scn, px, "orc_caster", figure, detail, noline, roots=[tors_root, st_root],
-         skip_extra=tuple(o.name for o in hd_det + eyes))
+         skip_extra=tuple(o.name for o in hd_det + eyes), role="caster", body_roots=[tors_root])

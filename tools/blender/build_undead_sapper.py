@@ -78,4 +78,4 @@ P.parent_all(ln_root, lantern + glass)
 
 U.finish(scn, px, "undead_sapper", figure, detail, noline,
          roots=[tors_root, sh_root, ln_root],
-         skip_extra=tuple(o.name for o in sk_det + sk_nol + glass))
+         skip_extra=tuple(o.name for o in sk_det + sk_nol + glass), role="sapper", body_roots=[tors_root])

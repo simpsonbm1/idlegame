@@ -28,7 +28,7 @@ importlib.reload(P)
 importlib.reload(U)
 
 scn = P.get_scene()
-px = U.start(scn, res=128)
+px = U.start(scn, res=112)
 M = U.palette()
 
 figure, detail, noline = [], [], []
@@ -107,4 +107,4 @@ sword = [P.add_prism(scn, "blade", blade, 0.15, M["bone"]),
          P.add_sphere(scn, "pommel", (0, 0, -0.32), 0.115, M["iron"])]
 P.parent_all(sw_root, sword)
 
-U.finish(scn, px, "undead_brute", figure, detail, noline, roots=[sw_root])
+U.finish(scn, px, "undead_brute", figure, detail, noline, roots=[sw_root], role="brute")

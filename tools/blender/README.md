@@ -148,6 +148,51 @@ figures whose builders each picked a plausible-looking target_z came out standin
 on six different lines, which is invisible in a single render and unmissable the
 moment they line up.
 
+## How big anything is
+
+**USER RULING 2026-07-31:** "The normal enemies and the heroes should be roughly
+the same size, maybe slightly bigger or smaller depending on type, and the bosses
+should be noticeably much bigger."
+
+So height is set by ROLE, not by faction. `spritekit.ROLE_SCALE` multiplies a
+`NORMAL_HEIGHT` of 2.95 world units, which is the guardian knight's own height
+because he is the style anchor and was already built to it:
+
+| role | height | |
+|---|---|---|
+| brute | 3.16 | the family's heavy |
+| hero, caster | 2.95 | the baseline |
+| shaman | 2.89 | |
+| skirmisher | 2.83 | |
+| sapper | 2.74 | the family's smallest |
+| boss | 4.43 | 1.5x, not slightly |
+
+**A builder passes `role=` and never sizes its own figure.** `finish()` measures
+the assembled body and scales the figure root to hit the target exactly, so a
+builder's coordinates only ever have to be in PROPORTION. Sizing by hand is what
+put the goblins at 2.5 units against the orcs' 3.6.
+
+Faction identity therefore lives entirely in width, build and palette. A goblin
+is a goblin because he is wiry, an orc because he is broad, and they are the same
+height. That reads better anyway: two figures of different widths at one height
+are easier to tell apart than two of the same width at different heights.
+
+Three things this machinery gets right that are easy to get wrong by hand:
+
+1. **Pass `body_roots` for any figure whose torso hangs off a root.** Otherwise
+   only the legs are measured, and scaling a pair of legs to a whole body's
+   target made every goblin and orc render about two and a half times too big.
+2. **Weapons are excluded from the measurement.** A raised staff must not shrink
+   the character holding it.
+3. **Outline width is divided by the scale factor.** Scaling the root scales the
+   inverted hull with it, and outline weight is the one thing that has to be
+   identical on every sprite whatever its size.
+
+Do not use `ob.matrix_world` to measure. It is evaluated by the ACTIVE scene's
+depsgraph, and in background Blender the active scene is the startup file's
+"Scene" rather than "PixelPilot", so the matrices read stale.
+`spritekit._world_matrix` composes the parent chain by hand instead.
+
 ## Building a family
 
 Five of the six enemy families share a body type across their six entries, so a

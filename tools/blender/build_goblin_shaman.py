@@ -23,7 +23,7 @@ importlib.reload(P)
 importlib.reload(G)
 
 scn = P.get_scene()
-px = G.start(scn, res=96)
+px = G.start(scn, res=112)
 M = G.palette()
 
 figure, detail, noline = [], [], []
@@ -93,4 +93,4 @@ P.parent_all(st_root, staff + glow)
 
 G.finish(scn, px, "goblin_shaman", figure, detail, noline,
          roots=[tors_root, st_root],
-         skip_extra=tuple(o.name for o in hd_det + glow))
+         skip_extra=tuple(o.name for o in hd_det + glow), role="shaman", body_roots=[tors_root])

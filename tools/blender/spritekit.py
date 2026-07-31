@@ -30,6 +30,42 @@ SUN = (50, 0, -40)    # character-camera sun; azimuth is per-camera, see README
 GROUND_FRAC = 0.10    # z=0 sits this far up from the bottom of every cell
 
 
+# --------------------------------------------------------------------------
+# how big anything is (USER RULING 2026-07-31)
+# --------------------------------------------------------------------------
+#
+# "The normal enemies and the heroes should be roughly the same size, maybe
+# slightly bigger or smaller depending on type, and the bosses should be
+# noticeably much bigger."
+#
+# So height is set by ROLE, not by faction. A goblin common and an orc common
+# stand within a few percent of each other and of the player's knight, and the
+# thing that makes a goblin a goblin is that he is WIRY where the orc is BROAD.
+# Faction identity moves entirely into width, build and palette, which is a
+# better read anyway: two figures of different widths at the same height are
+# easier to tell apart than two of the same width at different heights.
+#
+# The baseline is the guardian knight's own 2.93, because he is the style anchor
+# and was already built to it.
+
+NORMAL_HEIGHT = 2.95
+
+ROLE_SCALE = {
+    "hero":       1.00,
+    "brute":      1.07,   # the family's heavy: slightly bigger
+    "caster":     1.00,
+    "shaman":     0.98,
+    "skirmisher": 0.96,
+    "sapper":     0.93,   # the family's smallest
+    "boss":       1.50,   # "noticeably much bigger", not slightly
+}
+
+
+def role_height(role):
+    """World height for a role. Unknown roles fall back to the normal height."""
+    return NORMAL_HEIGHT * ROLE_SCALE.get(role, 1.0)
+
+
 def start(scn, res):
     """Every builder's opening: same rig, same sun, same scale, same ground line.
 
@@ -53,9 +89,65 @@ def start(scn, res):
     return P.pixel_size(scn)
 
 
+def _world_matrix(ob):
+    """World transform composed by hand up the parent chain.
+
+    **Not `ob.matrix_world`.** That is evaluated by the depsgraph of the ACTIVE
+    scene, and in background Blender the active scene is the startup file's
+    "Scene", not the "PixelPilot" one these builders work in, so
+    `view_layer.update()` refreshes the wrong graph and the matrices read stale.
+    Composing them here is exact and needs no depsgraph at all.
+
+    Valid because `parent_all` always sets an identity parent inverse, so world
+    is simply the product of the basis matrices up the chain.
+    """
+    m = ob.matrix_basis
+    p = ob.parent
+    while p is not None:
+        m = p.matrix_basis @ m
+        p = p.parent
+    return m
+
+
+def _mesh_descendants(root):
+    out = []
+    stack = list(root.children)
+    while stack:
+        ob = stack.pop()
+        stack.extend(ob.children)
+        if ob.type == 'MESH':
+            out.append(ob)
+    return out
+
+
+def measure_height(objs, body_roots=()):
+    """Height of an assembled body, ground up.
+
+    `body_roots` are sub-roots that carry BODY parts rather than props -- the
+    torso root of a hunched figure, above all. Leaving them out measures only
+    what is in the figure list, and for a hunched build that is the legs alone:
+    scaling a pair of legs to a whole body's target height made every goblin and
+    orc render about two and a half times too big.
+
+    Weapon and prop roots are deliberately NOT included. A raised staff must not
+    shrink the character holding it.
+    """
+    from mathutils import Vector
+    parts = [o for o in objs if o.type == 'MESH']
+    for r in body_roots:
+        parts += _mesh_descendants(r)
+    zs = []
+    for ob in parts:
+        m = _world_matrix(ob)
+        zs += [(m @ Vector(c)).z for c in ob.bound_box]
+    if not zs:
+        return 0.0
+    return max(zs) - min(min(zs), 0.0)
+
+
 def finish(scn, px, key, figure, detail, noline, roots=(), skip_extra=(),
-           facing=FACE_LEFT):
-    """Every builder's close: parent under one root, outline, render, upscale.
+           facing=FACE_LEFT, role=None, body_roots=()):
+    """Every builder's close: parent under one root, size it, outline, render.
 
     `detail` and `noline` are excluded from the outline pass. The difference is
     only intent -- detail is small trim an outline would swallow, noline is
@@ -66,16 +158,41 @@ def finish(scn, px, key, figure, detail, noline, roots=(), skip_extra=(),
     which is the rule that keeps a sword's angle from being silently discarded
     (README). A glowing part inside a staff therefore has to be named in
     `skip_extra`.
+
+    **`role` sets the figure's final height and the builder's own numbers do
+    not.** The body is measured once it is assembled and the root is scaled to
+    hit `role_height(role)` exactly, so a builder's coordinates only ever have to
+    be in proportion, never to the right absolute size. Getting that wrong by
+    hand is how the goblins ended up 2.5 units against the orcs' 3.6.
+
+    Only the BODY is measured -- `figure` plus any `body_roots`, never the
+    weapons on their own roots. A raised staff must not shrink the character
+    holding it. A hunched figure keeps its torso, head and arms under a torso
+    root, so that root MUST be passed as a body root or only the legs get
+    measured.
+
+    Scaling the root scales the inverted-hull outline with it, so the outline
+    width is divided back out. Outline weight is the one thing that must be
+    identical on every sprite regardless of size (README, scale matching).
     """
     root = P.make_root(scn, key + "_root", rot=(0, 0, facing))
     P.parent_all(root, list(figure) + list(detail) + list(noline) + list(roots))
+
+    k = 1.0
+    if role:
+        h = measure_height(figure, body_roots)
+        if h > 0.01:
+            k = role_height(role) / h
+            root.scale = (k, k, k)
+
     skip = tuple(o.name for o in list(detail) + list(noline)) + tuple(skip_extra)
-    P.outline_all(scn, px, width_px=OUTLINE_PX, skip=skip)
+    P.outline_all(scn, px, width_px=OUTLINE_PX / k, skip=skip)
     out = P.out_dir()
     small = os.path.join(out, "out_%s.png" % key)
     P.render_to(scn, small)
     P.upscale_nearest(small, os.path.join(out, "out_%s_big.png" % key), 8, bg="#ff00ff")
-    print("%s done: %d figure parts" % (key, len(figure)))
+    print("%s done: %d figure parts, scaled %.3f to %.2f units"
+          % (key, len(figure), k, role_height(role) if role else 0.0))
     return small
 
 

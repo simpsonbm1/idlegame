@@ -17,7 +17,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.append(HERE)
 import pixelrig as P
+import spritekit as S
 importlib.reload(P)
+importlib.reload(S)
 OUT = P.out_dir()
 
 scn = P.get_scene()
@@ -92,11 +94,8 @@ sword = [P.add_prism(scn, "blade", blade, 0.11, BLADE),
          P.add_sphere(scn, "pommel", (0, 0, -0.23), 0.10, GOLD)]
 P.parent_all(sw_root, sword)
 
-root = P.make_root(scn, "knight_root", rot=(0, 0, 30))
-P.parent_all(root, figure + detail + [sh_root, sw_root])
-
-skip = tuple(d.name for d in detail) + ("shieldlion",)
-P.outline_all(scn, px, width_px=1.75, skip=skip)
-P.render_to(scn, os.path.join(OUT, "out_knight.png"))
-P.upscale_nearest(os.path.join(OUT, "out_knight.png"), os.path.join(OUT, "out_knight_big.png"), 8, bg="#ff00ff")
-print("knight done, figure parts:", len(figure))
+# The guardian is the baseline the USER RULING sizes everything else against, so
+# he goes through the same role-driven sizing as everyone else rather than being
+# left at whatever height his coordinates happen to give.
+S.finish(scn, px, "knight", figure, detail, [], roots=[sh_root, sw_root],
+         skip_extra=("shieldlion",), facing=S.FACE_RIGHT, role="hero")

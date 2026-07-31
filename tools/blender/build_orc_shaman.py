@@ -26,7 +26,7 @@ importlib.reload(S)
 importlib.reload(O)
 
 scn = P.get_scene()
-px = O.start(scn, res=128)
+px = O.start(scn, res=112)
 M = O.palette()
 
 figure, detail, noline = [], [], []
@@ -96,4 +96,4 @@ glow = [P.add_sphere(scn, "ocharm", (0, -0.04, 1.64), 0.135, M["ember"], segs=8,
 P.parent_all(st_root, staff + glow)
 
 O.finish(scn, px, "orc_shaman", figure, detail, noline, roots=[tors_root, st_root],
-         skip_extra=tuple(o.name for o in glow + tors_det))
+         skip_extra=tuple(o.name for o in glow + tors_det), role="shaman", body_roots=[tors_root])

@@ -25,7 +25,7 @@ importlib.reload(S)
 importlib.reload(O)
 
 scn = P.get_scene()
-px = O.start(scn, res=128)
+px = O.start(scn, res=112)
 M = O.palette()
 
 figure, detail, noline = [], [], []
@@ -89,4 +89,4 @@ P.parent_all(tc_root, torch + fire)
 
 O.finish(scn, px, "orc_sapper", figure, detail, noline,
          roots=[tors_root, kg_root, tc_root],
-         skip_extra=tuple(o.name for o in hd_det + fire))
+         skip_extra=tuple(o.name for o in hd_det + fire), role="sapper", body_roots=[tors_root])

@@ -26,7 +26,7 @@ importlib.reload(S)
 importlib.reload(G)
 
 scn = P.get_scene()
-px = G.start(scn, res=96)
+px = G.start(scn, res=112)
 M = G.palette()
 
 figure, detail, noline = [], [], []
@@ -89,4 +89,4 @@ P.parent_all(sl_root, sling + stone)
 
 G.finish(scn, px, "goblin_caster", figure, detail, noline,
          roots=[tors_root, sl_root],
-         skip_extra=tuple(o.name for o in hd_det))
+         skip_extra=tuple(o.name for o in hd_det), role="caster", body_roots=[tors_root])

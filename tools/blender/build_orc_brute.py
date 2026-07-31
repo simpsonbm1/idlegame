@@ -23,7 +23,7 @@ importlib.reload(P)
 importlib.reload(O)
 
 scn = P.get_scene()
-px = O.start(scn, res=128)
+px = O.start(scn, res=112)
 M = O.palette()
 
 figure, detail, noline = [], [], []
@@ -85,4 +85,4 @@ for i, z in enumerate((1.40, 1.70)):
 P.parent_all(ml_root, maul)
 
 O.finish(scn, px, "orc_brute", figure, detail, noline, roots=[tors_root, ml_root],
-         skip_extra=tuple(o.name for o in hd_det))
+         skip_extra=tuple(o.name for o in hd_det), role="brute", body_roots=[tors_root])

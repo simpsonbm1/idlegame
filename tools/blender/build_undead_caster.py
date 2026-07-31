@@ -23,7 +23,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.append(HERE)
 import pixelrig as P
+import spritekit as S
 importlib.reload(P)
+importlib.reload(S)
 OUT = P.out_dir()
 
 scn = P.get_scene()
@@ -97,12 +99,9 @@ for i, (dz, r) in enumerate(((0.30, 0.11), (0.44, 0.085), (0.56, 0.055))):
                                  GLOW if i < 2 else GLOW_D, segs=8, rings=5))
 P.parent_all(st_root, staff + glowbits)
 
-root = P.make_root(scn, "caster_root", rot=(0, 0, -30))
-P.parent_all(root, figure + detail + noline + [st_root])
-
-skip = tuple(o.name for o in detail + noline) + ("sfire", "sgrin", "plume")
-P.outline_all(scn, px, width_px=1.75, skip=skip)
-P.render_to(scn, os.path.join(OUT, "out_undead_caster.png"))
-P.upscale_nearest(os.path.join(OUT, "out_undead_caster.png"),
-                  os.path.join(OUT, "out_undead_caster_big.png"), 8, bg="#ff00ff")
-print("undead caster done, figure parts:", len(figure), "| staff parts:", len(staff) + len(glowbits))
+# skip_extra takes the ACTUAL object names. The old bare-name list ("sfire",
+# "sgrin", "plume") only ever matched the first of each, because Blender suffixes
+# duplicates, so every later plume was being outlined.
+S.finish(scn, px, "undead_caster", figure, detail, noline, roots=[st_root],
+         skip_extra=tuple(o.name for o in glowbits),
+         facing=S.FACE_LEFT, role="caster")
