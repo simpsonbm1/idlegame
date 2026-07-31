@@ -26,11 +26,12 @@ prefer small working milestones over large upfront designs.
 - **`SESSION_HANDOFF.md`** — in-flight session state (gitignored; hook-mirrored).
 
 ## Current focus
-**The art is moving in-house to Blender** (user decision 2026-07-31): the AI-generated
-sprites and the rendered ones do not sit together, so the roster gets rebuilt in
-`tools/blender/` rather than added to. The rig is proven on three characters, a building
-and the backdrop, and none of it is wired into the game yet. Next up is building out the
-heroes, enemies and buildings; animation is a later pass.
+**The art has moved in-house to Blender** (user decision 2026-07-31): the AI-generated
+sprites and the rendered ones do not sit together, so the roster was rebuilt in
+`tools/blender/` rather than added to. **It is complete**: 83 assets covering every
+character and building the game needs, rebuilt from source in about three minutes by
+`python tools/blender/render_all.py`. None of it is wired into the game yet, and no
+human has judged it. Animation is a later pass.
 
 Also live: M15 (game feel) in progress; M16 tutorialization phases 1–2 built, pending the
 user's playtest; the endgame rework is designed and audited, not started. Detail:

@@ -5,16 +5,16 @@ hard-stepped toon shading, inverted-hull outlines, no anti-aliasing. Output is a
 native small PNG with alpha, not a downscale of something larger. Attacks render
 as horizontal sprite sheets.
 
-**Status: this is the art pipeline going forward** (user decision 2026-07-31). The
-AI-generated sprites and the rendered ones do not sit together, so the roster gets
-REBUILT here rather than added to. Proven on a knight, a goblin brute, an undead
-necromancer built from spec prose with no reference, a cottage, attack sheets for
-two characters, and the whole backdrop.
+**Status: this is the art pipeline going forward** (user decision 2026-07-31), and
+**the roster is complete**: 83 assets, every character and building the game needs.
+Nine heroes with 27 rarity variants, 30 enemies across five families, eight
+townsfolk and nine buildings. `python tools/blender/render_all.py` rebuilds all of
+it in about three minutes.
 
 Nothing is wired into the game yet. Three things stand between this and adoption:
-the roster is 3 characters against about 47 planned, `SCENE_WALL_FRAC` becomes 0.46
-for this backdrop, and unit contact shadows are drawn by `compose_vista.py` rather
-than by the game's render loop. See `SESSION_HANDOFF.md`.
+no human has judged the roster, `SCENE_WALL_FRAC` becomes 0.46 for this backdrop,
+and unit contact shadows are drawn by `compose_vista.py` rather than by the game's
+render loop. See `SESSION_HANDOFF.md`.
 
 ## Running it
 
@@ -68,19 +68,20 @@ and `compose_contact.py` both read it, so adding an asset means one line there
 plus the builder. `M15_ASSET_SPECS.md` stays the authority on what each asset
 DEPICTS; the roster only records how it gets built.
 
-| Script | Produces |
+| Layer | What it is |
 |---|---|
-| `pixelrig.py` | the shared rig: materials, geometry helpers, outline, render, upscale |
-| `build_knight.py` | guardian knight sprite |
-| `build_goblin.py` | goblin brute sprite |
-| `build_undead_caster.py` | undead necromancer, built from the written spec with no reference |
-| `build_cottage.py` | cottage sprite, near-isometric |
-| `build_scene.py` | town-to-battlefield vista, one continuous image |
-| `compose_battle.py` | battle band with sprites composited at matched scale (run after `build_scene`) |
-| `compose_lineup.py` | all character sprites on one strip, to make style drift visible |
-| `build_attack.py` | attack animations as horizontal sprite sheets (`knight()`, `goblin()`) |
-| `build_backdrop.py` | the game backdrop at the locked watchtower camera, wall on 46% |
-| `compose_vista.py` | characters seated on the backdrop by world coordinate (run after both) |
+| `pixelrig.py` | the renderer: materials, primitives, outline, cameras, render, upscale |
+| `spritekit.py` | what every CHARACTER sprite needs: ground line, facing, role heights, limbs |
+| `building_kit.py` | what every BUILDING needs: isometric camera, walls, roofs, doors |
+| `<family>_kit.py` | one per faction: its palette and the parts it repeats |
+| `build_*.py` | one per asset. A builder is the figure and nothing else. |
+| `roster.py` | the manifest: 83 assets, their builders, cells and tiers |
+| `render_all.py` | headless batch driver, one Blender process per asset |
+| `compose_contact.py` | per-group contact sheets, written at the end of every run |
+
+Still here from the pilot: `build_scene.py`, `compose_battle.py`,
+`compose_lineup.py`, `build_attack.py` (attack sheets for two characters),
+`build_backdrop.py` (the game backdrop, wall on 46%) and `compose_vista.py`.
 
 ## How the style is produced
 
