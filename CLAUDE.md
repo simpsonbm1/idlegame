@@ -26,9 +26,15 @@ prefer small working milestones over large upfront designs.
 - **`SESSION_HANDOFF.md`** — in-flight session state (gitignored; hook-mirrored).
 
 ## Current focus
-M15 (game feel) in progress; M16 tutorialization phases 1–2 built, pending the user's
-playtest; the endgame rework is designed and audited, not started. Detail: `MILESTONES.md`
-and `SESSION_HANDOFF.md`.
+**The art is moving in-house to Blender** (user decision 2026-07-31): the AI-generated
+sprites and the rendered ones do not sit together, so the roster gets rebuilt in
+`tools/blender/` rather than added to. The rig is proven on three characters, a building
+and the backdrop, and none of it is wired into the game yet. Next up is building out the
+heroes, enemies and buildings; animation is a later pass.
+
+Also live: M15 (game feel) in progress; M16 tutorialization phases 1–2 built, pending the
+user's playtest; the endgame rework is designed and audited, not started. Detail:
+`MILESTONES.md` and `SESSION_HANDOFF.md`.
 
 ## Keeping docs current
 **Before committing or pushing, update CLAUDE.md, DESIGN.md, and MILESTONES.md to match what is
@@ -79,11 +85,13 @@ Shipping the game to players who can't run a server is **M17: distribution & pac
   Rerun for any balance change. **Keep its constant tables in sync with game.js.**
 - `tools/process-art.html` / `tools/plot-placer.html` / `tools/scene-prototype.html` — art
   pipeline and layout tools
-- `tools/blender/` — Blender pixel-art rig (pilot, style verdict pending): Python that
-  models and renders sprites as 3D pixel art, driven over the Blender MCP connection.
-  Renders go to the gitignored `tools/blender/out/`. Read `tools/blender/README.md` before
-  touching it; two invariants there (one root per part, depth-separate overlapping parts)
-  cost real debugging time.
+- `tools/blender/` — **the art pipeline going forward** (user decision 2026-07-31). Python
+  that models and renders sprites, buildings and the backdrop as 3D pixel art, driven over
+  the Blender MCP connection with no manual modelling. Renders go to the gitignored
+  `tools/blender/out/`. **Read `tools/blender/README.md` before touching it** — it carries a
+  dozen rules that each cost a real debugging round, and most of them are counter-intuitive
+  (ramp stops go on a measured histogram, not evenly; terrain must be smooth-shaded; light
+  azimuth differs per camera). Nothing here is wired into the game yet.
 - `assets/` — sprites and audio; every committed asset file must be covered by a
   `assets/CREDITS.md` line (pre-commit enforced; run `git config core.hooksPath .githooks`
   once per machine)

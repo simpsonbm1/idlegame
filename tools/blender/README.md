@@ -5,10 +5,16 @@ hard-stepped toon shading, inverted-hull outlines, no anti-aliasing. Output is a
 native small PNG with alpha, not a downscale of something larger. Attacks render
 as horizontal sprite sheets.
 
-**Status: pilot.** Nothing here is wired into the game yet. The developer's verdict
-(2026-07-31) is that these do NOT sit well beside the existing Gemini sprites, so
-the open question is now whether an all-Blender art pass is worth committing to,
-not whether the two styles can be mixed. See `SESSION_HANDOFF.md`.
+**Status: this is the art pipeline going forward** (user decision 2026-07-31). The
+AI-generated sprites and the rendered ones do not sit together, so the roster gets
+REBUILT here rather than added to. Proven on a knight, a goblin brute, an undead
+necromancer built from spec prose with no reference, a cottage, attack sheets for
+two characters, and the whole backdrop.
+
+Nothing is wired into the game yet. Three things stand between this and adoption:
+the roster is 3 characters against about 47 planned, `SCENE_WALL_FRAC` becomes 0.46
+for this backdrop, and unit contact shadows are drawn by `compose_vista.py` rather
+than by the game's render loop. See `SESSION_HANDOFF.md`.
 
 ## Running it
 
