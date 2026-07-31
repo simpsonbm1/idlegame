@@ -57,10 +57,12 @@ def render_one(blender, asset, log_dir):
     script = os.path.join(HERE, asset.module + ".py")
     log_path = os.path.join(log_dir, asset.key + ".log")
     t0 = time.time()
+    env = dict(os.environ)
+    env.update(asset.env)
     with open(log_path, "w", encoding="utf-8", errors="replace") as log:
         proc = subprocess.run(
             [blender, "--background", "--factory-startup", "--python", script],
-            stdout=log, stderr=subprocess.STDOUT, cwd=HERE)
+            stdout=log, stderr=subprocess.STDOUT, cwd=HERE, env=env)
     dt = time.time() - t0
     produced = os.path.join(HERE, "out", asset.out)
     # Blender exits 0 even when the script raised, so the render itself is the test.

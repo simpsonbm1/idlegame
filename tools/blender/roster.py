@@ -12,7 +12,7 @@ README.md.
 
 
 class Asset:
-    def __init__(self, entry, key, module, out, group, cell=112, note=""):
+    def __init__(self, entry, key, module, out, group, cell=112, note="", env=None):
         self.entry = entry
         self.key = key
         self.module = module        # tools/blender/<module>.py, or None if unbuilt
@@ -20,6 +20,10 @@ class Asset:
         self.group = group
         self.cell = cell
         self.note = note
+        # Environment for this render. A hero rarity variant is the same builder
+        # dressed differently, so it reuses the module and sets HERO_TIER rather
+        # than existing as a script of its own.
+        self.env = env or {}
 
     @property
     def built(self):
@@ -37,14 +41,73 @@ ROSTER = [
     # ---- heroes (face right) ------------------------------------------------
     Asset(0, "knight", "build_knight", "out_knight.png", "heroes", 96,
           "the guardian; the style anchor for every other character"),
-    _todo(1, "hero_fighter", "heroes"),
-    _todo(2, "hero_ranged", "heroes"),
-    _todo(3, "hero_mender", "heroes"),
-    _todo(4, "hero_paladin", "heroes"),
-    _todo(5, "hero_assassin", "heroes"),
-    _todo(6, "hero_battlemage", "heroes"),
-    _todo(7, "hero_banneret", "heroes"),
-    _todo(8, "hero_frostadept", "heroes"),
+    Asset(1, "hero_fighter", "build_hero_fighter", "out_hero_fighter.png", "heroes", 112),
+    Asset(2, "hero_ranged", "build_hero_ranged", "out_hero_ranged.png", "heroes", 112),
+    Asset(3, "hero_mender", "build_hero_mender", "out_hero_mender.png", "heroes", 112),
+    Asset(4, "hero_paladin", "build_hero_paladin", "out_hero_paladin.png", "heroes", 112),
+    Asset(5, "hero_assassin", "build_hero_assassin", "out_hero_assassin.png", "heroes", 112),
+    Asset(6, "hero_battlemage", "build_hero_battlemage", "out_hero_battlemage.png", "heroes", 112),
+    Asset(7, "hero_banneret", "build_hero_banneret", "out_hero_banneret.png", "heroes", 128),
+    Asset(8, "hero_frostadept", "build_hero_frostadept", "out_hero_frostadept.png", "heroes", 112),
+
+    # ---- hero rarity variants (entries 56-82) --------------------------------
+    # Same builder, dressed by HERO_TIER. Each hero's OWN sprite already
+    # occupies one tier and that tier gets no file, per the audit in
+    # M15_ASSET_SPECS.md -- the game falls back to the base sprite for it.
+    Asset(56, "knight_rare", "build_knight", "out_knight_rare.png", "variants", 96,
+          env={"HERO_TIER": "rare"}),
+    Asset(57, "knight_epic", "build_knight", "out_knight_epic.png", "variants", 96,
+          env={"HERO_TIER": "epic"}),
+    Asset(58, "knight_legendary", "build_knight", "out_knight_legendary.png", "variants", 96,
+          env={"HERO_TIER": "legendary"}),
+    Asset(59, "hero_fighter_rare", "build_hero_fighter", "out_hero_fighter_rare.png", "variants", 112,
+          env={"HERO_TIER": "rare"}),
+    Asset(60, "hero_fighter_epic", "build_hero_fighter", "out_hero_fighter_epic.png", "variants", 112,
+          env={"HERO_TIER": "epic"}),
+    Asset(61, "hero_fighter_legendary", "build_hero_fighter", "out_hero_fighter_legendary.png", "variants", 112,
+          env={"HERO_TIER": "legendary"}),
+    Asset(62, "hero_ranged_rare", "build_hero_ranged", "out_hero_ranged_rare.png", "variants", 112,
+          env={"HERO_TIER": "rare"}),
+    Asset(63, "hero_ranged_epic", "build_hero_ranged", "out_hero_ranged_epic.png", "variants", 112,
+          env={"HERO_TIER": "epic"}),
+    Asset(64, "hero_ranged_legendary", "build_hero_ranged", "out_hero_ranged_legendary.png", "variants", 112,
+          env={"HERO_TIER": "legendary"}),
+    Asset(65, "hero_mender_common", "build_hero_mender", "out_hero_mender_common.png", "variants", 112,
+          env={"HERO_TIER": "common"}),
+    Asset(66, "hero_mender_epic", "build_hero_mender", "out_hero_mender_epic.png", "variants", 112,
+          env={"HERO_TIER": "epic"}),
+    Asset(67, "hero_mender_legendary", "build_hero_mender", "out_hero_mender_legendary.png", "variants", 112,
+          env={"HERO_TIER": "legendary"}),
+    Asset(68, "hero_paladin_common", "build_hero_paladin", "out_hero_paladin_common.png", "variants", 112,
+          env={"HERO_TIER": "common"}),
+    Asset(69, "hero_paladin_rare", "build_hero_paladin", "out_hero_paladin_rare.png", "variants", 112,
+          env={"HERO_TIER": "rare"}),
+    Asset(70, "hero_paladin_legendary", "build_hero_paladin", "out_hero_paladin_legendary.png", "variants", 112,
+          env={"HERO_TIER": "legendary"}),
+    Asset(71, "hero_assassin_rare", "build_hero_assassin", "out_hero_assassin_rare.png", "variants", 112,
+          env={"HERO_TIER": "rare"}),
+    Asset(72, "hero_assassin_epic", "build_hero_assassin", "out_hero_assassin_epic.png", "variants", 112,
+          env={"HERO_TIER": "epic"}),
+    Asset(73, "hero_assassin_legendary", "build_hero_assassin", "out_hero_assassin_legendary.png", "variants", 112,
+          env={"HERO_TIER": "legendary"}),
+    Asset(74, "hero_battlemage_rare", "build_hero_battlemage", "out_hero_battlemage_rare.png", "variants", 112,
+          env={"HERO_TIER": "rare"}),
+    Asset(75, "hero_battlemage_epic", "build_hero_battlemage", "out_hero_battlemage_epic.png", "variants", 112,
+          env={"HERO_TIER": "epic"}),
+    Asset(76, "hero_battlemage_legendary", "build_hero_battlemage", "out_hero_battlemage_legendary.png", "variants", 112,
+          env={"HERO_TIER": "legendary"}),
+    Asset(77, "hero_banneret_rare", "build_hero_banneret", "out_hero_banneret_rare.png", "variants", 128,
+          env={"HERO_TIER": "rare"}),
+    Asset(78, "hero_banneret_epic", "build_hero_banneret", "out_hero_banneret_epic.png", "variants", 128,
+          env={"HERO_TIER": "epic"}),
+    Asset(79, "hero_banneret_legendary", "build_hero_banneret", "out_hero_banneret_legendary.png", "variants", 128,
+          env={"HERO_TIER": "legendary"}),
+    Asset(80, "hero_frostadept_rare", "build_hero_frostadept", "out_hero_frostadept_rare.png", "variants", 112,
+          env={"HERO_TIER": "rare"}),
+    Asset(81, "hero_frostadept_epic", "build_hero_frostadept", "out_hero_frostadept_epic.png", "variants", 112,
+          env={"HERO_TIER": "epic"}),
+    Asset(82, "hero_frostadept_legendary", "build_hero_frostadept", "out_hero_frostadept_legendary.png", "variants", 112,
+          env={"HERO_TIER": "legendary"}),
 
     # ---- goblin raid (face left) -------------------------------------------
     Asset(0, "goblin", "build_goblin", "out_goblin.png", "goblin", 112,
@@ -128,13 +191,8 @@ ROSTER = [
     _todo(16, "town_highpriest", "townsfolk", 96),
 ]
 
-# Hero rarity variants (entries 56-82) are deliberately absent until their base
-# hero exists: a variant is the same figure re-dressed, so it is a parameter on
-# the base builder rather than a script of its own. See M15_ASSET_SPECS.md for
-# which tier each base sprite already occupies -- the audited tier gets no file.
-
-GROUPS = ["heroes", "goblin", "orc", "bandit", "undead", "infernal",
-          "buildings", "townsfolk"]
+GROUPS = ["heroes", "variants", "goblin", "orc", "bandit", "undead",
+          "infernal", "buildings", "townsfolk"]
 
 
 def by_group(group):

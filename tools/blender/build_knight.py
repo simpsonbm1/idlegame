@@ -18,8 +18,10 @@ if HERE not in sys.path:
     sys.path.append(HERE)
 import pixelrig as P
 import spritekit as S
+import hero_kit as H
 importlib.reload(P)
 importlib.reload(S)
+importlib.reload(H)
 OUT = P.out_dir()
 
 scn = P.get_scene()
@@ -94,8 +96,23 @@ sword = [P.add_prism(scn, "blade", blade, 0.11, BLADE),
          P.add_sphere(scn, "pommel", (0, 0, -0.23), 0.10, GOLD)]
 P.parent_all(sw_root, sword)
 
+# Rarity flourishes. The guardian carries entries 56-58, and his own sprite is
+# the Common tier, so only rare, epic and legendary produce files.
+TRIM = H.trim_mat(M := {"steel": STEEL, "gold": GOLD, "brightgold":
+                        P.toon_mat("HBRIGHTGOLD", "#a8790f", "#e0b132", "#ffeb9a")})
+if TRIM:
+    detail.append(P.add_box(scn, "shieldrim", (0, -0.34, 1.86), (0.30, 0.05, 0.10), TRIM))
+    detail.append(P.add_box(scn, "gorgettrim", (0, -0.26, 2.40), (0.52, 0.07, 0.09), TRIM))
+if H.tier() in ("epic", "legendary"):
+    figure.append(P.add_cone(scn, "plume", (0, 0.20, 3.06), 0.10, 0.03, 0.44,
+                             P.toon_mat("HCRIMSON", "#6b1d1c", "#9c2f27", "#c85641"),
+                             rot=(math.radians(-14), 0, 0), verts=6))
+if H.is_legendary():
+    figure.append(P.add_cone(scn, "cloak", (0, 0.30, 1.76), 0.62, 0.34, 1.80,
+                             P.toon_mat("HCRIMSON", "#6b1d1c", "#9c2f27", "#c85641"), verts=10))
+
 # The guardian is the baseline the USER RULING sizes everything else against, so
 # he goes through the same role-driven sizing as everyone else rather than being
 # left at whatever height his coordinates happen to give.
-S.finish(scn, px, "knight", figure, detail, [], roots=[sh_root, sw_root],
+S.finish(scn, px, "knight" + H.suffix(), figure, detail, [], roots=[sh_root, sw_root],
          skip_extra=("shieldlion",), facing=S.FACE_RIGHT, role="hero")
