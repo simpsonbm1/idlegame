@@ -399,6 +399,57 @@ def add_terrain(scn, name, x0, x1, y0, y1, cell, hfunc, mat):
     return ob
 
 
+def tile_top(scn, x0, x1, y0, y1, z, bu, bv, mats, gap=0.06, rise=0.09,
+             clip=None, stagger=True, name="block"):
+    """Lay staggered flagstones over a horizontal surface.
+
+    Masonry cannot be faked with colour at this resolution. A single box reads as
+    poured concrete because it is one flat tone. Real blocks, each a touch taller
+    than its neighbour, let the hard shadows cut the mortar lines for free, and
+    cycling two or three stone tones stops the courses looking printed.
+
+    Give the base slab underneath a DARKER material so the gaps read as mortar.
+    """
+    obs = []
+    ny = max(1, int(round((y1 - y0) / bv)))
+    nx = max(1, int(round((x1 - x0) / bu))) + 1
+    for j in range(ny):
+        y = y0 + (j + 0.5) * (y1 - y0) / ny
+        off = bu * 0.5 if (stagger and j % 2) else 0.0
+        for i in range(nx):
+            x = x0 + (i + 0.5) * bu + off
+            if x > x1 or x < x0:
+                continue
+            if clip and not clip(x, y):
+                continue
+            h = rise * (1.0 + 0.55 * ((i * 5 + j * 3) % 3))
+            m = mats[(i * 7 + j * 13) % len(mats)]
+            obs.append(add_box(scn, name, (x, y, z + h * 0.5),
+                               (bu - gap, (y1 - y0) / ny - gap, h), m))
+    return obs
+
+
+def tile_face_y(scn, x0, x1, z0, z1, y, bu, bv, mats, gap=0.06, out=0.09,
+                stagger=True, name="brick"):
+    """Same idea on a vertical face looking down -Y: courses of blocks that stand
+    proud of the wall behind them, so each course shadows the one below."""
+    obs = []
+    nz = max(1, int(round((z1 - z0) / bv)))
+    nx = max(1, int(round((x1 - x0) / bu))) + 1
+    for j in range(nz):
+        z = z0 + (j + 0.5) * (z1 - z0) / nz
+        off = bu * 0.5 if (stagger and j % 2) else 0.0
+        for i in range(nx):
+            x = x0 + (i + 0.5) * bu + off
+            if x > x1 or x < x0:
+                continue
+            d = out * (1.0 + 0.5 * ((i * 3 + j * 7) % 3))
+            m = mats[(i * 11 + j * 5) % len(mats)]
+            obs.append(add_box(scn, name, (x, y - d * 0.5, z),
+                               (bu - gap, d, (z1 - z0) / nz - gap), m))
+    return obs
+
+
 def find(scn, *bases):
     """Objects whose name matches any base, ignoring Blender's .001 suffixes."""
     want = set(bases)

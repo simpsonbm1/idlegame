@@ -56,6 +56,11 @@ GRASS = P.toon_mat("BG_GRASS", "#41632f", "#537c39", "#628f42") if False else \
 GRASS2 = P.toon_mat("BG_GRASS2", "#37552a", "#496e33", "#608a41")
 DIRT = P.toon_mat("BG_DIRT", "#4a3b28", "#6b5740", "#8a7458")
 STONE = P.toon_mat("BG_STONE", "#6a655a", "#8e8878", "#b2ab94")
+STONE_A = P.toon_mat("BG_STONEA", "#635e54", "#867f70", "#a9a28c")
+STONE_B = P.toon_mat("BG_STONEB", "#716b5f", "#96907e", "#bab39b")
+STONE_C = P.toon_mat("BG_STONEC", "#5d584f", "#7d7768", "#9e9884")
+MORTAR = P.toon_mat("BG_MORTAR", "#3f3b34", "#544f46", "#6b6558")
+BLOCKS = (STONE_A, STONE_B, STONE_C)
 PAVE = P.toon_mat("BG_PAVE", "#66635a", "#87836f", "#a8a48c")
 PINE = P.toon_mat("BG_PINE", "#1e3320", "#2c4a2b", "#3d6238")
 BARK = P.toon_mat("BG_BARK", "#33241a", "#4a3524", "#63492f")
@@ -194,35 +199,59 @@ for i in range(12):
     decal("plazapath", -16.6 + t * 1.0, -13.2 - t * 4.2, 1.0, 1.15, DIRT, z=0.05)
 
 # ---- round stone plaza and well, lower left ----
-solid.append(P.add_cyl(scn, "plaza", (-16.8, -8.6, 0.06), 4.2, 0.16, PAVE, verts=18))
-solid.append(P.add_cyl(scn, "wellwall", (-16.8, -8.3, 0.42), 0.8, 0.78, STONE, verts=10))
-flat.append(P.add_cyl(scn, "wellmouth", (-16.8, -8.3, 0.82), 0.54, 0.06, DARK, verts=10))
+solid.append(P.add_cyl(scn, "plaza", (-16.8, -8.6, 0.06), 4.2, 0.16, MORTAR, verts=18))
+flat.extend(P.tile_top(scn, -21.0, -12.6, -12.8, -4.4, 0.14, 0.5, 0.44, BLOCKS,
+                       clip=lambda x, y: math.hypot(x + 16.8, y + 8.6) < 4.05,
+                       rise=0.07, name="cobble"))
+solid.append(P.add_cyl(scn, "wellwall", (-16.8, -8.3, 0.55), 0.92, 1.05, MORTAR, verts=12))
+for ring, (rr, zz) in enumerate(((1.0, 0.72), (1.0, 1.02))):
+    for i in range(12):
+        a_ = i * math.tau / 12 + ring * 0.26
+        flat.append(P.add_box(scn, "wellstone",
+                              (-16.8 + rr * math.sin(a_), -8.3 + rr * math.cos(a_), zz),
+                              (0.52, 0.4, 0.3), BLOCKS[(i + ring) % 3], rot=(0, 0, -a_)))
+flat.append(P.add_cyl(scn, "wellmouth", (-16.8, -8.3, 1.14), 0.62, 0.06, DARK, verts=12))
 
 # ---- the wall: long run down the frame, plus the back wall along the town ----
 WH, WT = 3.2, 1.15
 GATE_Y0, GATE_Y1 = -4.6, -1.6
 for y0, y1 in ((-22.0, GATE_Y0), (GATE_Y1, GROUND_FAR - 0.6)):
     solid.append(P.add_box(scn, "wall", (WALL_X, (y0 + y1) / 2, WH / 2),
-                           (WT, y1 - y0, WH), STONE))
+                           (WT, y1 - y0, WH), MORTAR))
+    flat.extend(P.tile_top(scn, WALL_X - WT / 2, WALL_X + WT / 2, y0, y1, WH,
+                           0.37, 0.33, BLOCKS, gap=0.05, rise=0.07))
     for i in range(int((y1 - y0) / 1.3)):
         solid.append(P.add_box(scn, "crenel", (WALL_X, y0 + 0.65 + i * 1.3, WH + 0.32),
-                               (WT * 0.92, 0.7, 0.64), STONE))
+                               (WT * 0.92, 0.7, 0.64), BLOCKS[i % 3]))
 BW_X0, BW_Y = -30.0, GROUND_FAR - 0.6
 solid.append(P.add_box(scn, "backwall", ((BW_X0 + WALL_X) / 2, BW_Y, WH / 2),
-                       (WALL_X - BW_X0, WT, WH), STONE))
+                       (WALL_X - BW_X0, WT, WH), MORTAR))
+flat.extend(P.tile_top(scn, BW_X0, WALL_X, BW_Y - WT / 2, BW_Y + WT / 2, WH,
+                       0.37, 0.33, BLOCKS, gap=0.05, rise=0.07))
+flat.extend(P.tile_face_y(scn, BW_X0, WALL_X, 0.15, WH - 0.1, BW_Y - WT / 2,
+                          0.62, 0.44, BLOCKS))
 for i in range(int((WALL_X - BW_X0) / 1.3)):
     solid.append(P.add_box(scn, "bcrenel", (BW_X0 + 0.65 + i * 1.3, BW_Y, WH + 0.32),
-                           (0.7, WT * 0.92, 0.64), STONE))
+                           (0.7, WT * 0.92, 0.64), BLOCKS[(i * 2) % 3]))
 
 # gatehouse: two drum-square towers with a lintel and a recessed timber gate
-solid.append(P.add_box(scn, "corner", (WALL_X, BW_Y, 2.5), (2.5, 2.5, 5.0), STONE))
+solid.append(P.add_box(scn, "corner", (WALL_X, BW_Y, 2.5), (2.5, 2.5, 5.0), MORTAR))
+flat.extend(P.tile_top(scn, WALL_X - 1.25, WALL_X + 1.25, BW_Y - 1.25, BW_Y + 1.25, 5.0,
+                       0.52, 0.46, BLOCKS))
+flat.extend(P.tile_face_y(scn, WALL_X - 1.25, WALL_X + 1.25, 0.2, 4.9, BW_Y - 1.25,
+                          0.6, 0.44, BLOCKS))
 for sx, sy in ((-0.8, 0), (0.8, 0), (0, -0.8), (0, 0.8)):
     solid.append(P.add_box(scn, "ccrenel", (WALL_X + sx, BW_Y + sy, 5.3),
-                           (0.85, 0.85, 0.6), STONE))
+                           (0.85, 0.85, 0.6), BLOCKS[int(abs(sx * 3 + sy * 5)) % 3]))
 for gy in (GATE_Y0, GATE_Y1):
-    solid.append(P.add_box(scn, "gtower", (WALL_X, gy, 2.7), (2.9, 2.0, 5.4), STONE))
+    solid.append(P.add_box(scn, "gtower", (WALL_X, gy, 2.7), (2.9, 2.0, 5.4), MORTAR))
+    flat.extend(P.tile_top(scn, WALL_X - 1.45, WALL_X + 1.45, gy - 1.0, gy + 1.0, 5.4,
+                           0.52, 0.46, BLOCKS))
+    flat.extend(P.tile_face_y(scn, WALL_X - 1.45, WALL_X + 1.45, 0.2, 5.3, gy - 1.0,
+                              0.6, 0.44, BLOCKS))
     for sx in (-0.95, 0, 0.95):
-        solid.append(P.add_box(scn, "gcrenel", (WALL_X + sx, gy, 5.72), (0.7, 2.1, 0.64), STONE))
+        solid.append(P.add_box(scn, "gcrenel", (WALL_X + sx, gy, 5.72), (0.7, 2.1, 0.64),
+                               BLOCKS[int((sx + 1) * 2) % 3]))
 solid.append(P.add_box(scn, "lintel", (WALL_X, (GATE_Y0 + GATE_Y1) / 2, WH - 0.55),
                        (WT, GATE_Y1 - GATE_Y0, 2.1), STONE))
 solid.append(P.add_box(scn, "gate", (WALL_X - 0.14, (GATE_Y0 + GATE_Y1) / 2, 0.95),

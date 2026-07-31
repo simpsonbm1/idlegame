@@ -190,6 +190,16 @@ backdrop needs both:
   greens as terrain texture. Three octaves work better than one: broad rolls for
   form, a finer octave for grain.
 
+**Masonry has to be built, not coloured.** A wall made of one box reads as poured
+concrete, because one box is one normal and therefore one tone, and no palette
+change fixes that. `tile_top()` and `tile_face_y()` lay staggered blocks over a
+surface, each a touch taller or more proud than its neighbour, so the hard shadows
+cut the mortar lines for free. Put a DARKER material on the slab underneath and the
+gaps read as mortar. Cycle two or three stone tones so the courses do not look
+printed. Size the blocks against the surface they sit on: 0.52-wide flagstones on a
+1.15-wide wall walk gave two across and read as ladder rungs, where 0.37 gives three
+and reads as stone.
+
 Scatter props as solids rather than flat decals so they catch light and cast their
 own small shadows, and taper the relief to nothing where the wall and plaza stand
 so nothing has to be sunk into a slope.
