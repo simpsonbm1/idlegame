@@ -169,7 +169,7 @@ for i in range(78):
         flat.append(t_)
 
 
-AMP = 0.44
+AMP = 0.36
 PLAZA = (-16.8, -8.6)
 
 
@@ -186,7 +186,8 @@ def hgt(x, y):
     return AMP * flatten(x, y) * (
         math.sin(x * 0.33) * math.cos(y * 0.29)
         + 0.55 * math.sin(x * 0.12 + 1.7) * math.cos(y * 0.17 + 0.9)
-        + 0.38 * math.sin(x * 1.15 + 0.4) * math.cos(y * 1.05 + 2.1))
+        + 0.50 * math.sin(x * 1.15 + 0.4) * math.cos(y * 1.05 + 2.1)
+        + 0.26 * math.sin(x * 2.3 + 2.6) * math.cos(y * 2.1 + 0.5))
 
 
 ROAD_PTS = []
@@ -206,7 +207,11 @@ def decal(name, x, y, rx_, ry_, mat, z=0.10):
 
 flat.append(P.add_box(scn, "underground", (0, (GROUND_FAR - 34) / 2, -0.9),
                       (200, 34 + GROUND_FAR, 1.2), GRASS))
-terrain = P.add_terrain(scn, "terrain", -40, 40, -26, GROUND_FAR, 0.85, hgt, GRASS)
+# Finer cell AND smooth normals. Flat-shaded quads render as solid blocks of
+# one tone the size of the cell, which behind pixel-detailed characters reads
+# as a coarser resolution than the rest of the art.
+terrain = P.add_terrain(scn, "terrain", -40, 40, -26, GROUND_FAR, 0.45, hgt,
+                        GRASS, smooth=True)
 flat.append(terrain)
 
 # ---- ground variation: churned dirt on the field, scrub on both sides ----

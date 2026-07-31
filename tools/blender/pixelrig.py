@@ -427,13 +427,21 @@ def enable_hard_shadows(scn):
     return ee
 
 
-def add_terrain(scn, name, x0, x1, y0, y1, cell, hfunc, mat):
+def add_terrain(scn, name, x0, x1, y0, y1, cell, hfunc, mat, smooth=True):
     """Flat-shaded ground grid displaced by hfunc(x, y).
 
     A flat plane has ONE normal, so the tone ramp can only ever give it one
     colour, which is what makes a rendered ground look dead beside a character
     built from curved parts. Gentle relief varies the normal per face and the
-    ramp then lays down all three tones as terrain texture.
+    ramp then lays down all its tones as terrain texture.
+
+    Keep `smooth` on. FLAT shading gives every quad a single normal, so each one
+    renders as a solid block of one tone whose size is the cell size, not the
+    pixel size: at a 0.85-unit cell that is a 22-pixel square of flat colour
+    sitting behind characters detailed to the pixel, and it reads as a different
+    resolution. Smooth normals let the shading vary continuously across each
+    quad, so the ramp's own steps decide the band edges and those follow the
+    terrain's contours instead of its topology.
     """
     nx = max(1, int((x1 - x0) / cell))
     ny = max(1, int((y1 - y0) / cell))
@@ -449,6 +457,9 @@ def add_terrain(scn, name, x0, x1, y0, y1, cell, hfunc, mat):
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.to_mesh(me)
     bm.free()
+    if smooth:
+        for poly in me.polygons:
+            poly.use_smooth = True
     ob = bpy.data.objects.new(name, me)
     me.materials.append(mat)
     scn.collection.objects.link(ob)
