@@ -49,11 +49,14 @@ ROSTER = [
     # ---- goblin raid (face left) -------------------------------------------
     Asset(0, "goblin", "build_goblin", "out_goblin.png", "goblin", 112,
           "the brute; the family's body plan"),
-    _todo(17, "goblin_skirmisher", "goblin"),
-    _todo(18, "goblin_caster", "goblin"),
-    _todo(19, "goblin_shaman", "goblin"),
-    _todo(20, "goblin_sapper", "goblin"),
-    _todo(21, "goblin_boss", "goblin", 128, "BOSS: the Goblin Warmaster"),
+    # The commons render in a 96 cell because they stand 2.5 world units against
+    # the brute's 3.3 -- "noticeably smaller" is world height, not fill fraction.
+    Asset(17, "goblin_skirmisher", "build_goblin_skirmisher", "out_goblin_skirmisher.png", "goblin", 96),
+    Asset(18, "goblin_caster", "build_goblin_caster", "out_goblin_caster.png", "goblin", 96),
+    Asset(19, "goblin_shaman", "build_goblin_shaman", "out_goblin_shaman.png", "goblin", 96),
+    Asset(20, "goblin_sapper", "build_goblin_sapper", "out_goblin_sapper.png", "goblin", 96),
+    Asset(21, "goblin_boss", "build_goblin_boss", "out_goblin_boss.png", "goblin", 128,
+          "BOSS: the Goblin Warmaster"),
 
     # ---- orc warband --------------------------------------------------------
     _todo(22, "orc_brute", "orc", 128),
