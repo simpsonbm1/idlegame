@@ -169,7 +169,12 @@ for i in range(78):
         flat.append(t_)
 
 
-AMP = 0.36
+# Flatter than it needs to be for TEXTURE, because smooth shading now extracts
+# plenty of tonal variation from very little slope: crossing one ramp stop in the
+# lit cluster takes about 2.3 degrees of tilt, and even this amplitude reaches
+# roughly 15. The relief was cranked up when the ground was flat-shaded and every
+# tone had to come from a visible facet.
+AMP = 0.16
 PLAZA = (-16.8, -8.6)
 
 
@@ -183,11 +188,13 @@ def flatten(x, y):
 
 
 def hgt(x, y):
+    # Weighted toward the FINE octaves. The broad rolls are what read as hills, and
+    # they are the part worth losing; the fine ones carry the surface nuance.
     return AMP * flatten(x, y) * (
-        math.sin(x * 0.33) * math.cos(y * 0.29)
-        + 0.55 * math.sin(x * 0.12 + 1.7) * math.cos(y * 0.17 + 0.9)
-        + 0.50 * math.sin(x * 1.15 + 0.4) * math.cos(y * 1.05 + 2.1)
-        + 0.26 * math.sin(x * 2.3 + 2.6) * math.cos(y * 2.1 + 0.5))
+        0.70 * math.sin(x * 0.33) * math.cos(y * 0.29)
+        + 0.30 * math.sin(x * 0.12 + 1.7) * math.cos(y * 0.17 + 0.9)
+        + 0.55 * math.sin(x * 1.15 + 0.4) * math.cos(y * 1.05 + 2.1)
+        + 0.32 * math.sin(x * 2.3 + 2.6) * math.cos(y * 2.1 + 0.5))
 
 
 ROAD_PTS = []
