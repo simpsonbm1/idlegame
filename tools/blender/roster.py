@@ -181,14 +181,16 @@ ROSTER = [
     Asset(55, "cathedral", "build_cathedral", "out_cathedral.png", "buildings", 256),
 
     # ---- townsfolk ----------------------------------------------------------
-    _todo(9, "town_villager", "townsfolk", 96),
-    _todo(10, "town_tavernkeeper", "townsfolk", 96),
-    _todo(11, "town_blacksmith", "townsfolk", 96),
-    _todo(12, "town_scholar", "townsfolk", 96),
-    _todo(13, "town_builder", "townsfolk", 96),
-    _todo(14, "town_alchemist", "townsfolk", 96),
-    _todo(15, "town_mage", "townsfolk", 96),
-    _todo(16, "town_highpriest", "townsfolk", 96),
+    # The only figures in the game not holding a weapon, which is their read.
+    # Same height as the heroes, per the size ruling.
+    Asset(9, "town_villager", "build_town_villager", "out_town_villager.png", "townsfolk", 112),
+    Asset(10, "town_tavernkeeper", "build_town_tavernkeeper", "out_town_tavernkeeper.png", "townsfolk", 112),
+    Asset(11, "town_blacksmith", "build_town_blacksmith", "out_town_blacksmith.png", "townsfolk", 112),
+    Asset(12, "town_scholar", "build_town_scholar", "out_town_scholar.png", "townsfolk", 112),
+    Asset(13, "town_builder", "build_town_builder", "out_town_builder.png", "townsfolk", 112),
+    Asset(14, "town_alchemist", "build_town_alchemist", "out_town_alchemist.png", "townsfolk", 112),
+    Asset(15, "town_mage", "build_town_mage", "out_town_mage.png", "townsfolk", 112),
+    Asset(16, "town_highpriest", "build_town_highpriest", "out_town_highpriest.png", "townsfolk", 112),
 ]
 
 GROUPS = ["heroes", "variants", "goblin", "orc", "bandit", "undead",

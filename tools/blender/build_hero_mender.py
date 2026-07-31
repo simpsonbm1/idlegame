@@ -62,9 +62,9 @@ detail.append(P.add_box(scn, "satchelflap", (0.46, -0.40, 1.72), (0.42, 0.18, 0.
 detail.append(P.add_box(scn, "bandage", (0.46, -0.42, 1.52), (0.30, 0.05, 0.16), M["cream"]))
 
 figure += S.limb(scn, (-0.48, -0.12, 2.34), (-0.66, -0.56, 1.80), M["cream"], 0.13, 0.115,
-                 joint_mat=M["skin"])
+                 hand_mat=M["skin"])
 figure += S.limb(scn, (0.48, -0.12, 2.36), (0.66, -0.58, 2.30), M["cream"], 0.13, 0.115,
-                 joint_mat=M["skin"])
+                 hand_mat=M["skin"])
 
 st_root = P.make_root(scn, "staff_root", rot=(0, -9, 0), loc=(-0.70, -0.60, 1.92))
 staff = [P.add_cyl(scn, "shaft", (0, 0, 0), 0.055, 2.70, M["wood"], verts=6)]

@@ -56,9 +56,9 @@ figure += hd
 detail += hd_det
 
 figure += S.limb(scn, (-0.48, -0.12, 2.36), (-0.68, -0.56, 1.84), M["azure"], 0.13, 0.115,
-                 joint_mat=M["skin"])
+                 hand_mat=M["skin"])
 figure += S.limb(scn, (0.48, -0.12, 2.38), (0.68, -0.58, 2.32), M["azure"], 0.13, 0.115,
-                 joint_mat=M["skin"])
+                 hand_mat=M["skin"])
 # arcane runes ON THE SLEEVES: the only glow in the game that sits on cloth
 for s, z in ((-1, 2.10), (1, 2.16)):
     noline.append(P.add_box(scn, "rune", (s * 0.56, -0.36, z), (0.09, 0.05, 0.16), M["arcane"]))

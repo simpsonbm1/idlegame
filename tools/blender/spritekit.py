@@ -245,13 +245,21 @@ def flame(scn, loc, hot, cool, scale=1.0):
     return out
 
 
-def limb(scn, shoulder, hand, mat, upper_r=0.075, fore_r=0.065, joint_mat=None):
+def limb(scn, shoulder, hand, mat, upper_r=0.075, fore_r=0.065, joint_mat=None,
+         hand_mat=None):
     """Two segments and a hand, aimed shoulder -> hand, with a bend at the elbow.
 
     The elbow is pushed toward the camera and up, which is what stops the two
     segments reading as one straight tube.
+
+    **`joint_mat` is the SLEEVE, and only `hand_mat` is skin.** Passing skin as
+    the joint material puts a bare ball at the shoulder, the elbow and the hand,
+    which on a robed or sleeved figure reads as bulging naked arms rather than as
+    a person wearing clothes. Every townsperson and every robed hero had that
+    until it was separated.
     """
     joint_mat = joint_mat or mat
+    hand_mat = hand_mat or joint_mat
     sx, sy, sz = shoulder
     hx, hy, hz = hand
     mid = ((sx + hx) * 0.5, (sy + hy) * 0.5 - 0.10, (sz + hz) * 0.5 + 0.10)
@@ -259,4 +267,4 @@ def limb(scn, shoulder, hand, mat, upper_r=0.075, fore_r=0.065, joint_mat=None):
             aimed_cyl(scn, "upperarm", shoulder, mid, upper_r, mat),
             P.add_sphere(scn, "elbow", mid, fore_r * 1.45, joint_mat),
             aimed_cyl(scn, "forearm", mid, hand, fore_r, mat),
-            P.add_sphere(scn, "hand", hand, fore_r * 1.7, joint_mat)]
+            P.add_sphere(scn, "hand", hand, fore_r * 1.7, hand_mat)]

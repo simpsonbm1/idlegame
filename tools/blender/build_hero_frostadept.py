@@ -60,9 +60,9 @@ if LEGEND:
                                  rot=(0, math.radians(s * 16), 0), verts=5))
 
 figure += S.limb(scn, (-0.48, -0.12, 2.34), (-0.68, -0.56, 1.82), M["ice"], 0.13, 0.115,
-                 joint_mat=M["skin"])
+                 hand_mat=M["skin"])
 figure += S.limb(scn, (0.48, -0.12, 2.36), (0.68, -0.58, 2.30), M["ice"], 0.13, 0.115,
-                 joint_mat=M["skin"])
+                 hand_mat=M["skin"])
 
 st_root = P.make_root(scn, "staff_root", rot=(0, -9, 0), loc=(-0.72, -0.60, 1.94))
 staff = [P.add_cyl(scn, "shaft", (0, 0, 0), 0.056, 2.80, M["wood"], verts=6)]
