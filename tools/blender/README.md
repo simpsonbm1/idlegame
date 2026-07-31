@@ -139,6 +139,43 @@ The battle band is `SPRITE_PX * 288` over a 288x112 frame, sharing the 112px
 cells' ground row, so a sprite pasted onto it lands at the right size and on the
 right line without fitting.
 
+**`target_z` is derived from the cell, never chosen.** World z=0 sits exactly 10%
+up from the bottom of every cell -- the knight at 96/1.50, the goblin and
+necromancer at 112/1.76 -- and that shared ground row is what lets a sprite drop
+onto the backdrop or a contact sheet without being fitted. `spritekit.start()`
+computes it, so a builder picks the RESOLUTION and nothing else. Six undead
+figures whose builders each picked a plausible-looking target_z came out standing
+on six different lines, which is invisible in a single render and unmissable the
+moment they line up.
+
+## Building a family
+
+Five of the six enemy families share a body type across their six entries, so a
+family is one real build plus five variants. That is expressed as a **family
+kit**: `undead_kit.py` holds the palette and the parts that faction repeats (its
+skull, its ribcage, its bone limb), and each builder holds only what makes its
+figure distinct. `spritekit.py` sits underneath and holds what every character
+sprite needs regardless of faction -- ground line, facing, outline weight, sun
+angle, tatters, flames, aimed limb segments, and the open/close pair each builder
+is bracketed by.
+
+Three rules the Undead Legion cost, each of which had to be rendered to be seen:
+
+1. **One material over a whole figure reads as carved wood.** The death knight
+   was built entirely from the family's rust brown and came back a mannequin: the
+   tone ramp has nothing to work with when every surface shares a palette, and a
+   warm brown at armour scale stops reading as metal. Rust is TRIM on aged steel.
+   Rusted armour still has to be armour first.
+2. **"Mid-bright" is a constraint, not a suggestion.** The shadow reaver's
+   "tattered black cloak" taken literally produced one unreadable mass, because an
+   outline only reads against a light tone and his internal edges all vanished at
+   once. His palette needed lifting about 60%.
+3. **Gaunt, hulking, towering and small are RATIOS, not details.** The reaver read
+   as an ape while lit correctly and modelled correctly, because he was as tall as
+   a dwarf and as broad as the brute. Height against width, and how much
+   background shows between the limbs, is the whole of it at forty pixels. A
+   visible neck was worth more than any amount of skull detail.
+
 ## Animation
 
 `build_attack.py` renders attacks as horizontal sprite sheets. No remodelling is

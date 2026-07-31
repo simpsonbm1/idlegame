@@ -72,13 +72,14 @@ ROSTER = [
     _todo(33, "bandit_boss", "bandit", 128, "BOSS: the Bandit King"),
 
     # ---- undead legion ------------------------------------------------------
-    _todo(34, "undead_brute", "undead", 128),
-    _todo(35, "undead_skirmisher", "undead"),
+    Asset(34, "undead_brute", "build_undead_brute", "out_undead_brute.png", "undead", 128),
+    Asset(35, "undead_skirmisher", "build_undead_skirmisher", "out_undead_skirmisher.png", "undead", 112),
     Asset(36, "undead_caster", "build_undead_caster", "out_undead_caster.png",
           "undead", 112, "the necromancer; built from spec prose with no reference"),
-    _todo(37, "undead_shaman", "undead"),
-    _todo(38, "undead_sapper", "undead"),
-    _todo(39, "undead_boss", "undead", 144, "BOSS: the Lich Commander"),
+    Asset(37, "undead_shaman", "build_undead_shaman", "out_undead_shaman.png", "undead", 112),
+    Asset(38, "undead_sapper", "build_undead_sapper", "out_undead_sapper.png", "undead", 112),
+    Asset(39, "undead_boss", "build_undead_boss", "out_undead_boss.png", "undead", 144,
+          "BOSS: the Lich Commander"),
 
     # ---- infernal siege -----------------------------------------------------
     _todo(40, "infernal_brute", "infernal", 128),
