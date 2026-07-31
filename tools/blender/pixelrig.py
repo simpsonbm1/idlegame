@@ -345,6 +345,60 @@ def outline_all(scn, px, width_px=1.3, skip=()):
 # render
 # --------------------------------------------------------------------------
 
+def enable_hard_shadows(scn):
+    """Deterministic cast shadows, safe with the hard tone ramp.
+
+    setup_render() turns shadows off because the DEFAULT settings are stochastic
+    and a hard ramp turns any jitter into speckle. Three settings make them exact
+    instead: no sun angular size, no shadow filter radius, one ray and one step.
+    `shadow_filter_radius` is the one that matters -- left at its default of 1.0
+    it covers every lit surface in shadow acne.
+
+    Worth it on backdrops, where cast shadows are most of what makes flat ground
+    read as having depth. Character sprites stay unshadowed.
+    """
+    sun = scn.collection.objects.get("KeySun")
+    if sun:
+        sun.data.shadow_soft_size = 0.0
+        sun.data.angle = 0.0
+        sun.data.shadow_filter_radius = 0.0
+        sun.data.shadow_maximum_resolution = 0.00005
+    ee = scn.eevee
+    ee.use_shadows = True
+    ee.shadow_ray_count = 1
+    ee.shadow_step_count = 1
+    ee.taa_render_samples = 1
+    return ee
+
+
+def add_terrain(scn, name, x0, x1, y0, y1, cell, hfunc, mat):
+    """Flat-shaded ground grid displaced by hfunc(x, y).
+
+    A flat plane has ONE normal, so the tone ramp can only ever give it one
+    colour, which is what makes a rendered ground look dead beside a character
+    built from curved parts. Gentle relief varies the normal per face and the
+    ramp then lays down all three tones as terrain texture.
+    """
+    nx = max(1, int((x1 - x0) / cell))
+    ny = max(1, int((y1 - y0) / cell))
+    me = bpy.data.meshes.new(name)
+    bm = bmesh.new()
+    grid = [[bm.verts.new((x0 + i * (x1 - x0) / nx,
+                           y0 + j * (y1 - y0) / ny,
+                           hfunc(x0 + i * (x1 - x0) / nx, y0 + j * (y1 - y0) / ny)))
+             for j in range(ny + 1)] for i in range(nx + 1)]
+    for i in range(nx):
+        for j in range(ny):
+            bm.faces.new((grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(me)
+    bm.free()
+    ob = bpy.data.objects.new(name, me)
+    me.materials.append(mat)
+    scn.collection.objects.link(ob)
+    return ob
+
+
 def find(scn, *bases):
     """Objects whose name matches any base, ignoring Blender's .001 suffixes."""
     want = set(bases)

@@ -175,6 +175,29 @@ battlefield is what sets the resolution: 60 world units at 2x needs 768 pixels
 across. `compose_vista.py` then displays it at 2x, which makes one screen pixel
 equal one character pixel, so sprites drop on at 1:1 seated by world coordinate.
 
+**Depth comes from shadows and relief, not from more props.** A flat ground plane
+has one normal, so the tone ramp can only ever give it one colour, and it reads
+dead beside a character built from curved parts. Two changes fix that, and the
+backdrop needs both:
+
+- `enable_hard_shadows(scn)` turns cast shadows back on. `setup_render()` disables
+  them because the defaults are stochastic and a hard ramp turns jitter into
+  speckle. The setting that actually matters is `shadow_filter_radius`, which at
+  its default of 1.0 covers every lit surface in acne. Set it to zero, with no sun
+  angular size, one ray and one step, and shadows are exact.
+- `add_terrain()` replaces the ground plane with a flat-shaded grid displaced by a
+  height function. Varying the normal per face makes the ramp lay down all three
+  greens as terrain texture. Three octaves work better than one: broad rolls for
+  form, a finer octave for grain.
+
+Scatter props as solids rather than flat decals so they catch light and cast their
+own small shadows, and taper the relief to nothing where the wall and plaza stand
+so nothing has to be sunk into a slope.
+
+Watch the arithmetic when scattering by index. `(i * 7) % 21` yields only three
+distinct values because 7 divides 21, which put every grass tuft on one of three
+rows across the frame. Use a multiplier coprime with the modulus.
+
 Two things an orthographic camera forces, both of which cost a debugging round:
 
 1. **There is no horizon.** Distance never thins anything out, so the ground plane

@@ -51,8 +51,8 @@ WALL_X = -ORTHO / 2 + 0.46 * ORTHO         # 46% across, where game.js seats the
 GROUND_FAR = 10.0                          # ground stops; range and sky stand beyond
 # Town building plots occupy roughly x -23..-7, y -3..6.5 at this framing. Keep clear.
 
-GRASS = P.toon_mat("BG_GRASS", "#3f612d", "#537c39", "#6d9c4b") if False else \
-        P.toon_mat("BG_GRASS", "#3f612d", "#537c39", "#6d9c4b")
+GRASS = P.toon_mat("BG_GRASS", "#41632f", "#537c39", "#628f42") if False else \
+        P.toon_mat("BG_GRASS", "#41632f", "#537c39", "#628f42")
 GRASS2 = P.toon_mat("BG_GRASS2", "#37552a", "#496e33", "#608a41")
 DIRT = P.toon_mat("BG_DIRT", "#4a3b28", "#6b5740", "#8a7458")
 STONE = P.toon_mat("BG_STONE", "#6a655a", "#8e8878", "#b2ab94")
@@ -94,8 +94,6 @@ for x, y, r, h in ((-26, 11.4, 6.4, 6.2), (-13, 11.9, 5.6, 7.4), (-1, 11.1, 5.0,
     cap = P.add_cone(scn, "snow", (x, y - 0.25, h - 1.05), r * 0.21, 0.25, 2.1, SNOW, verts=7)
     cap.scale = (1, MTN_FLAT, 1)
     flat.append(cap)
-flat.append(P.add_box(scn, "ground", (0, (GROUND_FAR - 34) / 2, -0.5),
-                      (200, 34 + GROUND_FAR, 1.0), GRASS))
 # The ground plane simply ends, and an ortho camera renders that as a clean cut
 # across the frame. A haze strip plus a continuous distant treeline hides the cut.
 flat.append(P.add_box(scn, "haze", (0, GROUND_FAR + 0.5, 0.7), (200, 0.3, 2.6), HAZE))
@@ -108,11 +106,45 @@ for i in range(78):
                                1.05 * s_, 0.05, 2.6 * s_, PINE_FAR, verts=6))
 
 
-def decal(name, x, y, rx_, ry_, mat, z=0.03):
-    ob = P.add_cyl(scn, name, (x, y, z), 1.0, 0.06, mat, verts=9, scale=(rx_, ry_, 1))
+AMP = 0.26
+PLAZA = (-16.8, -8.6)
+
+
+def flatten(x, y):
+    """Relief tapers to nothing where the wall and the plaza stand, so nothing
+    has to be sunk into a slope."""
+    k = min(1.0, max(0.0, (abs(x - WALL_X) - 2.4) / 3.0))
+    d = math.hypot(x - PLAZA[0], y - PLAZA[1])
+    k = min(k, min(1.0, max(0.0, (d - 4.6) / 3.0)))
+    return k
+
+
+def hgt(x, y):
+    return AMP * flatten(x, y) * (
+        math.sin(x * 0.33) * math.cos(y * 0.29)
+        + 0.55 * math.sin(x * 0.12 + 1.7) * math.cos(y * 0.17 + 0.9)
+        + 0.38 * math.sin(x * 1.15 + 0.4) * math.cos(y * 1.05 + 2.1))
+
+
+ROAD_PTS = []
+
+
+def decal(name, x, y, rx_, ry_, mat, z=0.10):
+    """Flat ground marking, riding the terrain. Casts no shadow: it is paint,
+    not an object, and a floating disc would otherwise throw one."""
+    ob = P.add_cyl(scn, name, (x, y, hgt(x, y) + z), 1.0, 0.06, mat,
+                   verts=9, scale=(rx_, ry_, 1))
+    ob.visible_shadow = False
+    if name.startswith("road") or name == "plazapath":
+        ROAD_PTS.append((x, y))
     flat.append(ob)
     return ob
 
+
+flat.append(P.add_box(scn, "underground", (0, (GROUND_FAR - 34) / 2, -0.9),
+                      (200, 34 + GROUND_FAR, 1.2), GRASS))
+terrain = P.add_terrain(scn, "terrain", -40, 40, -26, GROUND_FAR, 0.85, hgt, GRASS)
+flat.append(terrain)
 
 # ---- ground variation: churned dirt on the field, scrub on both sides ----
 for cx, cy, n in ((6.0, -4.0, 5), (16.0, -9.0, 6), (24.0, -3.0, 4),
@@ -121,10 +153,34 @@ for cx, cy, n in ((6.0, -4.0, 5), (16.0, -9.0, 6), (24.0, -3.0, 4),
         x = cx + ((i * 7) % 5 - 2) * 1.5
         y = cy + ((i * 5) % 5 - 2) * 1.1
         decal("churn", x, y, 1.5 + 0.7 * (i % 3), 0.95 + 0.4 * (i % 2), DIRT)
-for i in range(48):
+def clear_ground(x, y, pad=1.9):
+    """Keep scatter off the paved plaza, the wall line and the roads."""
+    if math.hypot(x - PLAZA[0], y - PLAZA[1]) < 4.9:
+        return False
+    if abs(x - WALL_X) < 2.2:
+        return False
+    return all(math.hypot(x - rx, y - ry) > pad for rx, ry in ROAD_PTS)
+
+
+placed = 0
+for i in range(90):
     x = -29.0 + ((i * 11) % 31) * 1.95
-    y = -15.5 + ((i * 5) % 21) * 1.3
-    decal("scrub", x, y, 0.75 + 0.4 * (i % 3), 0.5 + 0.25 * (i % 2), GRASS2)
+    y = -15.5 + ((i * 8) % 21) * 1.3 + 0.45 * ((i * 13) % 7 - 3) / 3.0
+    x += 0.5 * ((i * 5) % 7 - 3) / 3.0
+    if not clear_ground(x, y) or i % 3 == 0:
+        continue
+    r = 0.42 + 0.22 * (i % 3)
+    solid.append(P.add_sphere(scn, "tuft", (x, y, hgt(x, y) + 0.03), r, GRASS2,
+                              scale=(1.4, 1.0, 0.30), segs=7, rings=4))
+    placed += 1
+for i in range(44):                      # loose stones, small but they cast
+    x = -30.0 + ((i * 17) % 37) * 1.7
+    y = -16.0 + ((i * 5) % 19) * 1.45 + 0.6 * ((i * 11) % 5 - 2) / 2.0
+    if not clear_ground(x, y, 1.4) or i % 2 == 0:
+        continue
+    r = 0.2 + 0.1 * (i % 3)
+    solid.append(P.add_sphere(scn, "pebble", (x, y, hgt(x, y) + 0.02), r, STONE,
+                              scale=(1.2, 0.95, 0.55), segs=6, rings=3))
 
 # ---- roads: out through the gate, and west to the plaza ----
 for i in range(22):
@@ -178,23 +234,26 @@ for i in range(30):
     x = 5.0 + ((i * 17) % 37) * 0.72
     y = 5.4 + ((i * 5) % 13) * 0.34
     s = 0.9 + 0.14 * (i % 4)
-    solid.append(P.add_cyl(scn, "trunk", (x, y, 0.3 * s), 0.16, 0.66 * s, BARK, verts=6))
+    zt = hgt(x, y)
+    solid.append(P.add_cyl(scn, "trunk", (x, y, zt + 0.3 * s), 0.16, 0.66 * s, BARK, verts=6))
     for zz, rr in ((0.9, 1.0), (1.55, 0.74), (2.1, 0.46)):
-        solid.append(P.add_cone(scn, "pine", (x, y, zz * s), rr * s, 0.04, 1.25 * s, PINE, verts=7))
+        solid.append(P.add_cone(scn, "pine", (x, y, zt + zz * s), rr * s, 0.04, 1.25 * s, PINE, verts=7))
 
 # ---- broadleaf trees inside the town, clear of the plot band ----
 for x, y, s in ((-27.5, 3.0, 1.0), (-26.4, -6.4, 0.9), (-9.0, -11.0, 0.95),
                 (-23.0, -13.5, 0.85), (-5.5, 7.6, 0.9)):
-    solid.append(P.add_cyl(scn, "ttrunk", (x, y, 0.4 * s), 0.2, 0.85 * s, BARK, verts=6))
-    solid.append(P.add_sphere(scn, "canopy", (x, y, 1.42 * s), 1.2 * s, LEAF,
+    zt = hgt(x, y)
+    solid.append(P.add_cyl(scn, "ttrunk", (x, y, zt + 0.4 * s), 0.2, 0.85 * s, BARK, verts=6))
+    solid.append(P.add_sphere(scn, "canopy", (x, y, zt + 1.42 * s), 1.2 * s, LEAF,
                               scale=(1, 1, 0.82), segs=10, rings=6))
 
 # ---- field boulders ----
 for x, y, s in ((8.0, -5.6, 0.62), (18.0, -11.5, 0.5), (25.0, -2.4, 0.7),
                 (12.0, -15.0, 0.45), (5.0, -11.0, 0.4), (28.0, -8.0, 0.55)):
-    solid.append(P.add_sphere(scn, "rock", (x, y, s * 0.4), s, STONE,
+    solid.append(P.add_sphere(scn, "rock", (x, y, hgt(x, y) + s * 0.4), s, STONE,
                               scale=(1.15, 0.95, 0.6), segs=7, rings=4))
 
+P.enable_hard_shadows(scn)
 P.outline_all(scn, px, width_px=1.4, skip=tuple(o.name for o in flat))
 P.render_to(scn, os.path.join(OUT, "out_backdrop.png"))
 P.upscale_nearest(os.path.join(OUT, "out_backdrop.png"),
