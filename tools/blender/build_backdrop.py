@@ -107,20 +107,26 @@ PAVE = P.toon_mat("BG_PAVE", "#504d46", "#837f6c", "#b8b499", steps=N, positions
 PINE = P.toon_mat("BG_PINE", "#132214", "#2b4829", "#517b48", steps=N, positions=SHADE_POS)
 BARK = P.toon_mat("BG_BARK", "#241810", "#493424", "#725438", steps=N, positions=SHADE_POS)
 LEAF = P.toon_mat("BG_LEAF", "#1c2f1d", "#3c5e32", "#679651", steps=N, positions=SHADE_POS)
-MTN = P.toon_mat("BG_MTN", "#3d4450", "#616976", "#98a0af", steps=N, positions=SHADE_POS)
-MTN_FAR = P.toon_mat("BG_MTNFAR", "#495060", "#6b7380", "#99a0af", steps=N, positions=SHADE_POS)
-SNOW = P.toon_mat("BG_SNOW", "#8a93a2", "#bcc3cd", "#f1f5fa", steps=N, positions=SHADE_POS)
+MTN = P.toon_mat("BG_MTN", "#414f66", "#68789a", "#a3b3cd", steps=N, positions=SHADE_POS)
+MTN_FAR = P.toon_mat("BG_MTNFAR", "#54637e", "#7d8cab", "#aebbd2", steps=N, positions=SHADE_POS)
+SNOW = P.toon_mat("BG_SNOW", "#93a3b8", "#c6d3e2", "#f4f9ff", steps=N, positions=SHADE_POS)
 PINE_FAR = P.toon_mat("BG_PINEFAR", "#1b2b1f", "#354c37", "#56744c", steps=N, positions=SHADE_POS)
-HAZE = P.flat_mat("BG_HAZE", "#5b6668")
-SKY_HI = P.flat_mat("BG_SKYHI", "#464c56")
-SKY_LO = P.flat_mat("BG_SKYLO", "#6f7783")
+HAZE = P.flat_mat("BG_HAZE", "#89aec2")
+SKY_HI = P.flat_mat("BG_SKYHI", "#4a7cb4")
+SKY_LO = P.flat_mat("BG_SKYLO", "#a3c6e0")
 DARK = P.flat_mat("BG_DARK", "#20211c")
 
 solid, flat = [], []       # `flat` gets no outline: ground, decals, sky, distance
 
 # ---- sky panel, distant range, ground ----
-flat.append(P.add_box(scn, "sky", (0, 13.0, 12.0), (200, 0.4, 44), SKY_HI))
-flat.append(P.add_box(scn, "skyband", (0, 12.6, 1.4), (200, 0.4, 5.0), SKY_LO))
+# The sky panel is a 200-unit box standing 44 tall. Left casting, its shadow falls
+# right across the battlefield and reads as a huge unexplained dark region, since
+# nothing visible is there to throw it. Backdrop panels never cast.
+for _n, _loc, _sz, _m in (("sky", (0, 13.0, 12.0), (200, 0.4, 44), SKY_HI),
+                          ("skyband", (0, 12.6, 1.4), (200, 0.4, 5.0), SKY_LO)):
+    _o = P.add_box(scn, _n, _loc, _sz, _m)
+    _o.visible_shadow = False
+    flat.append(_o)
 # Two ranges. The far one is hazier and reads as distance, which an ortho camera
 # gives no other way of suggesting.
 # Squashed almost flat in Y. A cone wide enough to read as a mountain is also

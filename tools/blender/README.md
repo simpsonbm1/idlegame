@@ -205,10 +205,17 @@ a fill light with `use_shadow = False`. It lifts shadowed surfaces off the botto
 stop and, because it still varies with surface normal, gives the shading inside a
 shadow somewhere to go.
 
-**Distance dressing must not cast.** The masking treeline at the ground's far edge
-spans the whole frame, so with shadows on it laid one continuous bar across the
-battlefield that read as the wall's shadow, though the wall only runs halfway. Set
-`visible_shadow = False` on anything that exists only to hide a seam.
+**Distance dressing must not cast.** Anything that exists only to hide a seam or
+stand in for distance needs `visible_shadow = False`: the masking treeline at the
+ground's far edge, the mountains, the haze strip, and above all THE SKY PANEL. The
+sky is a 200-unit box standing 44 tall, and left casting it drops a shadow across
+most of the battlefield with nothing visible in the frame to explain it.
+
+When hunting a shadow whose source is unclear, unlink candidate objects one at a
+time and compare the mean brightness of the region, rather than toggling their
+shadow flag. A group can change the average simply by removing its own dark
+pixels, so removal alone does not prove it was casting; confirm with the flag once
+you have a suspect.
 
 **Step count is a per-asset decision.** `toon_mat(..., steps=N)` sets how many
 shades the ramp holds. Three is right for a character sprite, where curved parts
