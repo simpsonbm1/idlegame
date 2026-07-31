@@ -70,12 +70,15 @@ ROSTER = [
           "BOSS: the Orc Warlord"),
 
     # ---- bandit horde -------------------------------------------------------
-    _todo(28, "bandit_brute", "bandit"),
-    _todo(29, "bandit_skirmisher", "bandit"),
-    _todo(30, "bandit_caster", "bandit"),
-    _todo(31, "bandit_shaman", "bandit"),
-    _todo(32, "bandit_sapper", "bandit"),
-    _todo(33, "bandit_boss", "bandit", 144, "BOSS: the Bandit King"),
+    # The first HUMAN enemies: same build and skin as the heroes, so the faction
+    # is carried by covered faces, worn browns and gear that does not fit.
+    Asset(28, "bandit_brute", "build_bandit_brute", "out_bandit_brute.png", "bandit", 112),
+    Asset(29, "bandit_skirmisher", "build_bandit_skirmisher", "out_bandit_skirmisher.png", "bandit", 112),
+    Asset(30, "bandit_caster", "build_bandit_caster", "out_bandit_caster.png", "bandit", 112),
+    Asset(31, "bandit_shaman", "build_bandit_shaman", "out_bandit_shaman.png", "bandit", 112),
+    Asset(32, "bandit_sapper", "build_bandit_sapper", "out_bandit_sapper.png", "bandit", 112),
+    Asset(33, "bandit_boss", "build_bandit_boss", "out_bandit_boss.png", "bandit", 144,
+          "BOSS: the Bandit King"),
 
     # ---- undead legion ------------------------------------------------------
     Asset(34, "undead_brute", "build_undead_brute", "out_undead_brute.png", "undead", 112),
