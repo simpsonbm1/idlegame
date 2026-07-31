@@ -185,10 +185,25 @@ backdrop needs both:
   speckle. The setting that actually matters is `shadow_filter_radius`, which at
   its default of 1.0 covers every lit surface in acne. Set it to zero, with no sun
   angular size, one ray and one step, and shadows are exact.
-- `add_terrain()` replaces the ground plane with a flat-shaded grid displaced by a
-  height function. Varying the normal per face makes the ramp lay down all three
-  greens as terrain texture. Three octaves work better than one: broad rolls for
-  form, a finer octave for grain.
+- `add_terrain()` replaces the ground plane with a grid displaced by a height
+  function, so the normal varies and the ramp lays down all its greens as terrain
+  texture. Several octaves work better than one.
+
+**Smooth-shade that terrain, and then keep it nearly flat.** Flat shading gives
+every quad one normal, so each renders as a solid block of one tone the size of the
+CELL rather than the pixel. At a 0.85-unit cell that is a 22-pixel square of flat
+green behind characters detailed to the pixel, and it reads as a coarser resolution
+than the rest of the art. Raising the render resolution does not help; the blocks
+only get sharper edges. With smooth normals the shading varies across each quad, so
+the ramp's steps set the band edges and those follow the terrain's contours instead
+of its topology.
+
+Once shading is smooth, drop the amplitude hard. Crossing one ramp stop in the lit
+cluster takes about 2.3 degrees of tilt, so very little slope produces plenty of
+tone. High relief is only needed while the ground is flat-shaded and every tone has
+to come from a visible facet; left high afterwards it reads as rolling hills. Weight
+the height function toward its FINE octaves, since the broad rolls are the part that
+reads as terrain rather than as surface.
 
 **Measure the shading range before choosing ramp stops.** Swap a material's ramp
 for a linear black-to-white one, render, and histogram the pixels, converting sRGB
