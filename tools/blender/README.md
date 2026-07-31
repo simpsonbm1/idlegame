@@ -2,13 +2,13 @@
 
 Renders game sprites as 3D pixel art: low-poly models, orthographic camera,
 hard-stepped toon shading, inverted-hull outlines, no anti-aliasing. Output is a
-native small PNG with alpha (96x96 for characters), not a downscale of something
-larger.
+native small PNG with alpha, not a downscale of something larger. Attacks render
+as horizontal sprite sheets.
 
-**Status: pilot, awaiting the developer's style verdict.** Nothing here is wired
-into the game yet. The knight, goblin, cottage and vista were built to answer one
-question, which is whether rendered pixel art can sit beside the existing Gemini
-sprites. See `SESSION_HANDOFF.md`.
+**Status: pilot.** Nothing here is wired into the game yet. The developer's verdict
+(2026-07-31) is that these do NOT sit well beside the existing Gemini sprites, so
+the open question is now whether an all-Blender art pass is worth committing to,
+not whether the two styles can be mixed. See `SESSION_HANDOFF.md`.
 
 ## Running it
 
@@ -32,9 +32,10 @@ Renders land in `tools/blender/out/`, which is gitignored. Paths resolve from
 | `build_goblin.py` | goblin brute sprite |
 | `build_undead_caster.py` | undead necromancer, built from the written spec with no reference |
 | `build_cottage.py` | cottage sprite, near-isometric |
-| `build_scene.py` | town-to-battlefield vista, one continuous 288x96 image |
+| `build_scene.py` | town-to-battlefield vista, one continuous image |
 | `compose_battle.py` | battle band with sprites composited at matched scale (run after `build_scene`) |
 | `compose_lineup.py` | all character sprites on one strip, to make style drift visible |
+| `build_attack.py` | attack animations as horizontal sprite sheets (`knight()`, `goblin()`) |
 
 ## How the style is produced
 
@@ -74,10 +75,44 @@ shadow stop has to stay well above black.
 
 ## Scale matching
 
-Sprite and backdrop share a pixel size, computed as `ortho_scale / resolution_x`.
-The character sprites use `3.75 / 96` and the battle band uses `11.25 / 288`, both
-equal to `0.0390625` world units per pixel. A sprite dropped onto the band is
-therefore the correct size with no fitting.
+One constant governs every character: `SPRITE_PX = 0.0390625` world units per
+rendered pixel. Call `sprite_cam(scn, res, target_z)` and it derives the ortho
+scale as `SPRITE_PX * res`.
+
+**Pick the cell RESOLUTION to fit a figure. Never pick the ortho scale.** They
+look interchangeable and they are not. A larger cell gives a bigger canvas at the
+same rendered size; a larger ortho shrinks the figure. The knight uses a 96px
+cell, the goblin and the necromancer 112px because they are taller and wider, and
+the attack sheets 128px because a raised weapon needs headroom. All four render at
+identical scale.
+
+This was gotten wrong once. The goblin was originally built at `4.15 / 96`, which
+rendered him about ten percent small against the knight, and the error was
+invisible until the two stood side by side on the battle band.
+
+The battle band is `SPRITE_PX * 288` over a 288x112 frame, sharing the 112px
+cells' ground row, so a sprite pasted onto it lands at the right size and on the
+right line without fitting.
+
+## Animation
+
+`build_attack.py` renders attacks as horizontal sprite sheets. No remodelling is
+involved: it puts one pivot at the shoulder, hands it the arm parts and the
+weapon root, and turns that pivot once per frame.
+
+Rotate the pivot about **Y**, not X. The camera looks down world +Y, so XZ is the
+only plane a swing shows in, and that is a turn about Y. Angles are measured from
+straight up, so 0 is overhead, 90 is level and forward, 180 is straight down. Take
+the weapon's own rest angle into account: the knight's blade sits at 132 degrees,
+so -95 lifts it overhead and +30 drives it past rest into a finished cut.
+
+Two things that went wrong and are worth avoiding. Including the shoulders in the
+pivot tore them off the torso. Putting the pivot at the chest centre swung the far
+arm behind the body, which a more forward pivot fixed.
+
+Every frame passes through the same rig, so palette, outline weight and pixel grid
+hold across a sheet by construction. Hand-drawn frames are where sprite animation
+usually gets expensive; here a new attack is a list of angles.
 
 ## Cost, measured on the pilot
 

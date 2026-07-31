@@ -15,7 +15,7 @@ importlib.reload(P)
 OUT = P.out_dir()
 
 SPRITES = ["out_knight.png", "out_goblin.png", "out_undead_caster.png"]
-CELL = 96
+CELL = 112      # widest sprite cell in the set; narrower sprites are centred
 
 
 def load_rgba(path):

@@ -21,8 +21,11 @@ OUT = P.out_dir()
 
 scn = P.get_scene()
 bpy.context.window.scene = scn
-scn.render.resolution_x, scn.render.resolution_y = 288, 96
-P.place_cam(scn, target=(7.0, 0.0, 1.50), rx_deg=83, rz_deg=-14, dist=90, ortho=11.25)
+# Band height matches the TALLEST sprite cell (112) and shares its ground row,
+# so nothing clips and every figure seats on the same line.
+scn.render.resolution_x, scn.render.resolution_y = 288, 112
+P.place_cam(scn, target=(7.0, 0.0, 1.76), rx_deg=83, rz_deg=-14, dist=90,
+            ortho=P.SPRITE_PX * 288)
 P.render_to(scn, os.path.join(OUT, "out_band.png"))
 print("band px:", scn.camera.data.ortho_scale / scn.render.resolution_x)
 
@@ -59,11 +62,12 @@ goblin = load_rgba(os.path.join(OUT, "out_goblin.png"))
 
 # Both sprite renders put ground level on the same row, so a single y offset
 # seats every character on the same line.
-GROUND_Y = -1
-paste(band, knight, 40, GROUND_Y)
-paste(band, knight, 78, GROUND_Y - 1)
-paste(band, goblin, 150, GROUND_Y)
-paste(band, goblin, 192, GROUND_Y - 1)
+# The band's ground row matches the 112px cells, so a 112 sprite seats at 0 and
+# the knight's shorter 96 cell lifts by the 1px difference in feet offset.
+paste(band, knight, 40, 1)
+paste(band, knight, 78, 0)
+paste(band, goblin, 142, 0)
+paste(band, goblin, 190, -1)
 
 out = bpy.data.images.new("battleband", band.shape[1], band.shape[0], alpha=True)
 out.pixels.foreach_set(band.ravel())

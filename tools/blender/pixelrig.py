@@ -58,6 +58,24 @@ def setup_render(scn, res=96, ortho=4.0):
     return scn.render.resolution_x
 
 
+SPRITE_PX = 0.0390625   # world units per rendered pixel, shared by ALL character sprites
+
+
+def sprite_cam(scn, res, target_z, rx_deg=87):
+    """Camera for a character sprite, locked to SPRITE_PX.
+
+    Every character must render at the same world-units-per-pixel or figures come
+    out at inconsistent sizes relative to each other and to the battle backdrop.
+    Choose the CELL RESOLUTION to fit the character, never the ortho scale --
+    ortho is derived. A bigger cell buys room (for a raised weapon, say) without
+    changing how large the figure renders.
+    """
+    scn.render.resolution_x = res
+    scn.render.resolution_y = res
+    return place_cam(scn, target=(0, 0, target_z), rx_deg=rx_deg, rz_deg=0,
+                     dist=20, ortho=SPRITE_PX * res)
+
+
 def place_cam(scn, target, rx_deg, rz_deg, dist=20.0, ortho=None):
     """Aim the ortho camera at `target` from elevation/azimuth given in degrees.
     rx=90 is dead level (character sprites); rx=60 is a game-isometric down-angle
@@ -327,10 +345,65 @@ def outline_all(scn, px, width_px=1.3, skip=()):
 # render
 # --------------------------------------------------------------------------
 
+def find(scn, *bases):
+    """Objects whose name matches any base, ignoring Blender's .001 suffixes."""
+    want = set(bases)
+    return [o for o in scn.collection.objects if o.name.split('.')[0] in want]
+
+
+def reparent_keep(root, objs):
+    """Parent WITHOUT moving anything: the child keeps its current world
+    position and only follows the root from now on.
+
+    This is the opposite of parent_all(), which makes a child's coordinates
+    local to the root. Animation needs this form -- an arm is modelled in place
+    and then handed a pivot to swing around.
+    """
+    for ob in objs:
+        ob.parent = root
+        ob.matrix_parent_inverse = root.matrix_world.inverted()
+
+
 def render_to(scn, path):
     scn.render.filepath = path
     bpy.ops.render.render(write_still=True, scene=scn.name)
     return path
+
+
+def render_strip(scn, poses, out_path, cell=None):
+    """Render one frame per pose and lay them out as a horizontal sprite sheet.
+
+    `poses` is a list of callables. Each one sets up a frame and is called with
+    no arguments; frame 0 should be the rest pose. Returns the strip path.
+    """
+    import numpy as np
+    import tempfile
+    cell = cell or scn.render.resolution_x
+    frames = []
+    tmp = tempfile.mkdtemp(prefix="pixelrig_")
+    for i, pose in enumerate(poses):
+        pose()
+        bpy.context.view_layer.update()
+        p = os.path.join(tmp, "f%02d.png" % i)
+        render_to(scn, p)
+        img = bpy.data.images.load(p, check_existing=False)
+        w, h = img.size
+        buf = np.empty(w * h * 4, dtype=np.float32)
+        img.pixels.foreach_get(buf)
+        bpy.data.images.remove(img)
+        frames.append(buf.reshape(h, w, 4))
+
+    h = frames[0].shape[0]
+    sheet = np.zeros((h, cell * len(frames), 4), dtype=np.float32)
+    for i, f in enumerate(frames):
+        sheet[:, i * cell:i * cell + f.shape[1]] = f
+    out = bpy.data.images.new("strip", sheet.shape[1], sheet.shape[0], alpha=True)
+    out.pixels.foreach_set(sheet.ravel())
+    out.file_format = 'PNG'
+    out.filepath_raw = out_path
+    out.save()
+    bpy.data.images.remove(out)
+    return out_path
 
 
 def upscale_nearest(src_path, dst_path, factor=10, bg=None):

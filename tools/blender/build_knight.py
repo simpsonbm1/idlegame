@@ -22,10 +22,10 @@ OUT = P.out_dir()
 
 scn = P.get_scene()
 bpy.context.window.scene = scn
-P.setup_render(scn, res=96)
+P.setup_render(scn)
 P.clear_scene(scn)
 
-P.place_cam(scn, target=(0, 0, 1.50), rx_deg=87, rz_deg=0, dist=20, ortho=3.75)
+P.sprite_cam(scn, res=96, target_z=1.50)
 px = P.pixel_size(scn)
 scn.collection.objects["KeySun"].rotation_euler = (math.radians(50), 0, math.radians(-40))
 
