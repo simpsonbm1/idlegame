@@ -290,11 +290,17 @@ backdrop's own palette, so a shadow never introduces a colour the scene does not
 already contain. A plain translucent overlay would, and it reads immediately as a
 layer sitting on top rather than as part of the art.
 
-**Keep the battle line out of the wall's cast shadow.** The wall throws its shadow
-right, over roughly x = -1.8 to 1.9, which is the field side where the fighting
-happens. A fully lit sprite standing in a shaded band looks pasted on. Moving the
-line clear is free; darkening sprites that stand in shadow means the game has to
-know the shadow's shape at runtime, which is a much bigger commitment.
+**Keep the battle line out of the wall's cast shadow, and measure where that
+actually ends.** Everything on the wall throws its shadow right, onto the field
+where the fighting happens, and the GATEHOUSE governs the reach, not the curtain
+wall. The towers stand about 6 world units against the wall's 3.2, so they shade
+nearly twice as far and a line placed clear of the wall was still inside them.
+Sample the rendered ground along the line instead of estimating: here it read 0.23
+out to x = 5 and 0.45 from x = 6, so the line forms up past 6.
+
+A fully lit sprite standing in a shaded band looks pasted on. Moving the line clear
+is free; darkening sprites that stand in shadow means the game has to know the
+shadow's shape at runtime, which is a much bigger commitment.
 
 ## Cost, measured on the pilot
 

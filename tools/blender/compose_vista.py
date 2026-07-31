@@ -72,7 +72,7 @@ PX_PER_UNIT = ZOOM / (BG_ORTHO / BG_W)     # screen pixels per world unit across
 DARKEN = 0.56
 
 
-def ground_shadow(dst, wx, wy, rx_w=0.78, ry_w=0.30, dx_w=0.55, dy_w=-0.10):
+def ground_shadow(dst, wx, wy, rx_w=0.94, ry_w=0.345, dx_w=0.62, dy_w=-0.11):
     """Contact shadow under a unit standing at world (wx, wy).
 
     Offset toward where the sun throws it, which on this backdrop is right and
@@ -99,16 +99,18 @@ def ground_shadow(dst, wx, wy, rx_w=0.78, ry_w=0.30, dx_w=0.55, dy_w=-0.10):
     patch[inside] = PALETTE[np.argmin(d, axis=1)]
 
 
-# The wall throws its shadow to the RIGHT, so the band from x = -1.8 to about
-# x = 1.9 is in shade. A brightly lit sprite standing in it reads as pasted on,
-# so the battle line forms up clear of it.
-KNIGHTS = ((3.2, -5.0), (5.3, -6.4), (4.0, -8.0))
-GOBLINS = ((11.8, -5.0), (13.9, -6.4), (12.5, -8.0))
+# Everything on the wall throws its shadow RIGHT, onto the field where the fighting
+# happens, and the GATEHOUSE governs the reach, not the curtain wall. The towers
+# stand about 6 units against the wall's 3.2, so they shade nearly twice as far.
+# Measured on the render: along y = -6.4 the ground sits at 0.23 out to x = 5 and
+# jumps to 0.45 at x = 6. The line forms up past that.
+KNIGHTS = ((6.7, -5.0), (8.8, -6.4), (7.5, -8.0))
+GOBLINS = ((15.3, -5.0), (17.4, -6.4), (16.0, -8.0))
 # Goblins are broader than knights, so their shadow is too.
 for wx, wy in KNIGHTS:
     ground_shadow(bg, wx, wy)
 for wx, wy in GOBLINS:
-    ground_shadow(bg, wx, wy, rx_w=0.95, ry_w=0.36)
+    ground_shadow(bg, wx, wy, rx_w=1.14, ry_w=0.41)
 for wx, wy in KNIGHTS:
     seat(bg, knight, wx, wy)
 for wx, wy in GOBLINS:
