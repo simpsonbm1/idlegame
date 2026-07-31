@@ -37,7 +37,7 @@ RES_X, RES_Y = 768, 406          # 768/406 = 1.891, the 2400/1270 kept-region as
 ORTHO = P.SPRITE_PX * 2 * RES_X  # 60.0 world units across
 
 scn = P.get_scene()
-bpy.context.window.scene = scn
+P.ensure_rig(scn)          # no window in background Blender; ensure_rig activates safely
 P.setup_render(scn)
 P.clear_scene(scn)
 scn.render.resolution_x, scn.render.resolution_y = RES_X, RES_Y

@@ -20,7 +20,7 @@ importlib.reload(P)
 OUT = P.out_dir()
 
 scn = P.get_scene()
-bpy.context.window.scene = scn
+P.ensure_rig(scn)          # no window in background Blender; ensure_rig activates safely
 # Band height matches the TALLEST sprite cell (112) and shares its ground row,
 # so nothing clips and every figure seats on the same line.
 scn.render.resolution_x, scn.render.resolution_y = 288, 112

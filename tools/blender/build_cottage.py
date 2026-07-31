@@ -13,7 +13,7 @@ importlib.reload(P)
 OUT = P.out_dir()
 
 scn = P.get_scene()
-bpy.context.window.scene = scn
+P.ensure_rig(scn)          # no window in background Blender; ensure_rig activates safely
 P.setup_render(scn, res=96)
 P.clear_scene(scn)
 

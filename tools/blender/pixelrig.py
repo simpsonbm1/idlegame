@@ -31,7 +31,73 @@ def get_scene(name="PixelPilot"):
     return bpy.data.scenes.get(name) or bpy.data.scenes.new(name)
 
 
+# Recovered by sweep, not chosen: the knight, goblin, necromancer and cottage on
+# disk were all rendered at this. Renders match the originals pixel-for-pixel at
+# 2.6 and drift at 2.4 or 2.8, so this number is measured and must not be tuned.
+KEY_SUN_ENERGY = 2.6
+
+
+def ensure_rig(scn, sun_energy=KEY_SUN_ENERGY):
+    """Create PixelCam, KeySun and PixelWorld if the scene has none.
+
+    Without this the rig is not reproducible. The three of them were originally
+    made by hand in a live Blender session, so every builder silently assumed
+    they already existed and `blender --background --python build_x.py` died on
+    `scn.camera` being None. The scene state was the one part of the pipeline
+    that lived in a running application rather than in the repository.
+
+    The world matters as much as the light. `film_transparent` hides the
+    background but does NOT stop it lighting the model, and Blender's default
+    world is a grey that lifts every shadow tone. PixelWorld is pure black, so
+    KeySun is the only thing a surface sees and the ramp bands land where the
+    palette says.
+
+    Idempotent: an already-configured scene passes through untouched, so a live
+    MCP session and a headless batch build the same scene.
+    """
+    cam = scn.collection.objects.get("PixelCam")
+    if cam is None:
+        data = bpy.data.cameras.new("PixelCam")
+        cam = bpy.data.objects.new("PixelCam", data)
+        scn.collection.objects.link(cam)
+    cam.data.type = 'ORTHO'
+    cam.data.clip_start = 0.1
+    cam.data.clip_end = 1000.0
+    cam.data.shift_x = 0.0
+    cam.data.shift_y = 0.0
+    scn.camera = cam
+
+    sun = scn.collection.objects.get("KeySun")
+    if sun is None:
+        data = bpy.data.lights.new("KeySun", 'SUN')
+        sun = bpy.data.objects.new("KeySun", data)
+        scn.collection.objects.link(sun)
+        # Only on creation. A builder that sets its own energy (the backdrop
+        # runs at 2.6) must not have it reset underneath on a re-import.
+        sun.data.energy = sun_energy
+        sun.data.color = (1.0, 1.0, 1.0)
+        sun.data.angle = 0.0
+
+    if scn.world is None or scn.world.name != "PixelWorld":
+        world = bpy.data.worlds.get("PixelWorld") or bpy.data.worlds.new("PixelWorld")
+        world.use_nodes = True
+        bg = world.node_tree.nodes.get("Background")
+        if bg:
+            bg.inputs[0].default_value = (0.0, 0.0, 0.0, 1.0)
+            bg.inputs[1].default_value = 1.0
+        scn.world = world
+
+    # Background Blender has no window, so `bpy.context.window.scene` throws.
+    # Everything downstream passes the scene explicitly, so this is only for the
+    # interactive session's benefit.
+    win = getattr(bpy.context, "window", None)
+    if win is not None:
+        win.scene = scn
+    return cam, sun
+
+
 def setup_render(scn, res=96, ortho=4.0):
+    ensure_rig(scn)
     scn.render.engine = 'BLENDER_EEVEE'
     scn.render.resolution_x = res
     scn.render.resolution_y = res

@@ -18,8 +18,20 @@ than by the game's render loop. See `SESSION_HANDOFF.md`.
 
 ## Running it
 
-Blender must be open with the MCP add-on connected. Everything is driven from
-Python, so there is no manual modelling step.
+**The batch way, which needs no Blender window and nobody watching:**
+
+```bash
+python tools/blender/render_all.py            # every asset that has a builder
+python tools/blender/render_all.py undead     # one group
+python tools/blender/render_all.py --list     # what is built, what is not
+```
+
+It launches Blender headless once per asset, logs each to `out/logs/`, and ends
+by writing the contact sheets. About 2.5 seconds per sprite. Exit code is the
+number of failures. Set `BLENDER_EXE` if Blender is not at the default path.
+
+**The interactive way**, for building something new with the viewport in front of
+you. Blender open, MCP add-on connected:
 
 ```python
 import sys, importlib
@@ -28,8 +40,33 @@ import build_knight        # builds and renders on import
 importlib.reload(build_knight)   # re-run after an edit
 ```
 
+Both paths build the same scene, because `ensure_rig()` creates the camera, the
+key light and the world from scratch when they are missing and leaves them alone
+when they are not.
+
 Renders land in `tools/blender/out/`, which is gitignored. Paths resolve from
 `__file__`, so nothing is tied to one machine.
+
+**One Blender process per asset, deliberately.** A shared session lets state leak
+between builds, and that already happened: the necromancer on disk was rendered
+at a KeySun energy of 3.0 while the knight and goblin beside it were rendered at
+2.6, because the value drifted during a long interactive session and nothing
+reset it. Three "identically rigged" pilot figures were lit 15% apart. A fresh
+process per asset makes that impossible for two seconds of startup.
+
+**`KEY_SUN_ENERGY = 2.6` is measured, not chosen.** It was recovered by sweeping
+the value until a headless re-render matched the knight and goblin on disk pixel
+for pixel, and it does: zero differing pixels at 2.6, drift at 2.4 and at 2.8.
+Do not tune it. Anything that needs different light (the backdrop's fill) sets its
+own and says why.
+
+## The manifest
+
+`roster.py` lists every asset the game needs, its entry number in
+`M15_ASSET_SPECS.md`, its builder module and its cell resolution. `render_all.py`
+and `compose_contact.py` both read it, so adding an asset means one line there
+plus the builder. `M15_ASSET_SPECS.md` stays the authority on what each asset
+DEPICTS; the roster only records how it gets built.
 
 | Script | Produces |
 |---|---|
