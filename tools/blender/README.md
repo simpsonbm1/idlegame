@@ -190,6 +190,14 @@ backdrop needs both:
   greens as terrain texture. Three octaves work better than one: broad rolls for
   form, a finer octave for grain.
 
+**Step count is a per-asset decision.** `toon_mat(..., steps=N)` sets how many
+shades the ramp holds. Three is right for a character sprite, where curved parts
+turn through all three across a few pixels and the flatness reads as punch. Three
+is wrong for a backdrop, where surfaces are large, each holds a single tone, and
+the whole scene reads as cut paper with no gradient anywhere. The backdrop uses
+six. Widen the three palette anchors when raising the count, or the extra shades
+interpolate into near-identical colours and buy nothing.
+
 **Light azimuth is per-camera, because screen-up is.** For character sprites the
 camera is near level, so screen-up is world +Z and "lit from the upper left" means
 a sun azimuth around -40. For the top-down backdrop screen-up is world **+Y**, and

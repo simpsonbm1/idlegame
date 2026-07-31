@@ -119,12 +119,39 @@ def hexcol(h):
     return tuple(to_lin(c) for c in srgb) + (1.0,)
 
 
-def toon_mat(name, shadow, mid, light, bands=(0.30, 0.66)):
-    """3-tone flat material. Diffuse -> Shader-to-RGB -> constant ColorRamp
-    whose three stops ARE the palette colours -> Emission.
+def _srgb_lerp(a, b, t):
+    """Blend two '#rrggbb' strings in sRGB and return a hex string."""
+    a, b = a.lstrip('#'), b.lstrip('#')
+    out = []
+    for i in (0, 2, 4):
+        va, vb = int(a[i:i + 2], 16), int(b[i:i + 2], 16)
+        out.append(int(round(va + (vb - va) * t)))
+    return '#%02x%02x%02x' % tuple(out)
 
-    Result: no gradient can appear, the sprite can only ever contain the three
-    colours passed in, and the tone break follows real geometry.
+
+def toon_ramp(shadow, mid, light, steps):
+    """Expand three palette anchors into `steps` shades, shadow to light."""
+    if steps <= 3:
+        return [shadow, mid, light][:steps]
+    out = []
+    for i in range(steps):
+        t = i / (steps - 1)
+        out.append(_srgb_lerp(shadow, mid, t / 0.5) if t <= 0.5
+                   else _srgb_lerp(mid, light, (t - 0.5) / 0.5))
+    return out
+
+
+def toon_mat(name, shadow, mid, light, bands=(0.30, 0.66), steps=3, top=0.82):
+    """Hard-stepped material. Diffuse -> Shader-to-RGB -> constant ColorRamp
+    whose stops ARE the palette colours -> Emission. No gradient can appear;
+    a surface is one of the stop colours or it is outline.
+
+    `steps` is how many shades the ramp holds. THREE is right for a character
+    sprite, where curved parts turn through all three across a few pixels and
+    flatness reads as punch. It is wrong for a backdrop: large surfaces then
+    hold one tone each and the whole scene reads as cut paper. Pass steps=5 or
+    6 for terrain, stone and foliage, which keeps the banding but gives slopes
+    somewhere to go.
     """
     mat = bpy.data.materials.get(name)
     if mat is None:
@@ -144,12 +171,16 @@ def toon_mat(name, shadow, mid, light, bands=(0.30, 0.66)):
     ramp.location = (-220, 0)
     ramp.color_ramp.interpolation = 'CONSTANT'
     e = ramp.color_ramp.elements
-    e[0].position = 0.0
-    e[0].color = hexcol(shadow)
-    e[1].position = bands[0]
-    e[1].color = hexcol(mid)
-    e3 = e.new(bands[1])
-    e3.color = hexcol(light)
+    if steps == 3:
+        e[0].position, e[0].color = 0.0, hexcol(shadow)
+        e[1].position, e[1].color = bands[0], hexcol(mid)
+        e.new(bands[1]).color = hexcol(light)
+    else:
+        shades = toon_ramp(shadow, mid, light, steps)
+        e[0].position, e[0].color = 0.0, hexcol(shades[0])
+        e[1].position, e[1].color = top / (steps - 1), hexcol(shades[1])
+        for k in range(2, steps):
+            e.new(k * top / (steps - 1)).color = hexcol(shades[k])
 
     emit = nt.nodes.new('ShaderNodeEmission')
     emit.location = (60, 0)

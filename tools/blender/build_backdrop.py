@@ -64,24 +64,29 @@ WALL_X = -ORTHO / 2 + 0.46 * ORTHO         # 46% across, where game.js seats the
 GROUND_FAR = 10.0                          # ground stops; range and sky stand beyond
 # Town building plots occupy roughly x -23..-7, y -3..6.5 at this framing. Keep clear.
 
-GRASS = P.toon_mat("BG_GRASS", "#41632f", "#537c39", "#628f42") if False else \
-        P.toon_mat("BG_GRASS", "#41632f", "#537c39", "#628f42")
-GRASS2 = P.toon_mat("BG_GRASS2", "#37552a", "#496e33", "#608a41")
-DIRT = P.toon_mat("BG_DIRT", "#4a3b28", "#6b5740", "#8a7458")
-STONE = P.toon_mat("BG_STONE", "#6a655a", "#8e8878", "#b2ab94")
-STONE_A = P.toon_mat("BG_STONEA", "#635e54", "#867f70", "#a9a28c")
-STONE_B = P.toon_mat("BG_STONEB", "#716b5f", "#96907e", "#bab39b")
-STONE_C = P.toon_mat("BG_STONEC", "#5d584f", "#7d7768", "#9e9884")
-MORTAR = P.toon_mat("BG_MORTAR", "#3f3b34", "#544f46", "#6b6558")
+# Three tones is right for a character and wrong for a backdrop: large surfaces
+# hold one flat tone each and the scene reads as cut paper. Six gives slopes and
+# curved forms somewhere to go while staying hard-banded. The anchors are widened
+# too, since six shades interpolated between narrow anchors are six near-identical
+# colours.
+N = 6
+GRASS = P.toon_mat("BG_GRASS", "#31502a", "#4d7536", "#7cab54", steps=N)
+GRASS2 = P.toon_mat("BG_GRASS2", "#2a4422", "#446630", "#6d9a4a", steps=N)
+DIRT = P.toon_mat("BG_DIRT", "#3a2d1e", "#665238", "#a08862", steps=N)
+STONE = P.toon_mat("BG_STONE", "#524e45", "#8a8474", "#c4bda3", steps=N)
+STONE_A = P.toon_mat("BG_STONEA", "#4d4941", "#827b6c", "#b9b29a", steps=N)
+STONE_B = P.toon_mat("BG_STONEB", "#595348", "#918a78", "#ccc5a9", steps=N)
+STONE_C = P.toon_mat("BG_STONEC", "#474339", "#797364", "#aea891", steps=N)
+MORTAR = P.toon_mat("BG_MORTAR", "#302d28", "#4f4a42", "#767061", steps=N)
 BLOCKS = (STONE_A, STONE_B, STONE_C)
-PAVE = P.toon_mat("BG_PAVE", "#66635a", "#87836f", "#a8a48c")
-PINE = P.toon_mat("BG_PINE", "#1e3320", "#2c4a2b", "#3d6238")
-BARK = P.toon_mat("BG_BARK", "#33241a", "#4a3524", "#63492f")
-LEAF = P.toon_mat("BG_LEAF", "#2c4526", "#3f6134", "#547f44")
-MTN = P.toon_mat("BG_MTN", "#4b525d", "#616976", "#828a96")
-MTN_FAR = P.toon_mat("BG_MTNFAR", "#565d68", "#6b7380", "#89909c")
-SNOW = P.toon_mat("BG_SNOW", "#9aa3af", "#bcc3cd", "#e2e7ee")
-PINE_FAR = P.toon_mat("BG_PINEFAR", "#283a2c", "#354c37", "#456045")
+PAVE = P.toon_mat("BG_PAVE", "#504d46", "#837f6c", "#b8b499", steps=N)
+PINE = P.toon_mat("BG_PINE", "#132214", "#2b4829", "#517b48", steps=N)
+BARK = P.toon_mat("BG_BARK", "#241810", "#493424", "#725438", steps=N)
+LEAF = P.toon_mat("BG_LEAF", "#1c2f1d", "#3c5e32", "#679651", steps=N)
+MTN = P.toon_mat("BG_MTN", "#3d4450", "#616976", "#98a0af", steps=N)
+MTN_FAR = P.toon_mat("BG_MTNFAR", "#495060", "#6b7380", "#99a0af", steps=N)
+SNOW = P.toon_mat("BG_SNOW", "#8a93a2", "#bcc3cd", "#f1f5fa", steps=N)
+PINE_FAR = P.toon_mat("BG_PINEFAR", "#1b2b1f", "#354c37", "#56744c", steps=N)
 HAZE = P.flat_mat("BG_HAZE", "#5b6668")
 SKY_HI = P.flat_mat("BG_SKYHI", "#464c56")
 SKY_LO = P.flat_mat("BG_SKYLO", "#6f7783")
@@ -257,7 +262,8 @@ flat.extend(P.tile_top(scn, WALL_X - 1.25, WALL_X + 1.25, BW_Y - 1.25, BW_Y + 1.
                        snap_u=SNAP_U, snap_v=SNAP_V))
 flat.extend(P.tile_face_y(scn, WALL_X - 1.25, WALL_X + 1.25, 0.2, 4.9, BW_Y - 1.25,
                           0.6, 0.44, BLOCKS))
-for sx, sy in ((-0.8, 0), (0.8, 0), (0, -0.8), (0, 0.8)):
+# Merlons belong on the CORNERS of a square tower, not at the edge midpoints.
+for sx, sy in ((-0.8, -0.8), (0.8, -0.8), (-0.8, 0.8), (0.8, 0.8)):
     solid.append(P.add_box(scn, "ccrenel", (WALL_X + sx, BW_Y + sy, 5.3),
                            (0.85, 0.85, 0.6), BLOCKS[int(abs(sx * 3 + sy * 5)) % 3]))
 for gy in (GATE_Y0, GATE_Y1):
@@ -274,7 +280,7 @@ solid.append(P.add_box(scn, "lintel", (WALL_X, (GATE_Y0 + GATE_Y1) / 2, WH - 0.5
                        (WT, GATE_Y1 - GATE_Y0, 2.1), STONE))
 solid.append(P.add_box(scn, "gate", (WALL_X - 0.14, (GATE_Y0 + GATE_Y1) / 2, 0.95),
                        (WT * 0.5, 2.4, 1.9),
-                       P.toon_mat("BG_GATEWOOD", "#3a2413", "#5a3a1f", "#7a5230")))
+                       P.toon_mat("BG_GATEWOOD", "#2a1809", "#553618", "#8e6135", steps=N)))
 
 # ---- pine forest on the field side, breaking the far edge ----
 for i in range(30):
