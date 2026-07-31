@@ -59,12 +59,15 @@ ROSTER = [
           "BOSS: the Goblin Warmaster"),
 
     # ---- orc warband --------------------------------------------------------
-    _todo(22, "orc_brute", "orc", 128),
-    _todo(23, "orc_skirmisher", "orc", 128),
-    _todo(24, "orc_caster", "orc", 128),
-    _todo(25, "orc_shaman", "orc", 128),
-    _todo(26, "orc_sapper", "orc", 128),
-    _todo(27, "orc_boss", "orc", 144, "BOSS: the Orc Warlord"),
+    # Commons stand 3.6 world units against a goblin common's 2.5: "hulking" is
+    # measured against the family the player meets first, not against the cell.
+    Asset(22, "orc_brute", "build_orc_brute", "out_orc_brute.png", "orc", 128),
+    Asset(23, "orc_skirmisher", "build_orc_skirmisher", "out_orc_skirmisher.png", "orc", 128),
+    Asset(24, "orc_caster", "build_orc_caster", "out_orc_caster.png", "orc", 128),
+    Asset(25, "orc_shaman", "build_orc_shaman", "out_orc_shaman.png", "orc", 128),
+    Asset(26, "orc_sapper", "build_orc_sapper", "out_orc_sapper.png", "orc", 128),
+    Asset(27, "orc_boss", "build_orc_boss", "out_orc_boss.png", "orc", 144,
+          "BOSS: the Orc Warlord"),
 
     # ---- bandit horde -------------------------------------------------------
     _todo(28, "bandit_brute", "bandit"),

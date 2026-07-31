@@ -176,6 +176,36 @@ Three rules the Undead Legion cost, each of which had to be rendered to be seen:
    background shows between the limbs, is the whole of it at forty pixels. A
    visible neck was worth more than any amount of skull detail.
 
+   Those ratios are measured against the FAMILY THE PLAYER ALREADY KNOWS, not
+   against the cell. A goblin common stands 2.5 world units, an orc common 3.6, a
+   boss more again. Fitting each figure to a fixed fraction of its own cell -- as
+   the generator brief asks, because each generated image was independently
+   scaled -- would have made every faction the same size.
+
+And three more the Goblin Raid and Orc Warband added:
+
+4. **A hood must be bigger than the head and set BACK.** The goblin skulker's was
+   sized to just clear his skull, so his face filled it exactly, the hood rendered
+   entirely behind him, and he came out bare-headed. A hood is only ever visible
+   as the margin around a face.
+5. **A part's coordinates decide its root.** Anything written in torso-local
+   space belongs to the torso root, and anything held by a hand belongs to
+   whatever root moves that hand. This was got wrong three times in one evening
+   and looked different each time: daggers hanging where the fists would be if
+   the goblin stood straight, an orc's chest paint landing at his groin, a mask's
+   trim sliding off the mask when the torso leaned.
+6. **Armour must be WIDER than the body under it.** The orc brute's cuirass was
+   narrower than his chest sphere, so olive hide showed all round the plate and he
+   read as an unarmoured orc with a grey patch. Its material also has to separate
+   from the skin by VALUE -- a dark armour whose mid tone matches the hide's is
+   invisible however black it is in the palette.
+
+One about symbols rather than shapes, which is a different kind of mistake: **a
+broad horizontal band across the eyes reads as a tied bandana, not as war paint.**
+It did so on all six orcs at once. A vertical stripe down the centre of the face
+plus one asymmetric cheek bar cannot be misread, because no garment has that
+shape. When a marking looks like an object, change its geometry, not its colour.
+
 ## Animation
 
 `build_attack.py` renders attacks as horizontal sprite sheets. No remodelling is
