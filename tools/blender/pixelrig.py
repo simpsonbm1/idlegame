@@ -141,7 +141,8 @@ def toon_ramp(shadow, mid, light, steps):
     return out
 
 
-def toon_mat(name, shadow, mid, light, bands=(0.30, 0.66), steps=3, top=0.82):
+def toon_mat(name, shadow, mid, light, bands=(0.30, 0.66), steps=3, top=0.82, lo=0.0,
+             positions=None):
     """Hard-stepped material. Diffuse -> Shader-to-RGB -> constant ColorRamp
     whose stops ARE the palette colours -> Emission. No gradient can appear;
     a surface is one of the stop colours or it is outline.
@@ -152,6 +153,21 @@ def toon_mat(name, shadow, mid, light, bands=(0.30, 0.66), steps=3, top=0.82):
     hold one tone each and the whole scene reads as cut paper. Pass steps=5 or
     6 for terrain, stone and foliage, which keeps the banding but gives slopes
     somewhere to go.
+
+    `lo` and `top` are the shading values the steps are spread BETWEEN, and
+    raising the count alone is useless without setting them. A scene's incoming
+    light only occupies part of the 0..1 range, so steps outside that window are
+    never reached and the extra shades cost render time and change nothing.
+
+    `positions` overrides them with explicit stop positions, which is what a
+    scene with HARD SHADOWS actually needs. Shadowed and lit surfaces cluster at
+    two ends with nothing between, so evenly spaced stops strand half of
+    themselves in the empty middle and the render comes back looking two-tone no
+    matter how many stops there are. Put a group of stops in each cluster.
+
+    Measure before choosing either. Render with the ramp swapped for a linear
+    black-to-white one and read the pixel values back, remembering that the
+    saved image is sRGB-encoded while the ramp reads linear.
     """
     mat = bpy.data.materials.get(name)
     if mat is None:
@@ -176,11 +192,20 @@ def toon_mat(name, shadow, mid, light, bands=(0.30, 0.66), steps=3, top=0.82):
         e[1].position, e[1].color = bands[0], hexcol(mid)
         e.new(bands[1]).color = hexcol(light)
     else:
+        # Stop 0 sits at zero and catches everything below `lo`; the remaining
+        # stops divide lo..top evenly. Spacing them from lo + step instead leaves
+        # the darkest shade covering an extra band's width, which swallows the
+        # fill light's contribution and puts every cast shadow back on one colour.
         shades = toon_ramp(shadow, mid, light, steps)
-        e[0].position, e[0].color = 0.0, hexcol(shades[0])
-        e[1].position, e[1].color = top / (steps - 1), hexcol(shades[1])
+        if positions:
+            pos = list(positions)[:steps]
+        else:
+            step = (top - lo) / (steps - 1)
+            pos = [0.0] + [lo + (k - 1) * step for k in range(1, steps)]
+        e[0].position, e[0].color = pos[0], hexcol(shades[0])
+        e[1].position, e[1].color = pos[1], hexcol(shades[1])
         for k in range(2, steps):
-            e.new(k * top / (steps - 1)).color = hexcol(shades[k])
+            e.new(pos[k]).color = hexcol(shades[k])
 
     emit = nt.nodes.new('ShaderNodeEmission')
     emit.location = (60, 0)

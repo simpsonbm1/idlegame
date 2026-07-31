@@ -54,6 +54,20 @@ px = ORTHO / RES_X
 # them and the whole ground goes dark. -105 keeps the light left-and-slightly-above,
 # which throws shadows right and a little down while the ground stays lit.
 scn.collection.objects["KeySun"].rotation_euler = (math.radians(50), 0, math.radians(-105))
+scn.collection.objects["KeySun"].data.energy = 2.6
+
+# A surface in cast shadow receives ZERO direct light, so it lands on the darkest
+# ramp stop no matter how many stops the ramp has -- which is why raising the step
+# count alone left every shadow one flat colour. This fill throws no shadow of its
+# own, so shadowed ground still gets a contribution that varies with its slope and
+# the shading inside shadow has somewhere to go.
+fill_data = bpy.data.lights.new("FillSun", 'SUN')
+fill_data.energy = 1.5
+fill_data.angle = 0.0
+fill_data.use_shadow = False
+fill = bpy.data.objects.new("FillSun", fill_data)
+fill.rotation_euler = (math.radians(62), 0, math.radians(88))
+scn.collection.objects.link(fill)
 
 FRAME_H = ORTHO * RES_Y / RES_X            # 31.7 world units top to bottom
 # World size of one rendered pixel along each ground axis. Depth foreshortens by
@@ -70,23 +84,33 @@ GROUND_FAR = 10.0                          # ground stops; range and sky stand b
 # too, since six shades interpolated between narrow anchors are six near-identical
 # colours.
 N = 6
-GRASS = P.toon_mat("BG_GRASS", "#31502a", "#4d7536", "#7cab54", steps=N)
-GRASS2 = P.toon_mat("BG_GRASS2", "#2a4422", "#446630", "#6d9a4a", steps=N)
-DIRT = P.toon_mat("BG_DIRT", "#3a2d1e", "#665238", "#a08862", steps=N)
-STONE = P.toon_mat("BG_STONE", "#524e45", "#8a8474", "#c4bda3", steps=N)
-STONE_A = P.toon_mat("BG_STONEA", "#4d4941", "#827b6c", "#b9b29a", steps=N)
-STONE_B = P.toon_mat("BG_STONEB", "#595348", "#918a78", "#ccc5a9", steps=N)
-STONE_C = P.toon_mat("BG_STONEC", "#474339", "#797364", "#aea891", steps=N)
-MORTAR = P.toon_mat("BG_MORTAR", "#302d28", "#4f4a42", "#767061", steps=N)
+# MEASURED by rendering with the ramp swapped for a linear black-to-white one and
+# reading the pixels back (remembering the saved image is sRGB while the ramp reads
+# linear). Histogram of the ground in this scene: a shadow cluster over 0.13-0.33
+# peaking at 0.23, a lit cluster over 0.63-0.83 peaking at 0.77, and NOTHING
+# between 0.375 and 0.625, because hard shadows give a bimodal distribution.
+# Evenly spaced stops therefore strand half of themselves in the empty middle,
+# which is why raising the step count kept rendering as two-tone. These positions
+# put three stops inside each cluster, so both the lit ground and the shadow have
+# shades to move through. Re-measure if the lights change.
+SHADE_POS = (0.0, 0.17, 0.235, 0.66, 0.735, 0.768)
+GRASS = P.toon_mat("BG_GRASS", "#31502a", "#4d7536", "#7cab54", steps=N, positions=SHADE_POS)
+GRASS2 = P.toon_mat("BG_GRASS2", "#2a4422", "#446630", "#6d9a4a", steps=N, positions=SHADE_POS)
+DIRT = P.toon_mat("BG_DIRT", "#3a2d1e", "#665238", "#a08862", steps=N, positions=SHADE_POS)
+STONE = P.toon_mat("BG_STONE", "#524e45", "#8a8474", "#c4bda3", steps=N, positions=SHADE_POS)
+STONE_A = P.toon_mat("BG_STONEA", "#4d4941", "#827b6c", "#b9b29a", steps=N, positions=SHADE_POS)
+STONE_B = P.toon_mat("BG_STONEB", "#595348", "#918a78", "#ccc5a9", steps=N, positions=SHADE_POS)
+STONE_C = P.toon_mat("BG_STONEC", "#474339", "#797364", "#aea891", steps=N, positions=SHADE_POS)
+MORTAR = P.toon_mat("BG_MORTAR", "#302d28", "#4f4a42", "#767061", steps=N, positions=SHADE_POS)
 BLOCKS = (STONE_A, STONE_B, STONE_C)
-PAVE = P.toon_mat("BG_PAVE", "#504d46", "#837f6c", "#b8b499", steps=N)
-PINE = P.toon_mat("BG_PINE", "#132214", "#2b4829", "#517b48", steps=N)
-BARK = P.toon_mat("BG_BARK", "#241810", "#493424", "#725438", steps=N)
-LEAF = P.toon_mat("BG_LEAF", "#1c2f1d", "#3c5e32", "#679651", steps=N)
-MTN = P.toon_mat("BG_MTN", "#3d4450", "#616976", "#98a0af", steps=N)
-MTN_FAR = P.toon_mat("BG_MTNFAR", "#495060", "#6b7380", "#99a0af", steps=N)
-SNOW = P.toon_mat("BG_SNOW", "#8a93a2", "#bcc3cd", "#f1f5fa", steps=N)
-PINE_FAR = P.toon_mat("BG_PINEFAR", "#1b2b1f", "#354c37", "#56744c", steps=N)
+PAVE = P.toon_mat("BG_PAVE", "#504d46", "#837f6c", "#b8b499", steps=N, positions=SHADE_POS)
+PINE = P.toon_mat("BG_PINE", "#132214", "#2b4829", "#517b48", steps=N, positions=SHADE_POS)
+BARK = P.toon_mat("BG_BARK", "#241810", "#493424", "#725438", steps=N, positions=SHADE_POS)
+LEAF = P.toon_mat("BG_LEAF", "#1c2f1d", "#3c5e32", "#679651", steps=N, positions=SHADE_POS)
+MTN = P.toon_mat("BG_MTN", "#3d4450", "#616976", "#98a0af", steps=N, positions=SHADE_POS)
+MTN_FAR = P.toon_mat("BG_MTNFAR", "#495060", "#6b7380", "#99a0af", steps=N, positions=SHADE_POS)
+SNOW = P.toon_mat("BG_SNOW", "#8a93a2", "#bcc3cd", "#f1f5fa", steps=N, positions=SHADE_POS)
+PINE_FAR = P.toon_mat("BG_PINEFAR", "#1b2b1f", "#354c37", "#56744c", steps=N, positions=SHADE_POS)
 HAZE = P.flat_mat("BG_HAZE", "#5b6668")
 SKY_HI = P.flat_mat("BG_SKYHI", "#464c56")
 SKY_LO = P.flat_mat("BG_SKYLO", "#6f7783")
@@ -108,28 +132,38 @@ for x, y, r, h in ((-31, 13.4, 8.5, 5.0), (-17, 13.8, 7.5, 6.2), (-2, 13.2, 8.0,
                    (13, 13.9, 7.8, 6.0), (27, 13.3, 8.6, 5.2)):
     m = P.add_cone(scn, "mtnfar", (x, y, 0), r, 0.4, h * 2, MTN_FAR, verts=7)
     m.scale = (1, MTN_FLAT, 1)
+    m.visible_shadow = False
     flat.append(m)
 for x, y, r, h in ((-26, 11.4, 6.4, 6.2), (-13, 11.9, 5.6, 7.4), (-1, 11.1, 5.0, 5.2),
                    (9, 11.8, 6.2, 7.0), (20, 11.2, 5.4, 5.6), (30, 11.9, 6.6, 6.6)):
     m = P.add_cone(scn, "mtn", (x, y, 0), r, 0.4, h * 2, MTN, verts=7)
     m.scale = (1, MTN_FLAT, 1)
+    m.visible_shadow = False
     flat.append(m)
     cap = P.add_cone(scn, "snow", (x, y - 0.25, h - 1.05), r * 0.21, 0.25, 2.1, SNOW, verts=7)
     cap.scale = (1, MTN_FLAT, 1)
+    cap.visible_shadow = False
     flat.append(cap)
 # The ground plane simply ends, and an ortho camera renders that as a clean cut
 # across the frame. A haze strip plus a continuous distant treeline hides the cut.
-flat.append(P.add_box(scn, "haze", (0, GROUND_FAR + 0.5, 0.7), (200, 0.3, 2.6), HAZE))
+_hz = P.add_box(scn, "haze", (0, GROUND_FAR + 0.5, 0.7), (200, 0.3, 2.6), HAZE)
+_hz.visible_shadow = False
+flat.append(_hz)
 for i in range(78):
     x = -42.0 + i * 1.12 + 0.35 * (i % 3)
     s_ = 0.58 + 0.11 * (i % 4)
     for row, dy in ((0, 0.0), (1, 0.62)):
-        flat.append(P.add_cone(scn, "fartree",
-                               (x + row * 0.55, GROUND_FAR - 0.15 + dy, 0.9 * s_),
-                               1.05 * s_, 0.05, 2.6 * s_, PINE_FAR, verts=6))
+        t_ = P.add_cone(scn, "fartree",
+                        (x + row * 0.55, GROUND_FAR - 0.15 + dy, 0.9 * s_),
+                        1.05 * s_, 0.05, 2.6 * s_, PINE_FAR, verts=6)
+        # This row spans the whole frame purely to mask the ground's cut edge.
+        # Left casting, it lays one continuous shadow bar across the battlefield
+        # that reads as coming from the wall, which only runs halfway.
+        t_.visible_shadow = False
+        flat.append(t_)
 
 
-AMP = 0.30
+AMP = 0.44
 PLAZA = (-16.8, -8.6)
 
 
@@ -280,7 +314,7 @@ solid.append(P.add_box(scn, "lintel", (WALL_X, (GATE_Y0 + GATE_Y1) / 2, WH - 0.5
                        (WT, GATE_Y1 - GATE_Y0, 2.1), STONE))
 solid.append(P.add_box(scn, "gate", (WALL_X - 0.14, (GATE_Y0 + GATE_Y1) / 2, 0.95),
                        (WT * 0.5, 2.4, 1.9),
-                       P.toon_mat("BG_GATEWOOD", "#2a1809", "#553618", "#8e6135", steps=N)))
+                       P.toon_mat("BG_GATEWOOD", "#2a1809", "#553618", "#8e6135", steps=N, positions=SHADE_POS)))
 
 # ---- pine forest on the field side, breaking the far edge ----
 for i in range(30):

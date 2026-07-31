@@ -190,6 +190,26 @@ backdrop needs both:
   greens as terrain texture. Three octaves work better than one: broad rolls for
   form, a finer octave for grain.
 
+**Measure the shading range before choosing ramp stops.** Swap a material's ramp
+for a linear black-to-white one, render, and histogram the pixels, converting sRGB
+back to linear first because the ramp reads linear while the saved image does not.
+With hard shadows the distribution is BIMODAL: in this backdrop the ground clusters
+over 0.13-0.33 and 0.63-0.83 with nothing at all between 0.375 and 0.625. Evenly
+spaced stops strand half of themselves in that gap, which is why raising the step
+count from three to six changed almost nothing on screen. Pass `positions` with a
+group of stops inside each cluster instead. Re-measure whenever the lights change.
+
+**A cast shadow receives zero direct light**, so it lands on the darkest stop no
+matter how many stops exist, and every shadowed area comes out one flat colour. Add
+a fill light with `use_shadow = False`. It lifts shadowed surfaces off the bottom
+stop and, because it still varies with surface normal, gives the shading inside a
+shadow somewhere to go.
+
+**Distance dressing must not cast.** The masking treeline at the ground's far edge
+spans the whole frame, so with shadows on it laid one continuous bar across the
+battlefield that read as the wall's shadow, though the wall only runs halfway. Set
+`visible_shadow = False` on anything that exists only to hide a seam.
+
 **Step count is a per-asset decision.** `toon_mat(..., steps=N)` sets how many
 shades the ramp holds. Three is right for a character sprite, where curved parts
 turn through all three across a few pixels and the flatness reads as punch. Three
