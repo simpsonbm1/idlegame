@@ -91,12 +91,17 @@ ROSTER = [
           "BOSS: the Lich Commander"),
 
     # ---- infernal siege -----------------------------------------------------
-    _todo(40, "infernal_brute", "infernal", 112),
-    _todo(41, "infernal_skirmisher", "infernal", 112, "hellhound: four legs, side-on"),
-    _todo(42, "infernal_caster", "infernal"),
-    _todo(43, "infernal_shaman", "infernal"),
-    _todo(44, "infernal_sapper", "infernal", 112, "cinder imp: small and winged"),
-    _todo(45, "infernal_boss", "infernal", 144, "BOSS: the Demon Empress"),
+    # The only family that is NOT five variants on one build: 41 is a quadruped
+    # and 44 is winged, so infernal_kit carries only palette, horns and cracks.
+    Asset(40, "infernal_brute", "build_infernal_brute", "out_infernal_brute.png", "infernal", 112),
+    Asset(41, "infernal_skirmisher", "build_infernal_skirmisher", "out_infernal_skirmisher.png",
+          "infernal", 112, "hellhound: four legs, turned further round than the others"),
+    Asset(42, "infernal_caster", "build_infernal_caster", "out_infernal_caster.png", "infernal", 112),
+    Asset(43, "infernal_shaman", "build_infernal_shaman", "out_infernal_shaman.png", "infernal", 112),
+    Asset(44, "infernal_sapper", "build_infernal_sapper", "out_infernal_sapper.png", "infernal", 112,
+          "cinder imp: small by PROPORTION, since role sets the height"),
+    Asset(45, "infernal_boss", "build_infernal_boss", "out_infernal_boss.png", "infernal", 144,
+          "BOSS: the Demon Empress, the series showpiece"),
 
     # ---- buildings (near-isometric camera, not the sprite camera) -----------
     Asset(47, "cottage", "build_cottage", "out_cottage.png", "buildings", 128),
