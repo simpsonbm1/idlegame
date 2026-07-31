@@ -37,19 +37,32 @@ importlib.reload(P)
 OUT = P.out_dir()
 
 
-def _rig(scn, pivot_loc, part_names, figure_root_name):
-    """Put a pivot at pivot_loc (figure-local), give it the arm and the weapon,
-    and return (pivot, figure_root)."""
+def _rig(scn, groups, figure_root_name):
+    """One pivot per group, each at a real joint, all turned by the same angles.
+
+    A pivot MUST sit on the joint the limb actually rotates about. Put it
+    anywhere else and the limb translates as well as turns, which reads as the
+    arm coming away from the shoulder. A two-handed weapon therefore needs three
+    pivots -- one at each shoulder, plus one at their midpoint carrying the
+    weapon. The hands stay the correct distance apart because each arm turns by
+    the same amount about its own joint, and the weapon tracks the midpoint of
+    the two hands exactly.
+
+    groups: list of (pivot_location, part_names). Returns (pivots, figure_root).
+    """
     figure_root = P.find(scn, figure_root_name)[0]
-    pivot = P.make_root(scn, "atk_pivot", loc=pivot_loc)
-    pivot.parent = figure_root
-    pivot.matrix_parent_inverse = figure_root.matrix_world.inverted()
-    bpy.context.view_layer.update()
-    P.reparent_keep(pivot, P.find(scn, *part_names))
-    return pivot, figure_root
+    pivots = []
+    for loc, names in groups:
+        pivot = P.make_root(scn, "atk_pivot", loc=loc)
+        pivot.parent = figure_root
+        pivot.matrix_parent_inverse = figure_root.matrix_world.inverted()
+        bpy.context.view_layer.update()
+        P.reparent_keep(pivot, P.find(scn, *names))
+        pivots.append(pivot)
+    return pivots, figure_root
 
 
-def _swing(scn, pivot, figure_root, frames, out_name):
+def _swing(scn, pivots, figure_root, frames, out_name):
     """frames: one (lift, swing, lunge) triple per frame, angles in degrees."""
     base_loc = tuple(figure_root.location)
 
@@ -57,7 +70,8 @@ def _swing(scn, pivot, figure_root, frames, out_name):
         lift, swing, lunge = frames[i]
 
         def pose():
-            pivot.rotation_euler = (math.radians(lift), math.radians(swing), 0)
+            for pivot in pivots:
+                pivot.rotation_euler = (math.radians(lift), math.radians(swing), 0)
             figure_root.location = (base_loc[0], base_loc[1] + lunge, base_loc[2])
         return pose
 
@@ -82,8 +96,8 @@ def knight():
     import build_knight
     importlib.reload(build_knight)
     scn = P.get_scene()
-    pivot, root = _rig(scn, (-0.70, -0.10, 2.18),
-                       ("upperR", "foreR", "gauntR", "pauldronR", "sword_root"),
+    pivot, root = _rig(scn, [((-0.70, -0.10, 2.18),
+                              ("upperR", "foreR", "gauntR", "pauldronR", "sword_root"))],
                        "knight_root")
     #          lift  swing  lunge
     frames = [(0, 0, 0),
@@ -100,23 +114,32 @@ def knight():
 def goblin():
     """Two-handed overhead smash: raise high, drive down, settle.
 
-    Both arms ride one pivot, so the pivot sits low and well forward of the
-    chest. Placed at chest centre, the arms swing up into the face.
+    Three pivots. Each arm turns about its own shoulder ball, so the shoulder end
+    of the arm stays welded to the torso, and the club rides the midpoint of the
+    two shoulders, which is exactly where the midpoint of the two hands goes.
+    A single shared pivot in front of the chest was what made the arms look
+    detached, because it translated them as well as turning them.
     """
     import build_goblin
     importlib.reload(build_goblin)
     scn = P.get_scene()
-    pivot, root = _rig(scn, (0.0, -0.62, 1.86),
-                       ("gupperL", "gforeL", "gfistL", "gupperR", "gforeR", "gfistR",
-                        "club_root"),
-                       "goblin_root")
+    pivot, root = _rig(scn, [
+        ((-0.80, -0.10, 2.24), ("gshoulderL", "gupperL", "gforeL", "gfistL")),
+        ((0.80, -0.10, 2.26), ("gshoulderR", "gupperR", "gforeR", "gfistR", "gpauldron")),
+        ((0.0, -0.10, 2.25), ("club_root",)),
+    ], "goblin_root")
+    #          lift  swing  lunge
+    # His club already points forward at rest, so a plain raise-and-drop returns
+    # to a pose that looks like the rest frame. Frame 1 dips the club backward
+    # first: the anticipation makes the raise register and gives the smash a
+    # visibly different endpoint than where it started.
     #          lift  swing  lunge
     frames = [(0, 0, 0),
-              (-26, 46, 0.05),
-              (-40, 78, 0.09),
-              (-34, 54, 0.05),
-              (-42, -34, -0.24),
-              (-26, -18, -0.17),
-              (-11, -6, -0.07),
+              (-16, -20, 0.06),
+              (-38, 96, 0.10),
+              (-34, 60, 0.06),
+              (-40, -54, -0.26),
+              (-30, -36, -0.20),
+              (-14, -15, -0.08),
               (0, 0, 0)]
     return _swing(scn, pivot, root, frames, "atk_goblin")

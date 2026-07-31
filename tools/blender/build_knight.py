@@ -30,7 +30,7 @@ px = P.pixel_size(scn)
 scn.collection.objects["KeySun"].rotation_euler = (math.radians(50), 0, math.radians(-40))
 
 STEEL = P.toon_mat("STEEL", "#4a6d94", "#7ba3c9", "#b6d8ef")
-BLADE = P.toon_mat("BLADE", "#5a7fa8", "#93b8d8", "#d8ebfa")
+BLADE = P.toon_mat("BLADE", "#8fb4d6", "#cbe4f6", "#f4fbff")
 NAVY = P.toon_mat("NAVY", "#1b2a52", "#2a3f73", "#3d5691")
 GOLD = P.toon_mat("GOLD", "#8a5f14", "#c9962c", "#f0d264")
 LEATH = P.toon_mat("LEATHER", "#4a2e18", "#7a4d28", "#a06a3a")
@@ -85,8 +85,8 @@ P.parent_all(sh_root, shield + [sh_lion])
 
 # ---- longsword: local z=0 sits at the hand, blade runs up +Z ----
 blade = [(-0.06, 0.14), (0.06, 0.14), (0.06, 1.08), (0.0, 1.32), (-0.06, 1.08)]
-sw_root = P.make_root(scn, "sword_root", rot=(0, 132, 0), loc=(-0.60, -0.54, 1.10))
-sword = [P.add_prism(scn, "blade", blade, 0.07, BLADE),
+sw_root = P.make_root(scn, "sword_root", rot=(0, 132, 0), loc=(-0.60, -0.66, 1.10))
+sword = [P.add_prism(scn, "blade", blade, 0.11, BLADE),
          P.add_box(scn, "guard", (0, 0, 0.12), (0.44, 0.10, 0.10), GOLD),
          P.add_box(scn, "grip", (0, 0, -0.08), (0.11, 0.10, 0.24), LEATH),
          P.add_sphere(scn, "pommel", (0, 0, -0.23), 0.10, GOLD)]

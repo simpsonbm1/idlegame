@@ -118,9 +118,19 @@ through the head. Both happened, and both were visible only once the frames play
 in sequence rather than sitting in a row. Lift moves the whole arc in front of the
 body. Any frame with a real swing needs a real lift, roughly a third of it.
 
-Two placement mistakes worth avoiding. Including the shoulders in the pivot tore
-them off the torso. Putting a two-handed pivot at the chest centre swung the far
-arm behind the body, which a lower and much more forward pivot fixed.
+**A pivot must sit on the joint the limb actually turns about.** Anywhere else and
+the limb translates as well as rotates, which reads unmistakably as the arm coming
+away from the shoulder. A two-handed weapon therefore takes three pivots, not one:
+one on each shoulder ball, plus one at their midpoint carrying the weapon. The
+hands stay the right distance apart because each arm turns by the same amount
+about its own joint, and the weapon tracks the midpoint of the two hands exactly.
+
+Two more things that only showed up in playback. A weapon overlapping the body has
+to separate by **value**, since at this size an outline alone will not carry it;
+the knight's blade sat inside the armour's own tone range and looked embedded in
+his leg until it was brightened to near-white. And an attack whose end pose
+resembles its rest pose reads as nothing happening, which is what the goblin did
+until frame 1 gained a backward dip as anticipation.
 
 Every frame passes through the same rig, so palette, outline weight and pixel grid
 hold across a sheet by construction. Hand-drawn frames are where sprite animation
