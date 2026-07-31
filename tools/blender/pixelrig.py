@@ -400,7 +400,7 @@ def add_terrain(scn, name, x0, x1, y0, y1, cell, hfunc, mat):
 
 
 def tile_top(scn, x0, x1, y0, y1, z, bu, bv, mats, gap=0.06, rise=0.09,
-             clip=None, stagger=True, name="block"):
+             clip=None, stagger=True, name="block", snap_u=None, snap_v=None):
     """Lay staggered flagstones over a horizontal surface.
 
     Masonry cannot be faked with colour at this resolution. A single box reads as
@@ -409,12 +409,32 @@ def tile_top(scn, x0, x1, y0, y1, z, bu, bv, mats, gap=0.06, rise=0.09,
     cycling two or three stone tones stops the courses looking printed.
 
     Give the base slab underneath a DARKER material so the gaps read as mortar.
+
+    **Pass snap_u and snap_v.** They are the world size of ONE rendered pixel
+    along each axis, and they quantise both the block pitch and the tiling
+    origin onto the pixel grid. Without them the mortar gap is a fraction of a
+    pixel wide and its phase drifts across the surface, so the lines fade in and
+    out in broad patches -- which looks like a texture bug and is really moire.
+    For a horizontal surface, snap_u is the pixel size and snap_v is the pixel
+    size divided by cos(camera elevation), since depth foreshortens.
     """
+    def q(v, step):
+        return v if not step else max(step, round(v / step) * step)
+
+    bu, bv = q(bu, snap_u), q(bv, snap_v)
+    gap_u = q(gap, snap_u)
+    gap_v = q(gap, snap_v)
+    if snap_u:                                  # world x=0 sits on a pixel edge
+        x0 = round(x0 / snap_u) * snap_u
+    if snap_v:
+        y0 = round(y0 / snap_v) * snap_v
     obs = []
     ny = max(1, int(round((y1 - y0) / bv)))
     nx = max(1, int(round((x1 - x0) / bu))) + 1
     for j in range(ny):
-        y = y0 + (j + 0.5) * (y1 - y0) / ny
+        y = y0 + (j + 0.5) * bv
+        if y > y1:
+            continue
         off = bu * 0.5 if (stagger and j % 2) else 0.0
         for i in range(nx):
             x = x0 + (i + 0.5) * bu + off
@@ -425,7 +445,7 @@ def tile_top(scn, x0, x1, y0, y1, z, bu, bv, mats, gap=0.06, rise=0.09,
             h = rise * (1.0 + 0.55 * ((i * 5 + j * 3) % 3))
             m = mats[(i * 7 + j * 13) % len(mats)]
             obs.append(add_box(scn, name, (x, y, z + h * 0.5),
-                               (bu - gap, (y1 - y0) / ny - gap, h), m))
+                               (bu - gap_u, bv - gap_v, h), m))
     return obs
 
 

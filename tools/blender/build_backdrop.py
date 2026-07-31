@@ -44,9 +44,22 @@ scn.render.resolution_x, scn.render.resolution_y = RES_X, RES_Y
 RX = 28.0                        # 62 degrees above horizontal: the watchtower angle
 P.place_cam(scn, target=(0, 0, 0), rx_deg=RX, rz_deg=0, dist=90, ortho=ORTHO)
 px = ORTHO / RES_X
-scn.collection.objects["KeySun"].rotation_euler = (math.radians(50), 0, math.radians(-40))
+# Screen-up on this camera is world +Y, not world +Z as it is for the character
+# sprites, so "lit from the upper left" needs a different azimuth here. At -40 the
+# light came from -X and -Y, which on a top-down view is the BOTTOM left, and every
+# shadow fell up-screen.
+#
+# Do not swing it all the way to the top either. We look along -Y, so the slopes we
+# SEE are the ones facing -Y; light straight down-screen back-lights every one of
+# them and the whole ground goes dark. -105 keeps the light left-and-slightly-above,
+# which throws shadows right and a little down while the ground stays lit.
+scn.collection.objects["KeySun"].rotation_euler = (math.radians(50), 0, math.radians(-105))
 
 FRAME_H = ORTHO * RES_Y / RES_X            # 31.7 world units top to bottom
+# World size of one rendered pixel along each ground axis. Depth foreshortens by
+# cos(elevation), so a step in Y covers fewer pixels than the same step in X.
+SNAP_U = px
+SNAP_V = px / math.cos(math.radians(RX))
 WALL_X = -ORTHO / 2 + 0.46 * ORTHO         # 46% across, where game.js seats the wall
 GROUND_FAR = 10.0                          # ground stops; range and sky stand beyond
 # Town building plots occupy roughly x -23..-7, y -3..6.5 at this framing. Keep clear.
@@ -111,7 +124,7 @@ for i in range(78):
                                1.05 * s_, 0.05, 2.6 * s_, PINE_FAR, verts=6))
 
 
-AMP = 0.26
+AMP = 0.30
 PLAZA = (-16.8, -8.6)
 
 
@@ -200,9 +213,10 @@ for i in range(12):
 
 # ---- round stone plaza and well, lower left ----
 solid.append(P.add_cyl(scn, "plaza", (-16.8, -8.6, 0.06), 4.2, 0.16, MORTAR, verts=18))
-flat.extend(P.tile_top(scn, -21.0, -12.6, -12.8, -4.4, 0.14, 0.5, 0.44, BLOCKS,
+flat.extend(P.tile_top(scn, -21.0, -12.6, -12.8, -4.4, 0.14, 0.47, 0.42, BLOCKS,
                        clip=lambda x, y: math.hypot(x + 16.8, y + 8.6) < 4.05,
-                       rise=0.07, name="cobble"))
+                       gap=SNAP_U, rise=0.09, name="cobble",
+                       snap_u=SNAP_U, snap_v=SNAP_V))
 solid.append(P.add_cyl(scn, "wellwall", (-16.8, -8.3, 0.55), 0.92, 1.05, MORTAR, verts=12))
 for ring, (rr, zz) in enumerate(((1.0, 0.72), (1.0, 1.02))):
     for i in range(12):
@@ -219,7 +233,8 @@ for y0, y1 in ((-22.0, GATE_Y0), (GATE_Y1, GROUND_FAR - 0.6)):
     solid.append(P.add_box(scn, "wall", (WALL_X, (y0 + y1) / 2, WH / 2),
                            (WT, y1 - y0, WH), MORTAR))
     flat.extend(P.tile_top(scn, WALL_X - WT / 2, WALL_X + WT / 2, y0, y1, WH,
-                           0.37, 0.33, BLOCKS, gap=0.05, rise=0.07))
+                           0.37, 0.33, BLOCKS, gap=SNAP_U, rise=0.10,
+                           snap_u=SNAP_U, snap_v=SNAP_V))
     for i in range(int((y1 - y0) / 1.3)):
         solid.append(P.add_box(scn, "crenel", (WALL_X, y0 + 0.65 + i * 1.3, WH + 0.32),
                                (WT * 0.92, 0.7, 0.64), BLOCKS[i % 3]))
@@ -227,7 +242,8 @@ BW_X0, BW_Y = -30.0, GROUND_FAR - 0.6
 solid.append(P.add_box(scn, "backwall", ((BW_X0 + WALL_X) / 2, BW_Y, WH / 2),
                        (WALL_X - BW_X0, WT, WH), MORTAR))
 flat.extend(P.tile_top(scn, BW_X0, WALL_X, BW_Y - WT / 2, BW_Y + WT / 2, WH,
-                       0.37, 0.33, BLOCKS, gap=0.05, rise=0.07))
+                       0.37, 0.33, BLOCKS, gap=SNAP_U, rise=0.10,
+                       snap_u=SNAP_U, snap_v=SNAP_V))
 flat.extend(P.tile_face_y(scn, BW_X0, WALL_X, 0.15, WH - 0.1, BW_Y - WT / 2,
                           0.62, 0.44, BLOCKS))
 for i in range(int((WALL_X - BW_X0) / 1.3)):
@@ -237,7 +253,8 @@ for i in range(int((WALL_X - BW_X0) / 1.3)):
 # gatehouse: two drum-square towers with a lintel and a recessed timber gate
 solid.append(P.add_box(scn, "corner", (WALL_X, BW_Y, 2.5), (2.5, 2.5, 5.0), MORTAR))
 flat.extend(P.tile_top(scn, WALL_X - 1.25, WALL_X + 1.25, BW_Y - 1.25, BW_Y + 1.25, 5.0,
-                       0.52, 0.46, BLOCKS))
+                       0.44, 0.40, BLOCKS, gap=SNAP_U, rise=0.10,
+                       snap_u=SNAP_U, snap_v=SNAP_V))
 flat.extend(P.tile_face_y(scn, WALL_X - 1.25, WALL_X + 1.25, 0.2, 4.9, BW_Y - 1.25,
                           0.6, 0.44, BLOCKS))
 for sx, sy in ((-0.8, 0), (0.8, 0), (0, -0.8), (0, 0.8)):
@@ -246,7 +263,8 @@ for sx, sy in ((-0.8, 0), (0.8, 0), (0, -0.8), (0, 0.8)):
 for gy in (GATE_Y0, GATE_Y1):
     solid.append(P.add_box(scn, "gtower", (WALL_X, gy, 2.7), (2.9, 2.0, 5.4), MORTAR))
     flat.extend(P.tile_top(scn, WALL_X - 1.45, WALL_X + 1.45, gy - 1.0, gy + 1.0, 5.4,
-                           0.52, 0.46, BLOCKS))
+                           0.44, 0.40, BLOCKS, gap=SNAP_U, rise=0.10,
+                           snap_u=SNAP_U, snap_v=SNAP_V))
     flat.extend(P.tile_face_y(scn, WALL_X - 1.45, WALL_X + 1.45, 0.2, 5.3, gy - 1.0,
                               0.6, 0.44, BLOCKS))
     for sx in (-0.95, 0, 0.95):
@@ -262,19 +280,21 @@ solid.append(P.add_box(scn, "gate", (WALL_X - 0.14, (GATE_Y0 + GATE_Y1) / 2, 0.9
 for i in range(30):
     x = 5.0 + ((i * 17) % 37) * 0.72
     y = 5.4 + ((i * 5) % 13) * 0.34
-    s = 0.9 + 0.14 * (i % 4)
+    s = 0.62 + 0.10 * (i % 4)
     zt = hgt(x, y)
-    solid.append(P.add_cyl(scn, "trunk", (x, y, zt + 0.3 * s), 0.16, 0.66 * s, BARK, verts=6))
-    for zz, rr in ((0.9, 1.0), (1.55, 0.74), (2.1, 0.46)):
-        solid.append(P.add_cone(scn, "pine", (x, y, zt + zz * s), rr * s, 0.04, 1.25 * s, PINE, verts=7))
+    solid.append(P.add_cyl(scn, "trunk", (x, y, zt + 0.34 * s), 0.16, 0.75 * s, BARK, verts=6))
+    for zz, rr in ((1.15, 0.86), (2.05, 0.64), (2.85, 0.40)):
+        solid.append(P.add_cone(scn, "pine", (x, y, zt + zz * s), rr * s, 0.04, 1.75 * s, PINE, verts=7))
 
 # ---- broadleaf trees inside the town, clear of the plot band ----
 for x, y, s in ((-27.5, 3.0, 1.0), (-26.4, -6.4, 0.9), (-9.0, -11.0, 0.95),
                 (-23.0, -13.5, 0.85), (-5.5, 7.6, 0.9)):
     zt = hgt(x, y)
-    solid.append(P.add_cyl(scn, "ttrunk", (x, y, zt + 0.4 * s), 0.2, 0.85 * s, BARK, verts=6))
-    solid.append(P.add_sphere(scn, "canopy", (x, y, zt + 1.42 * s), 1.2 * s, LEAF,
-                              scale=(1, 1, 0.82), segs=10, rings=6))
+    # A sphere squashed in Z reads as a disc from a steep camera, which is why the
+    # canopies looked drawn from straight overhead. Taller than wide shows the side.
+    solid.append(P.add_cyl(scn, "ttrunk", (x, y, zt + 0.55 * s), 0.22, 1.15 * s, BARK, verts=6))
+    solid.append(P.add_sphere(scn, "canopy", (x, y, zt + 2.05 * s), 1.1 * s, LEAF,
+                              scale=(1.0, 0.82, 1.45), segs=10, rings=7))
 
 # ---- field boulders ----
 for x, y, s in ((8.0, -5.6, 0.62), (18.0, -11.5, 0.5), (25.0, -2.4, 0.7),

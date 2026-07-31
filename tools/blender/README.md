@@ -190,6 +190,27 @@ backdrop needs both:
   greens as terrain texture. Three octaves work better than one: broad rolls for
   form, a finer octave for grain.
 
+**Light azimuth is per-camera, because screen-up is.** For character sprites the
+camera is near level, so screen-up is world +Z and "lit from the upper left" means
+a sun azimuth around -40. For the top-down backdrop screen-up is world **+Y**, and
+that same -40 puts the light at the BOTTOM left, throwing every shadow up-screen.
+Do not swing it fully to the top either: we look along -Y, so the slopes we can see
+are the ones facing -Y, and lighting straight down-screen back-lights all of them
+and darkens the whole ground. About -105 keeps the sun left and slightly above,
+which throws shadows right and a little down while the ground stays lit.
+
+**Snap repeating detail to the pixel grid.** Pass `snap_u` and `snap_v` to
+`tile_top()`. They are the world size of one rendered pixel along each axis;
+`snap_v` is the pixel size divided by cos(camera elevation), since depth
+foreshortens. Without them the mortar gap is a fraction of a pixel wide and its
+phase drifts across the surface, so the lines fade in and out in broad patches.
+That looks like a texturing bug and is really moire.
+
+**A squashed sphere reads as a disc from a steep camera.** Tree canopies built as
+spheres scaled to 0.82 in Z looked drawn from straight overhead, because a steep
+camera foreshortens height by sin(elevation) while width comes through at full
+size. Canopies need to be taller than wide before any of their side shows.
+
 **Masonry has to be built, not coloured.** A wall made of one box reads as poured
 concrete, because one box is one normal and therefore one tone, and no palette
 change fixes that. `tile_top()` and `tile_face_y()` lay staggered blocks over a
