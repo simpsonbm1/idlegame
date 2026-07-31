@@ -100,15 +100,27 @@ right line without fitting.
 involved: it puts one pivot at the shoulder, hands it the arm parts and the
 weapon root, and turns that pivot once per frame.
 
-Rotate the pivot about **Y**, not X. The camera looks down world +Y, so XZ is the
-only plane a swing shows in, and that is a turn about Y. Angles are measured from
-straight up, so 0 is overhead, 90 is level and forward, 180 is straight down. Take
-the weapon's own rest angle into account: the knight's blade sits at 132 degrees,
-so -95 lifts it overhead and +30 drives it past rest into a finished cut.
+**A frame needs two angles, not one.**
 
-Two things that went wrong and are worth avoiding. Including the shoulders in the
-pivot tore them off the torso. Putting the pivot at the chest centre swung the far
-arm behind the body, which a more forward pivot fixed.
+`swing` turns the pivot about **Y**. That is the arc the camera sees, because the
+camera looks down world +Y and XZ is the only plane a swing shows in. It is
+measured from straight up: 0 overhead, 90 level and forward, 180 straight down.
+Account for the weapon's own rest angle, since the knight's blade already sits at
+132 degrees.
+
+`lift` turns the pivot about **X**, carrying the arm forward in depth, toward the
+direction the figure faces. Negative is forward.
+
+Swing alone looks correct in a wireframe and is wrong on screen. A figure's weapon
+hand is on the opposite side from the direction it attacks, so a flat arc drags
+the arm through the torso, and on a two-handed swing it drives the shoulders up
+through the head. Both happened, and both were visible only once the frames played
+in sequence rather than sitting in a row. Lift moves the whole arc in front of the
+body. Any frame with a real swing needs a real lift, roughly a third of it.
+
+Two placement mistakes worth avoiding. Including the shoulders in the pivot tore
+them off the torso. Putting a two-handed pivot at the chest centre swung the far
+arm behind the body, which a lower and much more forward pivot fixed.
 
 Every frame passes through the same rig, so palette, outline weight and pixel grid
 hold across a sheet by construction. Hand-drawn frames are where sprite animation
