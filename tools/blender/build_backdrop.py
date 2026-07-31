@@ -194,12 +194,24 @@ def flatten(x, y):
     return k
 
 
+# The battle line is already the busiest part of the frame: two formations, their
+# contact shadows and the road all land here. Textured ground underneath competes
+# with the thing the player is actually meant to be watching, so it is flattened
+# hardest of all. Centre, then the two radii of the ellipse.
+BATTLE = (14.0, -7.0, 12.5, 7.0)
+
+
 def calm(x, y):
-    """Ease the relief toward flat inside the CALM patches."""
+    """Ease the relief toward flat inside the CALM patches and the battle zone."""
     k = 1.0
     for cx, cy, r in CALM:
         d = math.hypot(x - cx, y - cy) / r
         k = min(k, max(0.10, min(1.0, d * d)))
+    bx, by, brx, bry = BATTLE
+    d = math.hypot((x - bx) / brx, (y - by) / bry)
+    if d < 1.0:
+        t = max(0.0, min(1.0, (d - 0.62) / 0.38))
+        k = min(k, 0.05 + 0.95 * t * t)
     return k
 
 

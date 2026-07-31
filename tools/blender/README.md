@@ -203,6 +203,13 @@ terms are a regular lattice by construction, and no number of octaves fixes that
 they keep lining their peaks up in rows, which renders as diagonal ribbons across
 the ground. `mathutils.noise.fractal` has no preferred direction and no repeat.
 
+**Flatten hardest where the action is.** The battle line already carries two
+formations, their contact shadows and the road. Textured ground underneath competes
+with the thing the player is meant to be watching, and the busiest patch of terrain
+should not sit under the busiest patch of gameplay. `BATTLE` is an ellipse over the
+combat zone where the relief drops to about 5%, tapering back to full toward the
+frame edges.
+
 Then scatter a few CALM patches where the relief eases toward flat. The plaza
 produced one of these as a side effect of being flattened for its paving, and that
 break was the part of the ground that read best, so the effect is worth placing
