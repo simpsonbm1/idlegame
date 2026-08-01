@@ -47,6 +47,25 @@ when they are not.
 Renders land in `tools/blender/out/`, which is gitignored. Paths resolve from
 `__file__`, so nothing is tied to one machine.
 
+**`out/` is SCRATCH; `assets/rendered/` is the artifact.** The scratch directory
+holds debug renders, probe images and eight-times upscales, and a render pass
+rewrites all 350 files in it. Promote finished work with:
+
+```bash
+python tools/blender/publish.py --dry-run   # what would change
+python tools/blender/publish.py             # copy it
+```
+
+That copies each finished image to `assets/rendered/sprites/<key>.png`,
+`assets/rendered/attack/<key>.png` or `assets/rendered/sheets/<group>.png`, named
+by roster key. It is driven by the rosters rather than by globbing `out/`, so an
+abandoned experiment cannot reach the repository by accident.
+
+Publishing is deliberate rather than automatic, and that is what keeps the
+repository small: PNGs do not delta-compress, so committing the scratch directory
+would store every version of every file whole. Four full render passes in one
+evening would have added about 76 MB of permanent history.
+
 **One Blender process per asset, deliberately.** A shared session lets state leak
 between builds, and that already happened: the necromancer on disk was rendered
 at a KeySun energy of 3.0 while the knight and goblin beside it were rendered at
