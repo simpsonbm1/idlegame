@@ -29,9 +29,17 @@ prefer small working milestones over large upfront designs.
 **The art has moved in-house to Blender** (user decision 2026-07-31): the AI-generated
 sprites and the rendered ones do not sit together, so the roster was rebuilt in
 `tools/blender/` rather than added to. **It is complete**: 83 assets covering every
-character and building the game needs, rebuilt from source in about three minutes by
-`python tools/blender/render_all.py`. None of it is wired into the game yet, and no
-human has judged it. Animation is a later pass.
+character and building the game needs, rebuilt from source by
+`python tools/blender/render_all.py`, plus 63 attack sheets from `render_attacks.py`.
+Contact sheets label every cell with its roster key.
+
+**A hero's four rarity tiers are four DIFFERENT PEOPLE** (user ruling 2026-08-01), named
+by DESIGN.md, built as branches inside the one builder so the attack sheets keep
+generating. The three silhouette rules that ruling cost are in `M15_ASSET_SPECS.md` and
+`tools/blender/README.md` — read them before touching a hero builder.
+
+**None of it is wired into the game yet, and the user has judged the ranged line only.**
+His review of the other eight hero lines is the next thing waiting on him.
 
 Also live: M15 (game feel) in progress; M16 tutorialization phases 1–2 built, pending the
 user's playtest; the endgame rework is designed and audited, not started. Detail:
