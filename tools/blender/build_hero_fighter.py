@@ -34,24 +34,82 @@ TRIM = H.trim_mat(M)        # None on a common hero: plain and field-worn
 GLOW = H.glow_mat(M)        # epic and legendary only
 LEGEND = H.is_legendary()
 
+# ---------------------------------------------------------------------------
+# The fighter line: Footman, Sellsword, Blademaster, Warlord (DESIGN.md).
+#
+# Four soldiers from four different places, not one footman re-equipped (USER
+# RULING 2026-08-01). The blade carries most of it, because a sword held down the
+# centre line is the tallest thin object this figure owns: a plain arming sword,
+# a broad falchion, a long slender duelling blade, a massive war sword. Then the
+# head, and then the armour underneath.
+# ---------------------------------------------------------------------------
+TIER = H.tier()
+if TIER == "base":
+    TIER = "common"
+
+BODY = {"common": "mail", "rare": "leath", "epic": "charcoal", "legendary": "mail"}[TIER]
+COAT = {"common": "crimson", "rare": "cream", "epic": "violet", "legendary": "crimson"}[TIER]
+
 figure, detail, noline = [], [], []
 
 HIP = 1.18
-figure += H.legs(scn, M, HIP, spread=0.34, mat=M["mail"], boot=M["leath"])
-figure.append(P.add_box(scn, "hips", (0, 0, HIP), (0.80, 0.52, 0.30), M["mail"], bevel=0.05))
+figure += H.legs(scn, M, HIP, spread=0.34 * H.stance(TIER), mat=M[BODY], boot=M["leath"])
+figure.append(P.add_box(scn, "hips", (0, 0, HIP), (0.80, 0.52, 0.30), M[BODY], bevel=0.05))
 
-tors_root, tors = H.torso(scn, M, HIP + 0.14, chest_r=0.46, lean=6)
-tors.append(P.add_box(scn, "tabard", (0, -0.32, 0.34), (0.50, 0.08, 1.10), M["crimson"]))
-tors.append(P.add_box(scn, "tabardback", (0, 0.30, 0.34), (0.50, 0.08, 1.10), M["crimson"]))
+tors_root, tors = H.torso(scn, M, HIP + 0.14,
+                          chest_r={"common": 0.46, "rare": 0.44, "epic": 0.42,
+                                   "legendary": 0.52}[TIER],
+                          lean=6, mat=M[BODY])
+if TIER in ("common", "legendary"):
+    tors.append(P.add_box(scn, "tabard", (0, -0.32, 0.34), (0.50, 0.08, 1.10), M[COAT]))
+    tors.append(P.add_box(scn, "tabardback", (0, 0.30, 0.34), (0.50, 0.08, 1.10), M[COAT]))
+elif TIER == "rare":
+    # the Sellsword: mismatched kit, one shoulder plated and the other bare. He
+    # is the only fighter in the line who is not symmetrical.
+    tors.append(P.add_sphere(scn, "pauldron", (-0.60, -0.10, 0.80), 0.32, M["steel"],
+                             scale=(1.10, 0.88, 0.72), segs=10, rings=6))
+    tors.append(P.add_box(scn, "baldric", (0, -0.34, 0.44), (0.96, 0.10, 0.16), M[COAT],
+                          rot=(0, math.radians(28), 0)))
+else:
+    # the Blademaster: a duellist's sash, no armour worth the name
+    tors.append(P.add_box(scn, "sash", (0, -0.30, 0.16), (0.94, 0.14, 0.26), M[COAT],
+                          rot=(0, math.radians(-18), 0)))
+    tors.append(P.add_box(scn, "sashtail", (0.34, -0.30, -0.22), (0.18, 0.10, 0.54), M[COAT]))
 tors.append(P.add_box(scn, "belt", (0, -0.04, 0.10), (0.92, 0.56, 0.15), M["leath"]))
-if TRIM:
+if TRIM and TIER in ("common", "legendary"):
     tors.append(P.add_box(scn, "tabardedge", (0, -0.37, 0.34), (0.13, 0.05, 1.10), TRIM))
     tors.append(P.add_box(scn, "pauldrontrim", (0, -0.30, 0.78), (0.98, 0.10, 0.11), TRIM))
 if LEGEND:
-    figure += H.cloak(scn, M, M["crimson"], HIP + 0.60, height=1.70, r_base=0.60, r_top=0.32)
+    figure += H.cloak(scn, M, M["crimson"], HIP + 0.56, height=1.62,
+                      r_base=0.62, r_top=0.32, y=0.46)
 
-hd, hd_det = H.head(scn, M, (0, -0.04, 1.06), r=0.30, helm=M["steel"])
-tors += hd
+# ---- the head is the second read, and no two of them are the same shape ----
+if TIER == "common":
+    hd, hd_det = H.head(scn, M, (0, -0.04, 1.06), r=0.30, helm=M["steel"])
+    tors += hd
+elif TIER == "rare":
+    # bare head, bandana and stubble: a soldier who owns no helmet
+    hd, hd_det = H.head(scn, M, (0, -0.04, 1.06), r=0.30)
+    tors += hd
+    tors.append(P.add_box(scn, "bandana", (0, -0.06, 1.26), (0.66, 0.62, 0.20), M[COAT]))
+    tors.append(P.add_box(scn, "bandanatail", (0.30, 0.24, 1.16), (0.14, 0.30, 0.26), M[COAT],
+                          rot=(math.radians(24), 0, 0)))
+    detail.append(P.add_box(scn, "stubble", (0, -0.30, 0.90), (0.32, 0.20, 0.18), M["charcoal"]))
+elif TIER == "epic":
+    # bare head, topknot: the only hair standing UP on any hero
+    hd, hd_det = H.head(scn, M, (0, -0.04, 1.06), r=0.30)
+    tors += hd
+    tors.append(P.add_sphere(scn, "hair", (0, 0.06, 1.12), 0.33, M["charcoal"],
+                             scale=(1.0, 1.02, 0.92), segs=12, rings=7))
+    tors.append(P.add_cone(scn, "topknot", (0, 0.16, 1.44), 0.10, 0.05, 0.42,
+                           M["charcoal"], rot=(math.radians(-18), 0, 0), verts=7))
+else:
+    # the Warlord: horned helm, face in shadow
+    hd, hd_det = H.head(scn, M, (0, -0.04, 1.06), r=0.30, helm=M["steel"])
+    tors += hd
+    for s in (-1, 1):
+        tors.append(P.add_cone(scn, "warhorn", (s * 0.32, 0.04, 1.30), 0.12, 0.0, 0.56,
+                               M["brightgold"], rot=(0, math.radians(-s * 42), 0), verts=7))
 if GLOW:
     noline.append(P.add_box(scn, "helmcrest", (0, 0.06, 1.44), (0.10, 0.30, 0.18), GLOW))
 
@@ -68,7 +126,16 @@ tors.append(P.add_cyl(scn, "foreR", (0.42, -0.54, 0.16), 0.14, 0.48, M["steel"],
 tors.append(P.add_sphere(scn, "fistR", (0.26, -0.68, -0.04), 0.16, M["steel"]))
 P.parent_all(tors_root, tors + hd_det)
 
-blade = [(-0.07, 0.14), (0.07, 0.14), (0.07, 1.24), (0.0, 1.50), (-0.07, 1.24)]
+# Four blades. A falchion is wide at the tip and a duelling blade is narrow the
+# whole way, and those two outlines are unmistakable even at 112 pixels.
+BLADE = {
+    "common":    [(-0.07, 0.14), (0.07, 0.14), (0.07, 1.24), (0.0, 1.50), (-0.07, 1.24)],
+    "rare":      [(-0.06, 0.14), (0.09, 0.14), (0.19, 0.86), (0.17, 1.16),
+                  (0.02, 1.26), (-0.07, 0.92)],
+    "epic":      [(-0.045, 0.14), (0.045, 0.14), (0.045, 1.54), (0.0, 1.82), (-0.045, 1.54)],
+    "legendary": [(-0.13, 0.14), (0.13, 0.14), (0.13, 1.30), (0.0, 1.64), (-0.13, 1.30)],
+}[TIER]
+blade = BLADE
 sw_root = P.make_root(scn, "sword_root", rot=(0, 6, 0), loc=(-0.02, -0.80, 1.02))
 sword = [P.add_prism(scn, "blade", blade, 0.11, M["blade"]),
          P.add_box(scn, "guard", (0, 0, 0.12), (0.46, 0.11, 0.10), TRIM or M["steel"]),

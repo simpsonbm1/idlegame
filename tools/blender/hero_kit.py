@@ -264,6 +264,11 @@ def stance(t=None):
 
     Safe for animation: the attack sheets drive the ARMS from derived joints and
     never touch the legs, so a stance carries through a swing unchanged.
+
+    **Never call this on a hero whose OWN sprite is epic or legendary.** It keys
+    off the tier name, so on the paladin, whose base art is the Epic Crusader, it
+    silently widened the shipped sprite. Those builders write their spread out
+    per tier instead.
     """
     return {"legendary": 1.24, "epic": 1.10}.get(t or tier(), 1.0)
 

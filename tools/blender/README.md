@@ -30,6 +30,17 @@ It launches Blender headless once per asset, logs each to `out/logs/`, and ends
 by writing the contact sheets. About 2.5 seconds per sprite. Exit code is the
 number of failures. Set `BLENDER_EXE` if Blender is not at the default path.
 
+**A hero's rarity tiers are four DIFFERENT PEOPLE** (user ruling 2026-08-01), named
+by `DESIGN.md` and built as branches inside the one builder so `attack_roster.py`
+keeps generating their attack sheets. Three rules the rework paid for in rejected
+renders. Height is not spendable, because `spritekit.finish()` scales the body to
+the role height and a taller tier just shrinks itself. Overlapping cones fuse, so
+a cloak stays narrow and behind the legs and only one mass sits at the shoulder
+line. And a coloured garment over a leather body still reads leather, because the
+torso's chest sphere is wider than the jerkin in front of it. Every base sprite is
+verified pixel-identical after a tier rework; `H.stance()` must not be called on a
+hero whose own art is the epic or legendary tier.
+
 **Every contact-sheet cell is captioned with its roster key** (user, 2026-08-01:
 three mender rarity variants were indistinguishable on the sheet, so there was no
 way to SAY which one needed the edit). Labels are stamped into the 1x sheet before

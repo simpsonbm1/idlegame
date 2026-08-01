@@ -35,13 +35,41 @@ TRIM = H.trim_mat(M)        # None on a common hero: plain and field-worn
 GLOW = H.glow_mat(M)        # epic and legendary only
 LEGEND = H.is_legendary()
 
+# ---------------------------------------------------------------------------
+# The frost line: Frost Apprentice, Frost Adept, Rimecaller, Winter's Voice
+# (DESIGN.md).
+#
+# Ice ACCUMULATES up this line, which is the one escalation that suits a cold
+# mage: the apprentice merely wears fur trim, the adept has gone bare-headed with
+# frost in the hair, ice has started growing out of the Rimecaller's shoulders,
+# and Winter's Voice is more ice than person. The staff head follows the same
+# curve, from a single crystal to a broken ring of them.
+# ---------------------------------------------------------------------------
+TIER = H.tier()
+if TIER == "base":
+    TIER = "common"
+
 figure, detail, noline = [], [], []
 
 figure += H.robe(scn, M, M["ice"], top=1.74, r_base=0.82, r_top=0.42)
 figure.append(P.add_cyl(scn, "hemfur", (0, 0, 0.10), 0.86, 0.20, M["fur"], verts=12))
 figure.append(P.add_cone(scn, "chest", (0, 0, 2.08), 0.44, 0.38, 0.88, M["ice"], verts=12))
 figure.append(P.add_box(scn, "sash", (0, -0.40, 1.66), (0.58, 0.09, 0.13), M["fur"]))
-figure.append(P.add_cone(scn, "furmantle", (0, -0.02, 2.50), 0.68, 0.30, 0.46, M["fur"], verts=12))
+
+if TIER == "rare":
+    # a high collar standing behind the head instead of a mantle lying on the
+    # shoulders: the only vertical shoulder line in the roster
+    figure.append(P.add_cone(scn, "collar", (0, 0.26, 2.72), 0.54, 0.30, 0.72, M["fur"], verts=12))
+elif TIER == "epic":
+    # ice growing OUT of the figure. Structural shards are in `ice` rather than
+    # the emissive `frost`, which at this size would blow out to a white blob.
+    for s, dz, ang in ((-1, 2.46, 34), (1, 2.54, -28), (-1, 2.68, 12), (1, 2.34, -46)):
+        figure.append(P.add_cone(scn, "shard", (s * 0.44, 0.06, dz), 0.12, 0.0, 0.54,
+                                 M["ice"], rot=(0, math.radians(-s * 90 + ang), 0), verts=5))
+    figure.append(P.add_cone(scn, "furmantle", (0, -0.02, 2.50), 0.62, 0.28, 0.42, M["fur"], verts=12))
+else:
+    figure.append(P.add_cone(scn, "furmantle", (0, -0.02, 2.50), 0.68, 0.30, 0.46, M["fur"], verts=12))
+
 for s in (-1, 1):
     figure.append(P.add_sphere(scn, "shoulder", (s * 0.46, -0.04, 2.42), 0.22, M["ice"],
                                scale=(1, .95, .8)))
@@ -50,13 +78,33 @@ if TRIM:
 if LEGEND:
     figure.append(P.add_cone(scn, "overrobe", (0, 0.26, 1.28), 0.78, 0.44, 2.38, M["fur"], verts=10))
 
-hd, hd_det = H.head(scn, M, (0, -0.06, 2.86), r=0.27, hood=M["ice"])
+# ---- head ----
+if TIER == "common":
+    hd, hd_det = H.head(scn, M, (0, -0.06, 2.86), r=0.27, hood=M["ice"])
+elif TIER == "rare":
+    # bare headed, long pale hair swept back over the collar
+    hd, hd_det = H.head(scn, M, (0, -0.06, 2.86), r=0.27)
+    figure.append(P.add_sphere(scn, "hair", (0, 0.06, 2.92), 0.30, M["fur"],
+                               scale=(1.0, 1.06, 0.94), segs=12, rings=7))
+    figure.append(P.add_cone(scn, "hairfall", (0, 0.22, 2.62), 0.26, 0.10, 0.56, M["fur"], verts=9))
+elif TIER == "epic":
+    # a ring of rime spikes growing straight out of the skull, uneven on purpose
+    hd, hd_det = H.head(scn, M, (0, -0.06, 2.86), r=0.27)
+    figure.append(P.add_sphere(scn, "hair", (0, 0.04, 2.90), 0.29, M["fur"],
+                               scale=(1.0, 1.0, 0.88), segs=12, rings=7))
+    for i, (sx, hgt) in enumerate(((-0.20, 0.30), (-0.07, 0.44), (0.08, 0.36), (0.21, 0.26))):
+        figure.append(P.add_cone(scn, "rimespike", (sx, -0.02, 3.10), 0.055, 0.0, hgt,
+                                 M["ice"], rot=(0, math.radians(sx * 60), 0), verts=5))
+else:
+    hd, hd_det = H.head(scn, M, (0, -0.06, 2.86), r=0.27, hood=M["ice"])
 figure += hd
 detail += hd_det
+
 if LEGEND:
+    # a tall crown of ice, taller and wider than the Rimecaller's rough spikes
     for i, s in enumerate((-1, 0, 1)):
-        figure.append(P.add_cone(scn, "icecrown", (s * 0.16, -0.10, 3.14 + (1 - abs(s)) * 0.10),
-                                 0.05, 0.0, 0.26 + (1 - abs(s)) * 0.12, M["fur"],
+        figure.append(P.add_cone(scn, "icecrown", (s * 0.20, -0.10, 3.16 + (1 - abs(s)) * 0.12),
+                                 0.06, 0.0, 0.36 + (1 - abs(s)) * 0.22, M["fur"],
                                  rot=(0, math.radians(s * 16), 0), verts=5))
 
 figure += S.limb(scn, (-0.48, -0.12, 2.34), (-0.68, -0.56, 1.82), M["ice"], 0.13, 0.115,
@@ -69,13 +117,41 @@ staff = [P.add_cyl(scn, "shaft", (0, 0, 0), 0.056, 2.80, M["wood"], verts=6)]
 for z in (-0.96, -0.16, 0.64):
     staff.append(P.add_cyl(scn, "lash", (0, 0, z), 0.08, 0.08, M["fur"], verts=6))
 staff.append(P.add_cone(scn, "cradle", (0, 0, 1.36), 0.16, 0.08, 0.22, TRIM or M["steel"], verts=8))
-crystal = [P.add_cone(scn, "crystal", (0, -0.02, 1.66), 0.15, 0.0, 0.46, M["frost"], verts=6),
-           P.add_cone(scn, "crystalbase", (0, -0.02, 1.50), 0.15, 0.0, 0.24, M["frost"], verts=6,
+CR = {"common": 1.00, "rare": 0.86, "epic": 1.20, "legendary": 1.34}[TIER]
+crystal = [P.add_cone(scn, "crystal", (0, -0.02, 1.66), 0.15 * CR, 0.0, 0.46 * CR, M["frost"], verts=6),
+           P.add_cone(scn, "crystalbase", (0, -0.02, 1.50), 0.15 * CR, 0.0, 0.24 * CR, M["frost"], verts=6,
                       rot=(math.radians(180), 0, 0))]
+if TIER == "rare":
+    # three small crystals held in a ring rather than one on the tip
+    for i, ang in enumerate((0, 120, 240)):
+        crystal.append(P.add_cone(scn, "ringcrystal",
+                                  (0.30 * math.cos(math.radians(ang)), -0.04,
+                                   1.66 + 0.30 * math.sin(math.radians(ang))),
+                                  0.08, 0.0, 0.26, M["frost"],
+                                  rot=(0, math.radians(ang), 0), verts=5))
+elif TIER == "epic":
+    # a cluster: the Rimecaller's staff has grown as much ice as she has
+    for dx, dz, hgt in ((-0.26, 1.54, 0.34), (0.24, 1.62, 0.30), (-0.16, 1.94, 0.26),
+                        (0.20, 1.98, 0.22)):
+        crystal.append(P.add_cone(scn, "clustercrystal", (dx, -0.04, dz), 0.09, 0.0, hgt,
+                                  M["frost"], rot=(0, math.radians(dx * 90), 0), verts=5))
+elif TIER == "legendary":
+    # a broken ring standing clear of the tip, which no other staff in the game has
+    for ang in range(0, 360, 40):
+        if 150 < ang < 210:
+            continue
+        crystal.append(P.add_box(scn, "haloshard",
+                                 (0.46 * math.cos(math.radians(ang)), -0.05,
+                                  1.96 + 0.46 * math.sin(math.radians(ang))),
+                                 (0.10, 0.05, 0.16), M["frost"],
+                                 rot=(0, math.radians(-ang), 0)))
+
 # snowflakes: scattered points, not a cloud. Points read as falling; a mass reads
 # as smoke.
-for i, (dx, dz) in enumerate(((-0.30, 1.30), (0.28, 1.52), (-0.22, 1.92), (0.32, 2.02),
-                              (0.02, 2.20), (-0.34, 1.68))):
+FLAKES = {"common": 6, "rare": 4, "epic": 8, "legendary": 10}[TIER]
+for i, (dx, dz) in enumerate((((-0.30, 1.30), (0.28, 1.52), (-0.22, 1.92), (0.32, 2.02),
+                               (0.02, 2.20), (-0.34, 1.68), (0.40, 1.32), (-0.42, 2.20),
+                               (0.16, 2.44), (-0.10, 2.62))[:FLAKES])):
     crystal.append(P.add_box(scn, "snowflake", (dx, -0.06, dz),
                              (0.075, 0.05, 0.075), M["frost"],
                              rot=(0, math.radians(i * 29), 0)))
