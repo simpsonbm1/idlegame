@@ -138,15 +138,44 @@ def anim_cam(scn, res):
 # technique one: a pivot, for a one-handed weapon
 # --------------------------------------------------------------------------
 
-def pivot_arm(scn, root, arm_names, weapon_root_name=None):
-    """One empty at the derived shoulder, holding the arm and the weapon."""
-    pivot = P.make_root(scn, "atk_pivot", loc=tuple(top_joint(scn, arm_names)))
+def joint_between(scn, shoulder_groups):
+    """The pivot point: one shoulder, or the midpoint between two.
+
+    A one-handed swing turns about the weapon shoulder. A TWO-handed swing turns
+    about the point between both shoulders, which reads as the torso twisting
+    rather than as one arm dragging the other.
+    """
+    from mathutils import Vector
+    pts = [top_joint(scn, g) for g in shoulder_groups]
+    return sum(pts, Vector((0, 0, 0))) / len(pts)
+
+
+def pivot_arm(scn, root, shoulder_groups, part_names, weapon_root_name=None):
+    """One empty at the derived joint, holding the arm parts AND the weapon.
+
+    **The weapon goes in the pivot with the arms, which is what makes this safe
+    for a two-handed grip.** The failure the README records -- hands drifting off
+    a two-handed weapon -- happens when the weapon is driven separately from the
+    arms, so their offsets rotate independently. Rotating arms and weapon
+    together as one rigid body cannot come apart at all, because nothing moves
+    relative to anything else.
+
+    Inverse kinematics is still the better answer when the weapon must follow a
+    path of its own rather than the arms' arc, which is why `twohand_sheet` and
+    the goblin brute stay as the worked example. For a plain swing this is
+    simpler, has no bone lengths to get wrong, and works on figures whose limb
+    parts share a name.
+    """
+    pivot = P.make_root(scn, "atk_pivot", loc=tuple(joint_between(scn, shoulder_groups)))
     pivot.parent = root
     pivot.matrix_parent_inverse = world_of(root).inverted()
-    names = list(arm_names)
+    names = list(part_names)
     if weapon_root_name:
         names.append(weapon_root_name)
-    P.reparent_keep(pivot, P.find(scn, *names))
+    found = P.find(scn, *names)
+    if not found:
+        raise KeyError("no parts to animate for %s" % (names,))
+    P.reparent_keep(pivot, found)
     return pivot
 
 
@@ -245,35 +274,8 @@ def twohand_sheet(scn, key, root, weapon_name, arms, frames, res=128,
     return path
 
 
-# --------------------------------------------------------------------------
-# the shared attack shapes
-# --------------------------------------------------------------------------
-#
-# Most of the roster reuses one of these rather than getting its own table. Each
-# is eight frames of (lift, swing, lunge), starting and ending at rest.
-#
-# An attack whose end pose resembles its rest pose reads as nothing happening,
-# which is what the goblin's smash did until frame 1 gained a backward dip as
-# anticipation. Every shape here has one.
-
-OVERHAND = [(0, 0, 0), (-26, -40, 0.04), (-38, -86, 0.09), (-32, -66, 0.05),
-            (-42, 28, -0.22), (-26, 14, -0.16), (-11, 5, -0.06), (0, 0, 0)]
-
-SMASH = [(0, 0, 0), (-16, -20, 0.06), (-40, 92, 0.10), (-36, 60, 0.06),
-         (-42, -52, -0.26), (-30, -34, -0.20), (-13, -14, -0.08), (0, 0, 0)]
-
-# a short flat cut, for daggers and short blades: less wind-up, more lunge
-SLASH = [(0, 0, 0), (-14, -26, 0.05), (-26, -54, 0.08), (-34, 10, -0.24),
-         (-30, 44, -0.30), (-20, 26, -0.18), (-9, 10, -0.07), (0, 0, 0)]
-
-# a two-handed horizontal sweep, for polearms and great weapons
-SWEEP = [(0, 0, 0), (-18, 34, 0.06), (-34, 74, 0.10), (-40, 20, -0.18),
-         (-44, -40, -0.28), (-30, -26, -0.19), (-13, -10, -0.08), (0, 0, 0)]
-
-# a caster's push: almost no arc, the arm thrusts forward and holds
-CAST = [(0, 0, 0), (-10, -18, 0.03), (-20, -32, 0.05), (-46, -6, -0.16),
-        (-52, 8, -0.22), (-40, 6, -0.14), (-18, 2, -0.06), (0, 0, 0)]
-
-# a bow draw and release: the arm pulls back, then snaps forward
-LOOSE = [(0, 0, 0), (8, 14, -0.02), (14, 26, -0.04), (16, 30, -0.05),
-         (2, -10, 0.06), (-6, -18, 0.04), (-3, -8, 0.02), (0, 0, 0)]
+# The shared attack shapes live in `attack_shapes.py`, which imports no bpy so
+# the system Python can read the roster that uses them. Re-exported here for
+# anything already importing animkit.
+from attack_shapes import (OVERHAND, SMASH, SLASH, SWEEP, CAST,  # noqa: E402,F401
+                           LOOSE)

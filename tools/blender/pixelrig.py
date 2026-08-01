@@ -609,6 +609,24 @@ def find(scn, *bases):
     return [o for o in scn.collection.objects if o.name.split('.')[0] in want]
 
 
+def world_matrix(ob):
+    """World transform composed by hand up the parent chain.
+
+    **Not `ob.matrix_world`.** That is evaluated by the ACTIVE scene's depsgraph,
+    and in background Blender the active scene is the startup file's "Scene"
+    rather than the one these builders work in, so it reads stale. Composing the
+    basis matrices is exact and needs no depsgraph.
+
+    Valid because `parent_all` always sets an identity parent inverse.
+    """
+    m = ob.matrix_basis
+    p = ob.parent
+    while p is not None:
+        m = p.matrix_basis @ m
+        p = p.parent
+    return m
+
+
 def reparent_keep(root, objs):
     """Parent WITHOUT moving anything: the child keeps its current world
     position and only follows the root from now on.
@@ -616,10 +634,15 @@ def reparent_keep(root, objs):
     This is the opposite of parent_all(), which makes a child's coordinates
     local to the root. Animation needs this form -- an arm is modelled in place
     and then handed a pivot to swing around.
+
+    Uses the hand-composed world matrix, not `matrix_world`. Reading the stale
+    one detached the Lich Commander's staff from his arm: the weapon swung and
+    the arm holding it stayed where it was.
     """
+    inv = world_matrix(root).inverted()
     for ob in objs:
         ob.parent = root
-        ob.matrix_parent_inverse = root.matrix_world.inverted()
+        ob.matrix_parent_inverse = inv
 
 
 def two_bone_ik(shoulder, target, len_a, len_b, pole, stretch=0.0):

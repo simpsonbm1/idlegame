@@ -90,23 +90,9 @@ def start(scn, res):
 
 
 def _world_matrix(ob):
-    """World transform composed by hand up the parent chain.
-
-    **Not `ob.matrix_world`.** That is evaluated by the depsgraph of the ACTIVE
-    scene, and in background Blender the active scene is the startup file's
-    "Scene", not the "PixelPilot" one these builders work in, so
-    `view_layer.update()` refreshes the wrong graph and the matrices read stale.
-    Composing them here is exact and needs no depsgraph at all.
-
-    Valid because `parent_all` always sets an identity parent inverse, so world
-    is simply the product of the basis matrices up the chain.
-    """
-    m = ob.matrix_basis
-    p = ob.parent
-    while p is not None:
-        m = p.matrix_basis @ m
-        p = p.parent
-    return m
+    """Delegates to `pixelrig.world_matrix`, which is where this now lives since
+    `reparent_keep` needs it too."""
+    return P.world_matrix(ob)
 
 
 def _mesh_descendants(root):

@@ -39,7 +39,7 @@ def knight():
     scn = P.get_scene()
     root = A.figure_root(scn, "knight")
     arm = ("upperR", "foreR", "gauntR", "pauldronR")
-    pivot = A.pivot_arm(scn, root, arm, "sword_root")
+    pivot = A.pivot_arm(scn, root, [("pauldronR",)], arm, "sword_root")
     return A.swing_sheet(scn, "knight", root, [pivot], A.OVERHAND)
 
 
