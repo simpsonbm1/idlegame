@@ -384,14 +384,30 @@ roughly twice a character's height.
 ## Hero rarity variants (added 2026-07-18; LOWEST priority — trickle in whenever, any order)
 
 The game shows the base hero sprite for every rarity until a variant file exists, so nothing
-waits on these. Each variant is **the same character concept at a different station in
-life**, not a new person: **attach the base archetype's sprite** (plus the knight anchor)
-and keep the line "exactly the same character, art style, pose, and proportions as the
-attached reference — only the gear and presence change." Escalation is presence and regalia,
-not just shine — commons look plain and field-worn; Rare = well-made gear, small flourishes;
-Epic = ornate masterwork gear, one subtly glowing element; Legendary = radiant, gilded,
-clearly the stuff of legend. Don't recolor the whole palette — the game adds its own
-rarity-colored rim. Character rules from the top of this doc all apply.
+waits on these.
+
+**USER RULING 2026-08-01: each tier is a DIFFERENT PERSON, not the same person promoted.**
+The bar is the orc family, judged the most successful set in the roster: "theyre not just
+the same guy with better gear, theyre four different people." The player scanning the hire
+pool has to think "oh hey, i havent seen that one before, i should hire them."
+
+The four names in `DESIGN.md` are the brief, because they were always four people. The
+ranged line is Archer, Sharpshooter, Hunter and Marksman: a hooded villager with a longbow,
+a lean professional in a brimmed hat with bare arms and a recurve, a bare-headed ranger with
+loose hair and a wolf pelt on one shoulder, and a deep-hooded elite with a cloak and a gilded
+great bow. Change head shape, torso mass, limb covering, weapon silhouette and palette
+together — any one of those alone is a costume change, and was rejected as one.
+
+Three traps, each of which cost a rejected render. Height is not spendable: `spritekit.finish()`
+scales the body to the role height, so a taller tier shrinks its own body to compensate.
+Overlapping cone masses fuse: a wide cloak plus a mantle plus a deep hood rendered as "a
+multicolored triangle with a bow", and the legs must stay visible under a cloak. And a coloured
+garment over a leather body still reads leather, because the torso's chest sphere is wider than
+the jerkin box in front of it.
+
+Character rules from the top of this doc all apply. Escalation still runs plain and field-worn
+at Common up to the stuff of legend at Legendary; what changed is that presence and regalia are
+no longer the ONLY thing separating the tiers.
 
 **Base-art tier audit (2026-07-18):** some existing base sprites already depict a higher
 tier (user observation, confirmed by eye). Each base sprite is slotted into the tier its art

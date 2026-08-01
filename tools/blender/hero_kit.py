@@ -13,16 +13,10 @@ so it is a PARAMETER on the base builder rather than a script of its own. Set
 `HERO_TIER` in the environment and the builder re-renders itself dressed for that
 tier; `render_all.py` does this from the roster.
 
-The spec's escalation is presence and regalia, not shine, and explicitly not a
-palette change -- the game draws its own rarity-coloured rim, so recolouring the
-figure would fight it. What actually changes:
-
-| tier | trim | glow | presence |
-|---|---|---|---|
-| common | none | none | plain, field-worn |
-| rare | steel | none | a small flourish |
-| epic | gold | one element | ornate masterwork |
-| legendary | bright gold | radiant | a cloak, a crest, gilding |
+Escalation is SILHOUETTE first (user ruling 2026-08-01). See the rarity-ladder
+section further down for the table and for what the old trim-only ladder got
+wrong. Trim material still steps steel to gold to bright gold, but it is now the
+last thing a tier changes rather than the only thing.
 
 **Each hero's BASE sprite already occupies one tier** and that tier gets no
 separate file, per the audit in `M15_ASSET_SPECS.md`. The mender's base art is
@@ -166,10 +160,146 @@ def robe(scn, M, mat, top=1.72, r_base=0.84, r_top=0.42):
     return [P.add_cone(scn, "hrobe", (0, 0, top / 2), r_base, r_top, top, mat, verts=12)]
 
 
-def cloak(scn, M, mat, z, height=1.40, r_base=0.52, r_top=0.30):
-    """A shell standing PROUD of the back so it outlines against the torso. Only
-    legendary heroes get one; it is the tier's clearest silhouette change."""
-    return [P.add_cone(scn, "hcloak", (0, 0.24, z), r_base, r_top, height, mat, verts=10)]
+def cloak(scn, M, mat, z, height=1.40, r_base=0.52, r_top=0.30, y=0.24):
+    """A shell standing PROUD of the back so it outlines against the torso.
+
+    **Keep it BEHIND the figure and keep it narrow.** A cloak widened until it
+    surrounds the legs stops being a cloak: the hero renders as one solid cone
+    and the user's verdict was "a multicolored triangle with a bow" (2026-08-01).
+    The legs have to stay visible under it, because the gap between them is most
+    of the negative space a small figure has. Push `y` back rather than growing
+    `r_base` when a cloak needs more presence.
+    """
+    return [P.add_cone(scn, "hcloak", (0, y, z), r_base, r_top, height, mat, verts=10)]
+
+
+# --------------------------------------------------------------------------
+# the rarity ladder
+# --------------------------------------------------------------------------
+# USER RULING 2026-08-01, after judging the labelled variants sheet: "they are
+# all way too similar. i cant even tell a difference at all in the archers." The
+# bar he set is a player scanning the hire pool thinking "oh hey, i havent seen
+# that one before", not squinting at a collar.
+#
+# The old ladder put every tier step into TRIM MATERIAL. On the archer that came
+# to one 0.30-wide bracer, an arrowhead and two bow nocks changing from steel to
+# gold on a figure 2.95 units tall: rare and epic were geometrically identical.
+#
+# A sprite reads in one order -- outline, then large colour masses, then detail.
+# So every step here changes the OUTLINE, and detail is what it changes last.
+
+def pauldrons(scn, M, mat, z, span=0.56, r=0.26, squash=0.66):
+    """Shoulder caps: the widest, earliest-read change available on a small figure.
+
+    **Check the hero's entry in `attack_roster.py` before adding these.**
+    `animkit.top_joint()` takes the TOPMOST part matching that arm's shoulder
+    names as the pivot the arm turns about. Most heroes list `shoulder`, so a cap
+    named `pauldron` is invisible to them and safe. The paladin does not: its
+    entry names `("pauldron",)` as the shoulder group, so adding one of these to
+    that hero moves its swing pivot up into the armour.
+    """
+    return [P.add_sphere(scn, "pauldron", (s * span, -0.04, z), r, mat,
+                         scale=(1.10, 0.84, squash), segs=10, rings=6)
+            for s in (-1, 1)]
+
+
+def crest(scn, M, mat, z, height=0.38, width=0.10, depth=0.34):
+    """A blade of metal standing above the head.
+
+    **Height barely reads and this is why.** `spritekit.finish()` measures the
+    assembled body and scales the root until it hits `role_height(role)` exactly,
+    so a crest that makes a hero taller shrinks everything under it to
+    compensate. The figure ends the same height with a slightly smaller body: the
+    crest costs silhouette instead of adding it. The user's 2026-07-31 ruling
+    fixes hero height across tiers, so height cannot be spent at all.
+
+    Use it as a small accent on a head that has room, never as a tier's read.
+    """
+    return [P.add_box(scn, "hcrest", (0, 0.04, z + height / 2),
+                      (width, depth, height), mat, bevel=0.02)]
+
+
+def mantle(scn, M, mat, z, span=0.94, thick=0.34, drop=0.42):
+    """A wide shoulder mantle, the biggest silhouette change a tier can buy.
+
+    WIDTH is the axis to spend. It is not normalised by anything, so a mantle
+    reads at full strength where a crest of the same volume reads as nothing.
+    """
+    return [P.add_cone(scn, "hmantle", (0, 0.02, z), span, span * 0.46, thick,
+                       mat, verts=12),
+            P.add_cone(scn, "hmantlehem", (0, 0.02, z - drop * 0.5), span * 0.86,
+                       span * 0.62, drop, mat, verts=12)]
+
+
+def deep_hood(scn, M, mat, loc, r=0.29, reach=1.9, shadow=None):
+    """A hood that still reads as a hood at 112 pixels: a cowl standing well clear
+    of the skull, projecting forward over the face, with the face in shadow.
+
+    The stock `head(hood=...)` cowl hugs the head, so at sprite size it reads as a
+    green cap rather than as a hood. This one is deliberately oversized.
+    """
+    x, y, z = loc
+    out = [P.add_cone(scn, "hdeephood", (x, y + r * 0.30, z + r * 0.34),
+                      r * reach, r * 0.30, r * 2.05, mat, verts=12),
+           P.add_sphere(scn, "hdeephoodback", (x, y + r * 0.62, z - r * 0.06),
+                        r * 1.44, mat, scale=(1.0, 0.94, 1.10), segs=12, rings=7),
+           P.add_cone(scn, "hdeepcowl", (x, y + r * 0.10, z - r * 1.30),
+                      r * 1.86, r * 1.10, r * 1.15, mat, verts=12)]
+    if shadow is not None:
+        out.append(P.add_sphere(scn, "hhoodshadow", (x, y - r * 0.62, z + r * 0.10),
+                                r * 0.92, shadow, scale=(1.0, 0.44, 1.0),
+                                segs=10, rings=6))
+    return out
+
+
+def half_cape(scn, M, mat, z, height=0.92, r_base=0.48, r_top=0.30):
+    """A short cape off the shoulders. Gives epic a new back edge without spending
+    the full cloak, which is legendary's."""
+    return [P.add_cone(scn, "hcape", (0, 0.22, z), r_base, r_top, height, mat, verts=10)]
+
+
+def stance(t=None):
+    """Leg-spread multiplier. A legendary hero plants wider, which widens the base
+    of the silhouette and reads before any piece of gear does.
+
+    Safe for animation: the attack sheets drive the ARMS from derived joints and
+    never touch the legs, so a stance carries through a swing unchanged.
+    """
+    return {"legendary": 1.24, "epic": 1.10}.get(t or tier(), 1.0)
+
+
+def regalia(scn, M, shoulder_z, head_top, span=0.56, cape_mat=None,
+            cape_z=None, t=None):
+    """Every tier addition that is not specific to one archetype.
+
+    Returns parts in the caller's local space, so a builder appends them to the
+    same list its torso parts go in and they lean with the torso.
+
+    | tier | outline change | detail change |
+    |---|---|---|
+    | common | none | none, plain and field-worn |
+    | rare | pauldrons | steel |
+    | epic | bigger pauldrons, crest, half-cape | gold |
+    | legendary | widest pauldrons, tall crest, full cloak, stance | bright gold |
+
+    The full cloak and the archetype's own signature shape stay with the builder:
+    a cloak needs the figure's real height, and a signature is by definition not
+    generic.
+    """
+    t = t or tier()
+    trim = trim_mat(M, t)
+    if trim is None:
+        return []
+    cape_mat = cape_mat or trim
+    if t == "rare":
+        return pauldrons(scn, M, trim, shoulder_z, span=span, r=0.27)
+    if t == "epic":
+        return (mantle(scn, M, cape_mat, shoulder_z + 0.10, span=0.86, drop=0.36)
+                + pauldrons(scn, M, trim, shoulder_z, span=span, r=0.30)
+                + half_cape(scn, M, cape_mat,
+                            cape_z if cape_z is not None else shoulder_z - 0.30))
+    return (mantle(scn, M, cape_mat, shoulder_z + 0.12, span=1.02, drop=0.48)
+            + pauldrons(scn, M, trim, shoulder_z + 0.04, span=span + 0.06, r=0.34))
 
 
 def finish(scn, px, key, figure, detail, noline, roots=(), skip_extra=(),
