@@ -151,3 +151,21 @@ folders is covered by this entry:**
   programmatically by Claude (not AI image generation) via
   `tools/make-scene-mockups.ps1`, 2026-07-18. Attached to Antigravity prompts as
   placement ground truth; never shipped in-game.
+
+## In-house Blender renders (2026-07-31)
+
+`rendered/sprites/*` — 83 static sprites: 9 heroes, 30 enemies across five families,
+8 townsfolk, 9 buildings.
+`rendered/attack/*` — 63 eight-frame attack sheets, one per combatant plus the 27 hero
+rarity variants.
+`rendered/sheets/*` — contact sheets, one per group, for reviewing the set on a machine
+without Blender installed.
+
+Source and method: modelled and rendered entirely in-house from Python in
+`tools/blender/`, no image generator involved and no third-party art. Rebuildable from
+source with `python tools/blender/render_all.py` and `render_attacks.py`; promoted into
+this directory by `tools/blender/publish.py`.
+
+**No AI image generation and no external assets**, so nothing here needs the storefront
+disclosure the policy above requires of the `raw/` series. These supersede the
+Antigravity and Gemini sprites (user decision 2026-07-31).
