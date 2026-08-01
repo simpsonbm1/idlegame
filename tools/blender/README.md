@@ -31,7 +31,18 @@ by writing the contact sheets. About 2.5 seconds per sprite. Exit code is the
 number of failures. Set `BLENDER_EXE` if Blender is not at the default path.
 
 **The interactive way**, for building something new with the viewport in front of
-you. Blender open, MCP add-on connected:
+you. Blender open, MCP add-on connected. On a machine that has never had it,
+set the connection up first:
+
+```powershell
+pwsh -File tools/blender/setup-blender-mcp.ps1 -WhatIfOnly   # say what it would do
+pwsh -File tools/blender/setup-blender-mcp.ps1
+```
+
+That installs `uv`, clones the upstream `blender_mcp` repository, copies the
+add-on into Blender's extensions folder and registers the MCP server with Claude
+Code. Two steps stay manual: ENABLE the add-on in Blender's preferences, and
+restart Claude Code. The headless pipeline needs none of this.
 
 ```python
 import sys, importlib
