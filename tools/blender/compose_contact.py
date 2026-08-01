@@ -25,14 +25,18 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.append(HERE)
 import pixelrig as P
+import pixelfont as F
 import roster
 importlib.reload(P)
+importlib.reload(F)
 importlib.reload(roster)
 OUT = P.out_dir()
 
 PAD = 4                 # blank pixels between cells, so outlines never touch
 BG = "#2a2320"          # the dark board the sheets are judged against
 COLS = 6                # a family is six, so a family is one row
+INK = "#cfc4b0"         # label colour: legible on BG without competing with art
+LABEL_GAP = 3           # blank rows between a figure's feet and its name
 
 
 def load_rgba(path):
@@ -55,8 +59,15 @@ def save_rgba(arr, path):
 
 
 def sheet(assets, path, cols=COLS, upscale=4):
-    """Tile `assets` into a grid. Missing renders are skipped, not blanked, so a
-    half-finished family still produces a judgeable sheet."""
+    """Tile `assets` into a grid, each cell captioned with its roster key. Missing
+    renders are skipped, not blanked, so a half-finished family still produces a
+    judgeable sheet.
+
+    Labels are stamped into the 1x canvas rather than onto the upscale, so label
+    pixels come out the same size as sprite pixels. Without a name under every
+    figure the sheet shows that two sprites differ but gives no way to SAY which
+    one needs the edit, and near-identical rarity variants are exactly where that
+    bites (user, 2026-08-01)."""
     tiles = []
     for a in assets:
         p = os.path.join(OUT, a.out)
@@ -68,9 +79,17 @@ def sheet(assets, path, cols=COLS, upscale=4):
     cell = max(max(t.shape[0], t.shape[1]) for _, t in tiles)
     cols = min(cols, len(tiles))
     rows = (len(tiles) + cols - 1) // cols
+
+    # One label band height for every row, so the grid stays regular and the
+    # ground lines stay shared even when one key wraps and its neighbours do not.
+    labels = [F.text_lines(a.key, cell) for a, _ in tiles]
+    band = LABEL_GAP + F.block_height(max(len(l) for l in labels))
+
+    step = cell + band + PAD
     W = cols * (cell + PAD) + PAD
-    H = rows * (cell + PAD) + PAD
+    H = rows * step + PAD
     canvas = np.zeros((H, W, 4), dtype=np.float32)
+    ink = P.hexcol(INK)
 
     for i, (a, t) in enumerate(tiles):
         r, c = i // cols, i % cols
@@ -78,9 +97,10 @@ def sheet(assets, path, cols=COLS, upscale=4):
         # numpy row 0 is the BOTTOM row in Blender's pixel buffer, so counting
         # rows from the bottom of the canvas is what lands every figure on one
         # ground line.
-        y = (rows - 1 - r) * (cell + PAD) + PAD
-        x = c * (cell + PAD) + PAD + (cell - w) // 2
-        canvas[y:y + h, x:x + w] = t
+        y = (rows - 1 - r) * step + PAD
+        x = c * (cell + PAD) + PAD
+        F.draw_block(canvas, labels[i], x + cell / 2, y, ink)
+        canvas[y + band:y + band + h, x + (cell - w) // 2:x + (cell - w) // 2 + w] = t
 
     save_rgba(canvas, path)
     P.upscale_nearest(path, path.replace(".png", "_big.png"), upscale, bg=BG)

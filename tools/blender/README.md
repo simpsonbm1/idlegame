@@ -30,6 +30,12 @@ It launches Blender headless once per asset, logs each to `out/logs/`, and ends
 by writing the contact sheets. About 2.5 seconds per sprite. Exit code is the
 number of failures. Set `BLENDER_EXE` if Blender is not at the default path.
 
+**Every contact-sheet cell is captioned with its roster key** (user, 2026-08-01:
+three mender rarity variants were indistinguishable on the sheet, so there was no
+way to SAY which one needed the edit). Labels are stamped into the 1x sheet before
+the upscale, which is what makes label pixels the same size as sprite pixels;
+`pixelfont.py` explains why the font is data rather than a call to Blender's `blf`.
+
 **The interactive way**, for building something new with the viewport in front of
 you. Blender open, MCP add-on connected. On a machine that has never had it,
 set the connection up first:
@@ -108,6 +114,7 @@ DEPICTS; the roster only records how it gets built.
 | `roster.py` | the manifest: 83 assets, their builders, cells and tiers |
 | `render_all.py` | headless batch driver, one Blender process per asset |
 | `compose_contact.py` | per-group contact sheets, written at the end of every run |
+| `pixelfont.py` | 5x7 bitmap font, so sheet labels are hard pixels like the art |
 
 Still here from the pilot: `build_scene.py`, `compose_battle.py`,
 `compose_lineup.py`, `build_attack.py` (attack sheets for two characters),
