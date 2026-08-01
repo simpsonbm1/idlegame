@@ -46,9 +46,25 @@ pwsh -File tools/blender/setup-blender-mcp.ps1
 ```
 
 That installs `uv`, clones the upstream `blender_mcp` repository, copies the
-add-on into Blender's extensions folder and registers the MCP server with Claude
-Code. Two steps stay manual: ENABLE the add-on in Blender's preferences, and
-restart Claude Code. The headless pipeline needs none of this.
+add-on into Blender's extensions folder, builds the server's virtualenv and
+registers the MCP server with Claude Code. Two steps stay manual: ENABLE the
+add-on in Blender's preferences, and restart Claude Code. The headless pipeline
+needs none of this.
+
+Three traps it now handles, all found setting up LAPTOP-7EN0K6TP on 2026-08-01.
+Upstream asks for `mcp[cli]>=1.2.0` with no upper bound but imports
+`mcp.server.fastmcp`, which mcp 2.0.0 deleted, so a fresh clone resolves to a
+version that cannot start; the script pins the checkout below 2.0 and builds the
+virtualenv immediately, so a bad resolve fails loudly at setup instead of
+silently at first use. The `claude` CLI is absent under the desktop app, so
+registration falls back to writing the top-level `mcpServers` key of
+`~/.claude.json` itself, as a text splice rather than a re-serialise, keeping a
+`.bak-preblender` backup. And `-BlenderVersion` names the extensions folder, so
+a wrong value used to install into a folder no Blender reads while reporting
+success; it now warns when the machine has config for other versions.
+
+Drop the pin step when upstream supports the mcp 2.x API. It is a local edit to
+the checkout's own `pyproject.toml`, so it can conflict on a `git pull` there.
 
 ```python
 import sys, importlib

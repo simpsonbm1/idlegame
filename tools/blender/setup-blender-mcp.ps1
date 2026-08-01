@@ -78,6 +78,19 @@ if (Test-Path $CheckoutPath) {
 # under its source name leaves Blender unable to find it.
 Step "Installing the add-on into Blender $BlenderVersion"
 $addonSrc = Join-Path $CheckoutPath "addon\blender_mcp_addon"
+# -BlenderVersion picks the extensions folder by name. Get it wrong and the copy
+# still "succeeds", into a folder no Blender will ever read. If the machine has
+# config for OTHER versions but not this one, that is the misconfiguration, so
+# say so. A machine whose Blender has never been launched has no config folder at
+# all, which is normal and not worth a warning.
+$verRoot = Join-Path $env:APPDATA "Blender Foundation\Blender"
+if ((Test-Path $verRoot) -and -not (Test-Path (Join-Path $verRoot $BlenderVersion))) {
+    $present = (Get-ChildItem $verRoot -Directory | Select-Object -ExpandProperty Name) -join ", "
+    if ($present) {
+        Write-Host "    WARNING: no config for Blender $BlenderVersion; this machine has $present" -ForegroundColor Yellow
+        Write-Host "             Re-run with -BlenderVersion <one of those> or the add-on lands where nothing reads it." -ForegroundColor Yellow
+    }
+}
 if (-not (Test-Path $extRoot)) {
     Note "creating $extRoot"
     if (-not $WhatIfOnly) { New-Item -ItemType Directory -Force -Path $extRoot | Out-Null }
@@ -88,16 +101,80 @@ if (-not $WhatIfOnly) {
     Copy-Item -Recurse -Force $addonSrc $addonDest
 }
 
-# ---- 4. register the server with Claude Code ------------------------------
-Step "Registering the 'blender' MCP server"
 $mcpDir = Join-Path $CheckoutPath "mcp"
-Note "claude mcp add blender --scope user -- `"$uv`" --directory `"$mcpDir`" run blender-mcp"
-if (-not $WhatIfOnly) {
+
+# ---- 4. pin the MCP SDK below 2.0 -----------------------------------------
+# Upstream asks for `mcp[cli]>=1.2.0` with no upper bound, but its code imports
+# `mcp.server.fastmcp`, which mcp 2.0.0 removed. A fresh clone resolves to 2.x
+# and the server dies on import with ModuleNotFoundError. Verified on
+# LAPTOP-7EN0K6TP 2026-08-01: 1.29.0 works, 2.0.0 does not. Delete this step
+# when upstream supports the 2.x API.
+Step "Pinning mcp below 2.0 in the checkout's pyproject.toml"
+$pyproject = Join-Path $mcpDir "pyproject.toml"
+if (Test-Path $pyproject) {
+    $text = Get-Content $pyproject -Raw
+    if ($text -match [regex]::Escape('"mcp[cli]>=1.2.0",')) {
+        Note 'mcp[cli]>=1.2.0  ->  mcp[cli]>=1.2.0,<2'
+        if (-not $WhatIfOnly) {
+            $text = $text.Replace('"mcp[cli]>=1.2.0",', '"mcp[cli]>=1.2.0,<2",')
+            [System.IO.File]::WriteAllText($pyproject, $text)
+        }
+    } else {
+        Note "no unpinned mcp[cli] dependency found; leaving pyproject.toml alone"
+    }
+}
+
+# ---- 5. build the server's virtualenv -------------------------------------
+# Done here rather than lazily on first use, so a broken resolve shows up now
+# instead of as a silently dead MCP server later.
+Step "Building the server virtualenv"
+if (-not $WhatIfOnly) { & $uv --directory $mcpDir sync }
+
+# ---- 6. register the server with Claude Code ------------------------------
+# The `claude` CLI is not on PATH under the desktop app, so fall back to writing
+# the user-scope config directly. Both routes land in the same place: the
+# top-level "mcpServers" object of ~/.claude.json.
+Step "Registering the 'blender' MCP server"
+Note "command: `"$uv`" --directory `"$mcpDir`" run blender-mcp"
+$claude = (Get-Command claude -ErrorAction SilentlyContinue).Source
+if ($WhatIfOnly) {
+    Note $(if ($claude) { "would use the claude CLI" } else { "no claude CLI; would edit ~/.claude.json directly" })
+} elseif ($claude) {
     $existing = & claude mcp list 2>$null
     if ($existing -match "^blender") {
         Note "already registered; skipping"
     } else {
         & claude mcp add blender --scope user -- "$uv" --directory "$mcpDir" run blender-mcp
+    }
+} else {
+    Note "no claude CLI on PATH; editing ~/.claude.json directly"
+    $cfg = Join-Path $env:USERPROFILE ".claude.json"
+    if (-not (Test-Path $cfg)) { throw "no $cfg to register into" }
+    # -AsHashtable because the file contains project keys differing only in case,
+    # which ConvertFrom-Json rejects by default.
+    $parsed = Get-Content $cfg -Raw | ConvertFrom-Json -AsHashtable
+    if ($parsed.ContainsKey("mcpServers") -and $parsed["mcpServers"].ContainsKey("blender")) {
+        Note "already registered; skipping"
+    } else {
+        Copy-Item $cfg "$cfg.bak-preblender" -Force
+        $raw = Get-Content $cfg -Raw
+        $entry = [ordered]@{
+            blender = [ordered]@{
+                type    = "stdio"
+                command = $uv
+                args    = @("--directory", $mcpDir, "run", "blender-mcp")
+                env     = @{}
+            }
+        }
+        # Splice the key in as text rather than re-serialising the whole file,
+        # which would drop those same case-colliding project keys.
+        $json = ($entry | ConvertTo-Json -Depth 6).Trim()
+        $inner = $json.Substring(1, $json.Length - 2).TrimEnd()
+        $open = $raw.IndexOf("{")
+        [System.IO.File]::WriteAllText($cfg, "{`n  `"mcpServers`": {$inner`n  }," + $raw.Substring($open + 1))
+        try { $null = Get-Content $cfg -Raw | ConvertFrom-Json -AsHashtable }
+        catch { Copy-Item "$cfg.bak-preblender" $cfg -Force; throw "config edit produced invalid JSON; restored backup" }
+        Note "registered; backup at $cfg.bak-preblender"
     }
 }
 
