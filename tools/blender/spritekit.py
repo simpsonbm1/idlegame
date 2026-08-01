@@ -263,8 +263,14 @@ def limb(scn, shoulder, hand, mat, upper_r=0.075, fore_r=0.065, joint_mat=None,
     sx, sy, sz = shoulder
     hx, hy, hz = hand
     mid = ((sx + hx) * 0.5, (sy + hy) * 0.5 - 0.10, (sz + hz) * 0.5 + 0.10)
-    return [P.add_sphere(scn, "shoulderball", shoulder, upper_r * 1.5, joint_mat),
-            aimed_cyl(scn, "upperarm", shoulder, mid, upper_r, mat),
-            P.add_sphere(scn, "elbow", mid, fore_r * 1.45, joint_mat),
-            aimed_cyl(scn, "forearm", mid, hand, fore_r, mat),
-            P.add_sphere(scn, "hand", hand, fore_r * 1.7, hand_mat)]
+    # **Named by SIDE, automatically.** Every limb built through this helper used
+    # to produce parts called "upperarm", "forearm" and so on, so a figure with
+    # two arms had two of each and an animator could not address either. Deriving
+    # the side from the shoulder's own x makes them unique without a single
+    # builder having to pass anything.
+    a = "armL" if sx < 0 else "armR"
+    return [P.add_sphere(scn, a + "_shoulder", shoulder, upper_r * 1.5, joint_mat),
+            aimed_cyl(scn, a + "_upper", shoulder, mid, upper_r, mat),
+            P.add_sphere(scn, a + "_elbow", mid, fore_r * 1.45, joint_mat),
+            aimed_cyl(scn, a + "_fore", mid, hand, fore_r, mat),
+            P.add_sphere(scn, a + "_hand", hand, fore_r * 1.7, hand_mat)]
