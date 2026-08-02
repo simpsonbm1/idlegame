@@ -62,49 +62,87 @@ if TIER == "base":
 
 SURCOAT = {"common": NAVY, "rare": GREEN, "epic": CRIMSON, "legendary": NAVY}[TIER]
 
+# USER REVIEW 2026-08-01: the guardians were "just different, but not necessarily
+# better as the tiers progress". They were four helmets on ONE suit of full plate,
+# and the common already wore the best armour in the game, so there was nowhere
+# above him to go. The developer's own suggestion was to start him with less.
+#
+# The ladder is now ARMOUR, climbing mail -> plate -> ornate plate -> gilded
+# plate, with the shield climbing beside it. Helm shape still separates the four
+# people; it is no longer carrying the escalation on its own.
+MAIL = P.toon_mat("KMAIL", "#3f4650", "#626b78", "#8e97a5")
+WOOD = P.toon_mat("KWOOD", "#4a3018", "#6f4a24", "#96693a")
+DARKSTEEL = P.toon_mat("KDARKSTEEL", "#26303d", "#3d4e63", "#5f7591")
+
+# Each tier is a DIFFERENT METAL, because the developer's second look found the
+# top three still reading alike. Dull mail, bright steel, then blackened steel for
+# the top two, which the Paragon wears under gold rather than in place of it (user,
+# 2026-08-02). Helm shape and shield shape separate the four people; metal is what
+# separates them at sprite scale.
+BODY = {"common": MAIL, "rare": STEEL, "epic": DARKSTEEL, "legendary": DARKSTEEL}[TIER]
+# The Paragon's major plates are GOLD. A gilded helm on an otherwise steel body
+# left him looking like the Sentinel and the Vanguard.
+ACCENT = BRIGHTGOLD if TIER == "legendary" else BODY
+# Gilt fittings. The common has NONE, which is most of why he stops outranking
+# the tiers above him.
+TRIM_M = {"common": None, "rare": GOLD, "epic": GOLD, "legendary": BRIGHTGOLD}[TIER]
+PLATED = TIER != "common"       # knee cops and a faceted breastplate: plate only
+
 figure, detail = [], []
 
 # ---- legs: front leg pulled toward camera so the two read apart ----
 for s, yoff, zoff in ((-1, -0.22, 0.0), (1, 0.20, 0.02)):
-    figure.append(P.add_box(scn, "boot", (s * 0.44, yoff - 0.05, 0.15 + zoff), (0.48, 0.66, 0.30), STEEL, bevel=0.04))
-    figure.append(P.add_box(scn, "greave", (s * 0.41, yoff, 0.58 + zoff), (0.40, 0.42, 0.66), STEEL, bevel=0.05))
-    figure.append(P.add_sphere(scn, "poleyn", (s * 0.41, yoff - 0.14, 0.90 + zoff), 0.22, STEEL, scale=(1, .85, .72)))
-    figure.append(P.add_box(scn, "cuisse", (s * 0.38, yoff * 0.6, 1.12), (0.42, 0.46, 0.48), STEEL,
+    figure.append(P.add_box(scn, "boot", (s * 0.44, yoff - 0.05, 0.15 + zoff), (0.48, 0.66, 0.30),
+                            BODY if PLATED else LEATH, bevel=0.04))
+    figure.append(P.add_box(scn, "greave", (s * 0.41, yoff, 0.58 + zoff), (0.40, 0.42, 0.66), BODY, bevel=0.05))
+    if PLATED:
+        figure.append(P.add_sphere(scn, "poleyn", (s * 0.41, yoff - 0.14, 0.90 + zoff), 0.22, ACCENT, scale=(1, .85, .72)))
+    figure.append(P.add_box(scn, "cuisse", (s * 0.38, yoff * 0.6, 1.12), (0.42, 0.46, 0.48), BODY,
                             rot=(0, math.radians(-s * 7), 0), bevel=0.05))
 
-# ---- hips, belt, faceted breastplate ----
-figure.append(P.add_box(scn, "tassets", (0, 0, 1.38), (1.12, 0.62, 0.34), STEEL, bevel=0.05))
+# ---- hips, belt, breastplate (faceted plate, or a plain mail hauberk) ----
+figure.append(P.add_box(scn, "tassets", (0, 0, 1.38), (1.12, 0.62, 0.34), ACCENT, bevel=0.05))
 figure.append(P.add_box(scn, "belt", (0, -0.02, 1.54), (1.16, 0.66, 0.17), LEATH))
-detail.append(P.add_box(scn, "buckle", (0.04, -0.36, 1.54), (0.15, 0.06, 0.14), GOLD))
+detail.append(P.add_box(scn, "buckle", (0.04, -0.36, 1.54), (0.15, 0.06, 0.14), TRIM_M or STEEL))
 figure.append(P.add_box(scn, "pouch", (0.36, -0.34, 1.42), (0.30, 0.24, 0.32), LEATH, bevel=0.04))
-figure += P.add_ridged(scn, "torso", (0, 0, 1.94), (1.14, 0.56, 0.82), STEEL, splay=13, bevel=0.07)
+if PLATED:
+    figure += P.add_ridged(scn, "torso", (0, 0, 1.94), (1.14, 0.56, 0.82), BODY, splay=13, bevel=0.07)
+else:
+    figure.append(P.add_box(scn, "torso", (0, 0, 1.94), (1.10, 0.54, 0.82), BODY, bevel=0.06))
 
 # ---- surcoat, sitting proud of the breastplate so it outlines against it ----
 figure.append(P.add_box(scn, "surcoat", (0, -0.30, 1.52), (0.56, 0.07, 1.24), SURCOAT))
 figure.append(P.add_box(scn, "surcoatB", (0, 0.29, 1.52), (0.56, 0.07, 1.24), SURCOAT))
-detail.append(P.add_box(scn, "lion", (0, -0.35, 1.86), (0.22, 0.04, 0.30),
-                        BRIGHTGOLD if TIER == "legendary" else GOLD))
+if TRIM_M:
+    detail.append(P.add_box(scn, "lion", (0, -0.35, 1.86), (0.22, 0.04, 0.30), TRIM_M))
 
 # ---- shoulders and arms, pulled forward off the torso ----
 # `pauldronR` is the pivot the attack animation swings his sword arm about
 # (build_attack.knight), so it may grow but must stay the topmost right-arm part.
-PAULD = {"common": 0.35, "rare": 0.37, "epic": 0.46, "legendary": 0.44}[TIER]
-figure.append(P.add_sphere(scn, "pauldronR", (-0.70, -0.10, 2.18), PAULD, STEEL, scale=(1, .95, .76)))
+# The common's shoulders come down with the rest of him: a mail-clad man-at-arms
+# does not have the widest silhouette in the line.
+PAULD = {"common": 0.30, "rare": 0.37, "epic": 0.46, "legendary": 0.44}[TIER]
+figure.append(P.add_sphere(scn, "pauldronR", (-0.70, -0.10, 2.18), PAULD, ACCENT, scale=(1, .95, .76)))
 figure.append(P.add_sphere(scn, "pauldronL", (0.70, -0.10, 2.20),
-                           PAULD - 0.05, STEEL, scale=(1, .95, .78)))
+                           PAULD - 0.05, ACCENT, scale=(1, .95, .78)))
 if TIER == "epic":
     # The Vanguard is the heavy: spiked cops standing out past the pauldrons.
     for s, r in ((-1, 0.46), (1, 0.41)):
         figure.append(P.add_cone(scn, "spike", (s * 0.86, -0.10, 2.40), 0.16, 0.0, 0.40,
-                                 STEEL, rot=(0, math.radians(-s * 22), 0), verts=6))
-figure.append(P.add_cyl(scn, "upperR", (-0.70, -0.18, 1.84), 0.18, 0.60, STEEL))
-figure.append(P.add_cyl(scn, "foreR", (-0.63, -0.32, 1.38), 0.17, 0.50, STEEL, rot=(math.radians(16), 0, 0)))
-figure.append(P.add_box(scn, "gauntR", (-0.59, -0.42, 1.12), (0.26, 0.26, 0.24), STEEL))
-figure.append(P.add_cyl(scn, "upperL", (0.70, -0.16, 1.86), 0.17, 0.56, STEEL))
-figure.append(P.add_cyl(scn, "foreL", (0.66, -0.30, 1.46), 0.16, 0.48, STEEL, rot=(math.radians(24), 0, 0)))
+                                 BODY, rot=(0, math.radians(-s * 22), 0), verts=6))
+# Arms taper so each segment's end cap is buried in the piece that swallows it --
+# see the limb rule in README.md. Cylinders left a dark outline across every joint
+# and the arm read as a chain of separate lumps.
+figure.append(P.add_cone(scn, "upperR", (-0.70, -0.18, 1.84), 0.12, 0.19, 0.60, BODY, verts=10))
+figure.append(P.add_cone(scn, "foreR", (-0.63, -0.32, 1.38), 0.15, 0.185, 0.50, BODY, verts=10,
+                         rot=(math.radians(16), 0, 0)))
+figure.append(P.add_box(scn, "gauntR", (-0.59, -0.42, 1.10), (0.34, 0.34, 0.28), ACCENT, bevel=0.04))
+figure.append(P.add_cone(scn, "upperL", (0.70, -0.16, 1.86), 0.11, 0.18, 0.56, BODY, verts=10))
+figure.append(P.add_cone(scn, "foreL", (0.66, -0.30, 1.46), 0.14, 0.175, 0.48, BODY, verts=10,
+                         rot=(math.radians(24), 0, 0)))
 
 # ---- gorget, then a different head on every tier ----
-figure.append(P.add_box(scn, "gorget", (0, 0, 2.40), (0.52, 0.46, 0.18), STEEL, bevel=0.04))
+figure.append(P.add_box(scn, "gorget", (0, 0, 2.40), (0.52, 0.46, 0.18), ACCENT, bevel=0.04))
 
 if TIER == "common":
     # the Knight: faceted great helm with a cross slit
@@ -122,11 +160,14 @@ elif TIER == "rare":
 elif TIER == "epic":
     # the Vanguard: a horned barbute. Horns are the widest thing on any hero head
     # and read at any size.
-    figure += P.add_ridged(scn, "helm", (0, -0.02, 2.70), (0.68, 0.58, 0.56), STEEL, splay=9, bevel=0.05)
+    figure += P.add_ridged(scn, "helm", (0, -0.02, 2.70), (0.68, 0.58, 0.56), BODY, splay=9, bevel=0.05)
     detail.append(P.add_box(scn, "visorslit", (0, -0.34, 2.72), (0.13, 0.06, 0.34), DARK))
     for s in (-1, 1):
+        # STEEL, not BLADE. The blade material is nearly white, so horns made of
+        # it read as a separate pale shape stuck on the helm rather than as part
+        # of it.
         figure.append(P.add_cone(scn, "horn", (s * 0.34, 0.02, 2.92), 0.13, 0.0, 0.62,
-                                 BLADE, rot=(0, math.radians(-s * 38), 0), verts=7))
+                                 BODY, rot=(0, math.radians(-s * 38), 0), verts=7))
 else:
     # the Paragon: a winged crown, gilded, face open. He is the only guardian
     # whose face is visible at all, which is the whole point of him.
@@ -139,39 +180,56 @@ else:
                                   0.07, BRIGHTGOLD, loc=(s * 0.30, 0.04, 2.78),
                                   rot=(0, math.radians(-s * 90 + 90), 0)))
 
-# ---- shield: a different shape per tier, and none at all for the Vanguard ----
+# ---- shield: it climbs WITH the armour, and every tier carries one ----
+# The Vanguard used to carry no shield at all and the Paragon's was smaller than
+# the Knight's, which is two of the places the ladder ran backwards.
+# FOUR SHAPES, EACH BIGGER THAN THE LAST. Measured, not judged by eye: the round
+# shields have to be compared on DIAMETER against the tall ones' height, and a
+# 1.20-across roundel lost to a 1.82-tall tower even though it was meant to be the
+# best shield in the line (user, 2026-08-01).
+#   buckler  0.76 x 0.76      kite   0.88 x 1.48
+#   octagon  1.24 x 1.72      pavise 1.24 x 2.04
+buckler = [(0.38 * math.cos(math.radians(a)), 0.38 * math.sin(math.radians(a)))
+           for a in range(0, 360, 30)]
 kite = [(-0.20, 0.60), (-0.40, 0.50), (-0.44, 0.22), (-0.38, -0.16), (-0.22, -0.56),
         (0.0, -0.88), (0.22, -0.56), (0.38, -0.16), (0.44, 0.22), (0.40, 0.50), (0.20, 0.60)]
-tower = [(-0.40, 0.78), (0.40, 0.78), (0.44, 0.10), (0.34, -0.62), (0.0, -0.86),
-         (-0.34, -0.62), (-0.44, 0.10)]
-roundel = [(0.52 * math.cos(math.radians(a)), 0.52 * math.sin(math.radians(a)))
-           for a in range(0, 360, 30)]
+octagon = [(-0.30, 0.86), (0.30, 0.86), (0.62, 0.26), (0.62, -0.26), (0.30, -0.86),
+           (-0.30, -0.86), (-0.62, -0.26), (-0.62, 0.26)]
+pavise = [(-0.56, 1.00), (0.56, 1.00), (0.62, 0.22), (0.46, -0.70), (0.0, -1.04),
+          (-0.46, -0.70), (-0.62, 0.22)]
 
-SHIELD_SHAPE = {"common": kite, "rare": tower, "epic": None, "legendary": roundel}[TIER]
+SHIELD_SHAPE = {"common": buckler, "rare": kite, "epic": octagon, "legendary": pavise}[TIER]
 sh_root = P.make_root(scn, "shield_root", rot=(0, -14, 18), loc=(0.84, -0.58, 1.80))
 shield, sh_lion = [], None
-if SHIELD_SHAPE is not None:
-    back = BRIGHTGOLD if TIER == "legendary" else GOLD
+if TIER == "common":
+    # boards and a steel boss. No heraldry and no gilt rim, because those are
+    # exactly what the tiers above him are supposed to introduce.
+    shield = [P.add_prism(scn, "shieldback", SHIELD_SHAPE, 0.11, WOOD),
+              P.add_prism(scn, "shieldface", [(x * 0.80, z * 0.80) for x, z in SHIELD_SHAPE],
+                          0.11, LEATH, loc=(0, -0.06, 0.02))]
+    sh_lion = P.add_sphere(scn, "shieldlion", (0, -0.13, 0.0), 0.14, STEEL)
+else:
+    back = TRIM_M
     shield = [P.add_prism(scn, "shieldback", SHIELD_SHAPE, 0.11, back),
               P.add_prism(scn, "shieldface", [(x * 0.78, z * 0.80) for x, z in SHIELD_SHAPE],
                           0.11, SURCOAT, loc=(0, -0.06, 0.02))]
     sh_lion = P.add_box(scn, "shieldlion", (0, -0.14, 0.06), (0.26, 0.05, 0.36), back)
-    P.parent_all(sh_root, shield + [sh_lion])
+P.parent_all(sh_root, shield + [sh_lion])
 
 # ---- sword: local z=0 sits at the hand, blade runs up +Z ----
-# The Vanguard carries no shield, so his blade is the long two-handed one. The
-# Paragon's is longer still and gilded at the guard.
-BL = {"common": 1.00, "rare": 0.96, "epic": 1.30, "legendary": 1.22}[TIER]
-BW = {"common": 1.00, "rare": 0.92, "epic": 1.26, "legendary": 1.10}[TIER]
+# Every tier now carries a shield, so the blade grows steadily instead of the
+# Vanguard jumping to a two-hander because his shield hand was empty. The common
+# carries the shortest and plainest, with steel fittings rather than gilt.
+BL = {"common": 0.88, "rare": 1.00, "epic": 1.12, "legendary": 1.26}[TIER]
+BW = {"common": 0.88, "rare": 0.98, "epic": 1.16, "legendary": 1.10}[TIER]
 blade = [(-0.06 * BW, 0.14), (0.06 * BW, 0.14), (0.06 * BW, 1.08 * BL),
          (0.0, 1.32 * BL), (-0.06 * BW, 1.08 * BL)]
 sw_root = P.make_root(scn, "sword_root", rot=(0, 132, 0), loc=(-0.60, -0.66, 1.10))
+FITTING = TRIM_M or STEEL
 sword = [P.add_prism(scn, "blade", blade, 0.11, BLADE),
-         P.add_box(scn, "guard", (0, 0, 0.12), (0.44 * BW, 0.10, 0.10),
-                   BRIGHTGOLD if TIER == "legendary" else GOLD),
+         P.add_box(scn, "guard", (0, 0, 0.12), (0.44 * BW, 0.10, 0.10), FITTING),
          P.add_box(scn, "grip", (0, 0, -0.08), (0.11, 0.10, 0.24), LEATH),
-         P.add_sphere(scn, "pommel", (0, 0, -0.23), 0.10,
-                      BRIGHTGOLD if TIER == "legendary" else GOLD)]
+         P.add_sphere(scn, "pommel", (0, 0, -0.23), 0.10, FITTING)]
 P.parent_all(sw_root, sword)
 
 if TIER == "epic":
