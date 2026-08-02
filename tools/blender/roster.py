@@ -201,6 +201,50 @@ def by_group(group):
     return [a for a in ROSTER if a.group == group]
 
 
+TIER_ORDER = ("common", "rare", "epic", "legendary")
+
+# Which rarity tier each hero's OWN sprite is. That tier has no variant file, so
+# without this map the variants group is three sprites per hero and every set
+# reads as incomplete -- which is exactly how it looked to the developer, who
+# cannot judge a tier he cannot see beside its siblings (user, 2026-08-01).
+# Keep in step with the `if TIER == "base"` fallback at the top of each builder.
+BASE_TIER = {
+    "knight": "common",
+    "hero_fighter": "common",
+    "hero_ranged": "common",
+    "hero_mender": "rare",
+    "hero_paladin": "epic",
+    "hero_assassin": "common",
+    "hero_battlemage": "common",
+    "hero_banneret": "common",
+    "hero_frostadept": "common",
+}
+
+
+def variant_rows(hero=None):
+    """(asset, label) for all four tiers of all nine heroes, in rarity order.
+    Pass `hero` (a key in BASE_TIER) for just that line's four.
+
+    Borrows each hero's own sprite out of the `heroes` group and seats it in its
+    own tier slot, so four columns is one complete hero. The borrowed cell is
+    labelled `..._base` because it is the one tier with no file of its own: a
+    change requested there is an edit to the hero's base builder output.
+    """
+    base = {a.key: a for a in by_group("heroes")}
+    variants = {a.key: a for a in by_group("variants")}
+    rows = []
+    for key, base_tier in BASE_TIER.items():
+        if hero and key != hero:
+            continue
+        for tier in TIER_ORDER:
+            if tier == base_tier:
+                rows.append((base[key], "%s_%s_base" % (key, tier)))
+            else:
+                vk = "%s_%s" % (key, tier)
+                rows.append((variants[vk], vk))
+    return rows
+
+
 def built():
     return [a for a in ROSTER if a.built]
 

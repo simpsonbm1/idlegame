@@ -41,6 +41,29 @@ torso's chest sphere is wider than the jerkin in front of it. Every base sprite 
 verified pixel-identical after a tier rework; `H.stance()` must not be called on a
 hero whose own art is the epic or legendary tier.
 
+**A LIMB'S SEGMENTS MUST TAPER INTO EACH OTHER, AND A JOINT SPHERE IS NOT THE FIX.**
+The outline is a per-object inverted hull (`pixelrig.outline`), so every part's end
+CAP carries its own dark shell and a cap sitting in open air draws a line straight
+across the limb. A shoulder, an upper arm, a forearm and a fist therefore read as
+four separate segments, which is what the developer saw on the fighter: "upper arm,
+joint 1, another arm segment, joint 2, another arm segment, joint 3, another arm
+segment, hand" (user, 2026-08-01). Adding an elbow sphere makes it worse, because
+one more part is one more line.
+
+Build each segment so it **ends narrower than the piece that swallows it**. On the
+fighter that is a shoulder sphere burying the upper arm's top, an upper arm tapered
+from 0.155 down to 0.10 so the forearm's wide elbow mouth sleeves over it, and a
+fist burying the wrist. Use `add_cone`, not `add_cyl`. Check the burial in numbers
+rather than by eye: the swallowed cap's RIM has to be inside the swallowing solid,
+and it was the shoulder sphere's y offset, not its radius, that left the fighter's
+last line in place.
+
+Two things this constrains. `spritekit.limb()` builds the same five-part chain and
+has the same exposure wherever a limb is fully visible; it survives on the archer
+only because the bow hides his arms. And `animkit.twohand_sheet` solves an arm with
+IK, posing only `upper`, `fore` and `hand`, so any extra joint object would stay
+behind while the arm swings.
+
 **Every contact-sheet cell is captioned with its roster key** (user, 2026-08-01:
 three mender rarity variants were indistinguishable on the sheet, so there was no
 way to SAY which one needed the edit). Labels are stamped into the 1x sheet before

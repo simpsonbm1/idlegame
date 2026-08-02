@@ -59,7 +59,10 @@ def save_rgba(arr, path):
 
 
 def sheet(assets, path, cols=COLS, upscale=4):
-    """Tile `assets` into a grid, each cell captioned with its roster key. Missing
+    """Tile `assets` into a grid, each cell captioned with its roster key. An
+    entry may also be an `(asset, label)` pair, which is how the variants sheet
+    borrows a hero's base sprite into a tier slot under a name of its own.
+    Missing
     renders are skipped, not blanked, so a half-finished family still produces a
     judgeable sheet.
 
@@ -69,10 +72,11 @@ def sheet(assets, path, cols=COLS, upscale=4):
     one needs the edit, and near-identical rarity variants are exactly where that
     bites (user, 2026-08-01)."""
     tiles = []
-    for a in assets:
+    for item in assets:
+        a, label = item if isinstance(item, tuple) else (item, item.key)
         p = os.path.join(OUT, a.out)
         if os.path.exists(p):
-            tiles.append((a, load_rgba(p)))
+            tiles.append((label, load_rgba(p)))
     if not tiles:
         return None
 
@@ -82,7 +86,7 @@ def sheet(assets, path, cols=COLS, upscale=4):
 
     # One label band height for every row, so the grid stays regular and the
     # ground lines stay shared even when one key wraps and its neighbours do not.
-    labels = [F.text_lines(a.key, cell) for a, _ in tiles]
+    labels = [F.text_lines(k, cell) for k, _ in tiles]
     band = LABEL_GAP + F.block_height(max(len(l) for l in labels))
 
     step = cell + band + PAD
@@ -91,7 +95,7 @@ def sheet(assets, path, cols=COLS, upscale=4):
     canvas = np.zeros((H, W, 4), dtype=np.float32)
     ink = P.hexcol(INK)
 
-    for i, (a, t) in enumerate(tiles):
+    for i, (_, t) in enumerate(tiles):
         r, c = i // cols, i % cols
         h, w = t.shape[:2]
         # numpy row 0 is the BOTTOM row in Blender's pixel buffer, so counting
@@ -104,13 +108,30 @@ def sheet(assets, path, cols=COLS, upscale=4):
 
     save_rgba(canvas, path)
     P.upscale_nearest(path, path.replace(".png", "_big.png"), upscale, bg=BG)
-    return [a.key for a, _ in tiles]
+    return [k for k, _ in tiles]
 
+
+# `blender ... --python compose_contact.py -- --line hero_fighter` builds ONE
+# hero's four-tier sheet and stops. The developer reviews the rework a line at a
+# time (user, 2026-08-01), and rebuilding all ten sheets for one line is waste.
+argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+if len(argv) == 2 and argv[0] == "--line":
+    keys = sheet(roster.variant_rows(argv[1]),
+                 os.path.join(OUT, "sheet_line_%s.png" % argv[1]),
+                 cols=len(roster.TIER_ORDER))
+    print("contact sheets written to", OUT)
+    print("  line %s (%d): %s" % (argv[1], len(keys or []), ", ".join(keys or [])))
+    raise SystemExit(0)
 
 made = []
 for g in roster.GROUPS:
-    assets = roster.by_group(g)
-    keys = sheet(assets, os.path.join(OUT, "sheet_%s.png" % g))
+    # The variants sheet is four columns because a hero's four rarity tiers ARE
+    # the unit being judged; any other width scatters a set across two rows.
+    if g == "variants":
+        assets, cols = roster.variant_rows(), len(roster.TIER_ORDER)
+    else:
+        assets, cols = roster.by_group(g), COLS
+    keys = sheet(assets, os.path.join(OUT, "sheet_%s.png" % g), cols=cols)
     if keys:
         made.append("%s (%d): %s" % (g, len(keys), ", ".join(keys)))
 

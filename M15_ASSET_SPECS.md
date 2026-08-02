@@ -409,6 +409,48 @@ Character rules from the top of this doc all apply. Escalation still runs plain 
 at Common up to the stuff of legend at Legendary; what changed is that presence and regalia are
 no longer the ONLY thing separating the tiers.
 
+### USER REVIEW 2026-08-01: the first full-sheet verdict on all nine lines
+
+The developer judged all four tiers of all nine heroes side by side. **Only the ranged line
+passed.** Two rules came out of it, and they are additive, not alternatives.
+
+**Rule A: a tier must read BETTER, not merely different.** "Knights are just different, but
+not necessarily better as the tiers progress." Four different people is necessary and is not
+sufficient: a player scanning the hire pool has to see which one is the upgrade.
+
+**Rule B: at-a-glance separation is measured at sprite scale, not on the contact sheet.** A
+tier that differs only in palette, hat, staff, banner or facial clutter fails. The verdict on
+the battlemages was "all the same guy with a different staff and hat"; on the frost adepts,
+"at scale they effectively look the exact same."
+
+Per-line verdicts, in the developer's own terms:
+
+| Line | Verdict |
+|---|---|
+| ranged | **Approved.** The reference for the other eight. |
+| paladin | Direction okay; the off-hands are the problem (details below). |
+| fighter | Concept okay, execution not: disjointed arms, an unclear rare hat, and a common that outranks the rare and the epic. |
+| knight | Different but not better; the common may be starting too well-equipped. |
+| mender, assassin, battlemage, banneret, frostadept | "Same guy in different clothes" — the 2026-08-01 ruling did not land on these five. |
+
+Specific notes worth keeping verbatim, because they name the fix rather than the fault:
+- **Knight:** "maybe instead of full-plate armor right from the beginning, they start out with
+  less" — the common tier may need to come DOWN to make room above it.
+- **Paladin:** the common carries a shield but holds it in the air; it should sit in front of
+  the body. The rare and epic off-hands hold something unreadable. Epic and legendary are too
+  close: give the legendary a big golden tower shield and hand the legendary's current relic
+  down to the epic.
+- **Assassin:** the tiers currently differ only by colour, sword size and face clutter.
+- **Banneret:** the banner is the only at-a-glance difference, and the legendary's banner
+  covers his face.
+- **Mender:** the epic is distinct; common, rare and legendary are nearly the same.
+
+**Modelling defect found while investigating the fighter's arms (fixed 2026-08-01):** the
+upper arms were `mail`, the same value as a mail torso, so they disappeared into the chest and
+left the steel forearms reading as two floating outlined blobs. An arm must be one connected
+mass in a different value from whatever it sits in front of. The forearm's X rotation was also
+positive, which put the elbow in front of the wrist and zigzagged the limb.
+
 **Base-art tier audit (2026-07-18):** some existing base sprites already depict a higher
 tier (user observation, confirmed by eye). Each base sprite is slotted into the tier its art
 actually shows, and only the OTHER three tiers get generated — the audited tier simply has
