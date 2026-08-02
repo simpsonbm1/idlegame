@@ -409,6 +409,36 @@ Character rules from the top of this doc all apply. Escalation still runs plain 
 at Common up to the stuff of legend at Legendary; what changed is that presence and regalia are
 no longer the ONLY thing separating the tiers.
 
+### The assassin line, still open (2026-08-02)
+
+This is the line the review stopped on. It is **uncommitted work in progress** in
+`tools/blender/build_hero_assassin.py`, reverted to the state below at the developer's
+instruction. Four things are settled and three are not.
+
+Settled and rendering: four BODY colours instead of one charcoal suit (brown leather,
+charcoal, deep blue, spectral violet), a dark accent on the Nightblade because cream
+trim converged into one pale mass over his face and chest, ice-coloured rags on the
+Phantom because violet rags on a violet body are invisible, and tapered arms.
+
+Three verdicts still to answer, in the developer's words:
+
+1. "The masks on common and legendary don't work, it's just a black square over their
+   face." Both are a flat `dark` box laid across a skin head. A fix that DID work was
+   removing the skin head entirely on the hooded tiers and building a hood cone, a
+   skull-back sphere and a dark sphere filling the opening, so the hood's own outline
+   frames the void. That part is worth redoing.
+2. "Rare looks like a higher tier than epic." His bandolier of three throwing knives is
+   most of it; cutting it to two smaller ones helped.
+3. "The silhouette really hasn't changed at all throughout the progression." All four
+   hold both daggers in the identical place, so the outline is one figure four times.
+
+**A rejected attempt at (3), so nobody repeats it.** Four different arm poses were
+built: hands tucked low and in, both arms out wide, one blade raised with a short blade
+low, and both arms raised and spread. The silhouettes did separate. The developer's
+verdict was "the way he's holding the knives now doesn't really make sense" — the poses
+were chosen for outline shape without asking whether a person grips a knife that way.
+The silhouette still has to change; the answer is not arbitrary arm angles.
+
 ### USER RULING 2026-08-02: every character and variant is individually designed
 
 "The idea is that every character/variant should be individually designed, not just

@@ -33,13 +33,21 @@ character and building the game needs, rebuilt from source by
 `python tools/blender/render_all.py`, plus 63 attack sheets from `render_attacks.py`.
 Contact sheets label every cell with its roster key.
 
-**A hero's four rarity tiers are four DIFFERENT PEOPLE** (user ruling 2026-08-01), named
-by DESIGN.md, built as branches inside the one builder so the attack sheets keep
-generating. The three silhouette rules that ruling cost are in `M15_ASSET_SPECS.md` and
-`tools/blender/README.md` — read them before touching a hero builder.
+**A hero's four rarity tiers are four DIFFERENT PEOPLE** (user ruling 2026-08-01), and
+**every character and variant is individually designed rather than assembled from parts
+shared with other units** (user ruling 2026-08-02). The second ruling is the root cause
+under several rounds of art feedback: the shared kits keep only what must be identical
+across the roster (rig, palette, outline weight, role height, limb construction), and
+everything that says who a character is belongs in that character's own builder.
 
-**None of it is wired into the game yet, and the user has judged the ranged line only.**
-His review of the other eight hero lines is the next thing waiting on him.
+**The nine hero lines are being reworked one at a time against the user's review.** Five
+are approved and published (ranged, fighter, knight, mender, paladin); the assassin is
+in progress and uncommitted; the battlemage, banneret and frost adept have not started.
+`SESSION_HANDOFF.md` holds the loop and the pick-up point. Read
+`M15_ASSET_SPECS.md` and `tools/blender/README.md` before touching a hero builder — they
+carry the rules each rejected render paid for, and none of them are guessable.
+
+**None of it is wired into the game yet.**
 
 Also live: M15 (game feel) in progress; M16 tutorialization phases 1–2 built, pending the
 user's playtest; the endgame rework is designed and audited, not started. Detail:
