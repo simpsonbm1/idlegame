@@ -40,9 +40,9 @@ under several rounds of art feedback: the shared kits keep only what must be ide
 across the roster (rig, palette, outline weight, role height, limb construction), and
 everything that says who a character is belongs in that character's own builder.
 
-**The nine hero lines are being reworked one at a time against the user's review.** Five
-are approved and published (ranged, fighter, knight, mender, paladin); the assassin is
-in progress and uncommitted; the battlemage, banneret and frost adept have not started.
+**The nine hero lines are being reworked one at a time against the user's review.** Six
+are approved and published (ranged, fighter, knight, mender, paladin, assassin); the
+battlemage, banneret and frost adept have not started.
 `SESSION_HANDOFF.md` holds the loop and the pick-up point. Read
 `M15_ASSET_SPECS.md` and `tools/blender/README.md` before touching a hero builder — they
 carry the rules each rejected render paid for, and none of them are guessable.

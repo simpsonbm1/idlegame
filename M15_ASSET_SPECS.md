@@ -409,35 +409,54 @@ Character rules from the top of this doc all apply. Escalation still runs plain 
 at Common up to the stuff of legend at Legendary; what changed is that presence and regalia are
 no longer the ONLY thing separating the tiers.
 
-### The assassin line, still open (2026-08-02)
+### The assassin line, APPROVED 2026-08-02
 
-This is the line the review stopped on. It is **uncommitted work in progress** in
-`tools/blender/build_hero_assassin.py`, reverted to the state below at the developer's
-instruction. Four things are settled and three are not.
+The line the review stopped on, now passed: "it passes, but swap rare and epic. the rare
+one is reading as a higher tier than epic." Built, swapped and published.
 
-Settled and rendering: four BODY colours instead of one charcoal suit (brown leather,
-charcoal, deep blue, spectral violet), a dark accent on the Nightblade because cream
-trim converged into one pale mass over his face and chest, ice-coloured rags on the
-Phantom because violet rags on a violet body are invisible, and tapered arms.
+The four people are a Rogue in brown leather under a hood, an Assassin in a blue duelling
+coat, a Nightblade in black with a crimson sash, and a Phantom that is a hood over
+nothing. Four BODY colours carry it, which was the fix for "they just have a different
+color, bigger swords, and more stuff on their face through the tiers".
 
-Three verdicts still to answer, in the developer's words:
+**Swapping a tier swaps the whole PERSON.** Body, accent, lean, gear, face, blade and
+grip all moved together, because a tier in this roster is a person rather than a set of
+upgrades. Only the tier-driven things stayed put, and they then pushed the right way on
+their own: steel trim landed on the duellist and gold trim plus glowing eyes on the
+killer in black.
+
+Three verdicts answered, and how:
 
 1. "The masks on common and legendary don't work, it's just a black square over their
-   face." Both are a flat `dark` box laid across a skin head. A fix that DID work was
-   removing the skin head entirely on the hooded tiers and building a hood cone, a
-   skull-back sphere and a dark sphere filling the opening, so the hood's own outline
-   frames the void. That part is worth redoing.
-2. "Rare looks like a higher tier than epic." His bandolier of three throwing knives is
-   most of it; cutting it to two smaller ones helped.
-3. "The silhouette really hasn't changed at all throughout the progression." All four
-   hold both daggers in the identical place, so the outline is one figure four times.
+   face." The hooded tiers lost the skin head entirely. Each builds its own hood cone,
+   skull-back sphere and dark sphere filling the opening, so the hood's own outline
+   frames the void. The two hoods are separately proportioned: the Rogue's snug and
+   practical, the Phantom's deep and heavy with two embers floating in it.
+2. "Rare looks like a higher tier than epic." Answered twice over. The bandolier went
+   from three knives to two smaller ones, and then the whole tier swapped.
+3. "The silhouette really hasn't changed at all throughout the progression." Each tier
+   now grips its knives a different, real way: the Rogue's settled low crouch, the
+   Assassin's duelling line with the long blade extended and the parry dagger raised,
+   the Nightblade's knife-fighter guard with the lead blade forward and the rear one
+   reversed at the hip, and the Phantom's drift with both arms spread low and both
+   blades hanging point-down.
 
-**A rejected attempt at (3), so nobody repeats it.** Four different arm poses were
-built: hands tucked low and in, both arms out wide, one blade raised with a short blade
-low, and both arms raised and spread. The silhouettes did separate. The developer's
-verdict was "the way he's holding the knives now doesn't really make sense" — the poses
-were chosen for outline shape without asking whether a person grips a knife that way.
-The silhouette still has to change; the answer is not arbitrary arm angles.
+**A rejected attempt at (3), so nobody repeats it on another line.** Four arm poses were
+built purely for outline shape: hands tucked low and in, both arms out wide, one blade
+raised with a short blade low, and both arms raised and spread. The silhouettes did
+separate. The developer's verdict was "the way he's holding the knives now doesn't
+really make sense". A pose has to be a grip a person would actually use; the outline
+change then falls out of the stance. That is what the approved version does.
+
+**Four placement defects this line exposed, all the same class.** A part written in
+torso-local coordinates but appended to `detail` or `noline` parents to the FIGURE root
+instead, so it renders somewhere else entirely and usually somewhere invisible. The eye
+glints rendered buried at hip height and had never appeared on any sheet; the Phantom's
+ice rags rendered as a detached strip below his feet; the throwing knives rendered on a
+shin rather than the chest strap. The fourth is the same idea one step on: wrist bracers
+written at fixed coordinates stayed at the old pose's wrists once the arms moved, so
+they floated at the waist. Anything that rides a limb has to be derived from that limb's
+own posed position.
 
 ### USER RULING 2026-08-02: every character and variant is individually designed
 

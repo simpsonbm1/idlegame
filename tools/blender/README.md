@@ -57,6 +57,17 @@ lower, buried inside his chest, and no visor slit on that hero had ever appeared
 To skip the outline on a torso part, collect it in its own list, append that list to
 `tors`, and pass the names through `skip_extra`.
 
+**A POSE HAS TO BE A GRIP A PERSON WOULD USE.** Four assassin arm poses picked purely
+for outline shape did separate the silhouettes and were rejected anyway: "the way he's
+holding the knives now doesn't really make sense" (user, 2026-08-02). Start from how
+that kind of fighter actually holds the weapon -- a duellist's extended line, a knife
+fighter's guard -- and the outline change falls out of the stance for free.
+
+**ANYTHING THAT RIDES A LIMB MUST BE DERIVED FROM THAT LIMB'S POSED POSITION.** Wrist
+bracers written at fixed coordinates stayed where the old pose's wrists had been once
+the assassin's arms moved, and rendered as boxes floating at his waist. Interpolate
+from the fist toward the elbow instead.
+
 **A DETAIL HAS TO BREAK THE SILHOUETTE OR IT DOES NOT EXIST.** The pig-faced
 bascinet's snout projected 0.08 past its helm shell, which is about two pixels, and
 was invisible. At 112 pixels a figure is read from its outline first, so a feature
