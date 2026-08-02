@@ -495,6 +495,43 @@ battlemage on the `heroes` sheet. It now passes the battlemage's three numbers e
 The frost adept, the eight townsfolk and the infernal family still take the old default
 and are unjudged; each gets the override at its own review.
 
+### The banneret line, APPROVED 2026-08-02
+
+The 2026-08-01 verdicts were "the banner is the only at-a-glance difference" and "the
+legendary's banner covers his face". Both were literally true in the code: one identical
+steel body for all four, with only the flag panel, the surcoat colour and the pauldron
+radius branching, and a panel hung from a fixed height whatever its own drop was.
+
+The four are now four builds, and **the flag is what they carry rather than what they
+are**. The Herald wears no plate at all, a quilted gambeson over dark hose with mail
+sleeves, and he is the only bare head in the line. The Banneret is in half-plate with
+the mail beneath it showing on his limbs, faceless under a flat-topped great helm. The
+Marshal is full plate, the broadest of them, under an open barbute with a tall red
+plume. The High Marshal is gilded plate under a crimson cloak in a crowned winged helm.
+
+**The field stays crimson on all four.** They serve one crown, so four flag colours
+would read as four armies. What escalates is the gold on the flag, the shape of it, and
+the armour ladder underneath: cloth, then mail showing under half-plate, then full
+plate, then gilded plate.
+
+**USER 2026-08-02: "can we have all of the banners double as polearms?
+spear-glaive-bardiche-halberd?"** The sword is gone from every tier and the pole carries
+a head tied just under the flag. Three things that pass had to get right:
+
+1. **The head is tied UNDER the flag, not stood at the top of a bare pole.** With eight
+   pixels of shaft between them it read as a blade floating over a flagpole.
+2. **A bardiche is a crescent, not a wedge.** Built solid it came back as a paddle, and
+   a paddle at this size is just a bigger spear. Its inner edge has to hug the shaft
+   while the outer edge bows away.
+3. **The banner's hang height is DERIVED from its own drop**, and so is the pole's butt.
+   Written per tier the tall flag reached down over the face; written as a fixed LENGTH
+   the pole drove out through the bottom of the cell on all four. His cell is 160.
+
+**His arms were rebuilt on the fighter's chain**, and the second half of that fix is the
+part that generalises: the value break goes at the ELBOW, never at the wrist. A bright
+gauntlet closing a dark sleeve read as one more joint even after the geometry was
+correct, because the approved fighter shares one material between forearm and fist.
+
 ### USER RULING 2026-08-02: every character and variant is individually designed
 
 "The idea is that every character/variant should be individually designed, not just

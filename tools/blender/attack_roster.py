@@ -65,8 +65,15 @@ ATTACKS = [
            A.SLASH),
     Attack("hero_battlemage", "build_hero_battlemage",
            [([("armL_shoulder",)], LIMB_L, "staff_root")], A.CAST),
+    # His banner IS his polearm (user 2026-08-02) and he carries no sword, so
+    # this drove a `sword_root` that no longer exists. `pivot_arm` would not have
+    # raised on it either -- it only fails when NOTHING matches, so the arm parts
+    # alone kept it quiet and it would have swung an empty hand.
+    # UNVERIFIED: the cell is a guess. Attack sheets are broken for every hero
+    # (`animkit.twohand_sheet`'s IK) and are not being rendered, so a swinging
+    # five-unit polearm has never been framed. Check it in that pass.
     Attack("hero_banneret", "build_hero_banneret",
-           [([("pauldron",)], HERO_ARM_R, "sword_root")], A.SLASH, cell=144),
+           [([("pauldron",)], HERO_ARM_L, "banner_root")], A.SWEEP, cell=192),
     Attack("hero_frostadept", "build_hero_frostadept",
            [([("armL_shoulder",)], LIMB_L, "staff_root")], A.CAST),
 

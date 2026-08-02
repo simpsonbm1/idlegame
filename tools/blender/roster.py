@@ -47,7 +47,7 @@ ROSTER = [
     Asset(4, "hero_paladin", "build_hero_paladin", "out_hero_paladin.png", "heroes", 112),
     Asset(5, "hero_assassin", "build_hero_assassin", "out_hero_assassin.png", "heroes", 112),
     Asset(6, "hero_battlemage", "build_hero_battlemage", "out_hero_battlemage.png", "heroes", 112),
-    Asset(7, "hero_banneret", "build_hero_banneret", "out_hero_banneret.png", "heroes", 128),
+    Asset(7, "hero_banneret", "build_hero_banneret", "out_hero_banneret.png", "heroes", 160),
     Asset(8, "hero_frostadept", "build_hero_frostadept", "out_hero_frostadept.png", "heroes", 112),
 
     # ---- hero rarity variants (entries 56-82) --------------------------------
@@ -96,11 +96,11 @@ ROSTER = [
           env={"HERO_TIER": "epic"}),
     Asset(76, "hero_battlemage_legendary", "build_hero_battlemage", "out_hero_battlemage_legendary.png", "variants", 112,
           env={"HERO_TIER": "legendary"}),
-    Asset(77, "hero_banneret_rare", "build_hero_banneret", "out_hero_banneret_rare.png", "variants", 128,
+    Asset(77, "hero_banneret_rare", "build_hero_banneret", "out_hero_banneret_rare.png", "variants", 160,
           env={"HERO_TIER": "rare"}),
-    Asset(78, "hero_banneret_epic", "build_hero_banneret", "out_hero_banneret_epic.png", "variants", 128,
+    Asset(78, "hero_banneret_epic", "build_hero_banneret", "out_hero_banneret_epic.png", "variants", 160,
           env={"HERO_TIER": "epic"}),
-    Asset(79, "hero_banneret_legendary", "build_hero_banneret", "out_hero_banneret_legendary.png", "variants", 128,
+    Asset(79, "hero_banneret_legendary", "build_hero_banneret", "out_hero_banneret_legendary.png", "variants", 160,
           env={"HERO_TIER": "legendary"}),
     Asset(80, "hero_frostadept_rare", "build_hero_frostadept", "out_hero_frostadept_rare.png", "variants", 112,
           env={"HERO_TIER": "rare"}),
