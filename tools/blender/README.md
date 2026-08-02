@@ -269,6 +269,7 @@ DEPICTS; the roster only records how it gets built.
 | `roster.py` | the manifest: 83 assets, their builders, cells and tiers |
 | `render_all.py` | headless batch driver, one Blender process per asset |
 | `compose_contact.py` | per-group contact sheets, written at the end of every run |
+| `compose_attack_contact.py` | attack contact sheets: one captioned row per character |
 | `pixelfont.py` | 5x7 bitmap font, so sheet labels are hard pixels like the art |
 
 Still here from the pilot: `build_scene.py`, `compose_battle.py`,
@@ -448,7 +449,66 @@ shape. When a marking looks like an object, change its geometry, not its colour.
 
 `build_attack.py` renders attacks as horizontal sprite sheets. No remodelling is
 involved: it puts one pivot at the shoulder, hands it the arm parts and the
-weapon root, and turns that pivot once per frame.
+weapon root, and turns that pivot once per frame. `render_attacks.py` drives the
+whole roster from `attack_roster.py`, and `compose_attack_contact.py` writes the
+review sheets, one captioned row per character.
+
+**A REPARENT MUST PRESERVE THE CHILD'S EXISTING PARENT CHAIN.** This is what made
+every attack sheet in the repository show detached limbs, for months, on every
+character at once. `reparent_keep` set ONE shared parent inverse -- the pivot's
+own inverse -- on every part it took, which is correct only when a part's basis
+matrix already is its world matrix, meaning it has no parent. No part of a
+finished figure qualifies: `spritekit.finish()` parents everything to a figure
+root and scales that root to the role height. The fighter's arms were therefore
+handed the figure's 30-degree facing and 1.08 scale BACKWARDS, and his fist
+jumped 1.64 units on reparenting alone, landing below the ground line. The
+correct inverse is per-object: `new_parent_world⁻¹ @ child_world @ child_basis⁻¹`.
+
+Two things made it survive so long. Nothing errors -- the sheet renders, the
+process exits zero, and only a human looking at the image would catch it. And
+`pixelrig.world_matrix` composed only the basis matrices, dropping the
+`matrix_parent_inverse` term from Blender's own
+`world = parent.world @ parent_inverse @ basis`, which was harmless while
+`parent_all` set every inverse to the identity and wrong the moment animation set
+a real one. Measure a reparent rather than looking at it: render the rest frame,
+read one part's world position before and after, and the answer is a number.
+
+**SWING IS SIGNED AGAINST THE FIGURE, NOT THE WORLD.** A pivot turns about world
+Y, which points one fixed way, while heroes face +30 degrees and every enemy
+family faces -30. One table of angles therefore drives a hero forward and an
+enemy backward. `animkit.facing_sign` reads the figure's own root and flips the
+rotation, so `attack_shapes` can state one meaning: **positive swing carries the
+weapon forward and down, the way the figure faces.** `OVERHAND` was authored on
+the knight, who faces right, and `SMASH` on the goblin brute, who faces left, so
+the shared tables disagreed from the start and half the roster played its attack
+in reverse -- the fighter's overhead smash came out as an underhand scoop. `lift`
+does not flip: it turns about X toward the camera, and both facings are only 30
+degrees off camera-on.
+
+**A DUAL-WIELDER NEEDS ONE PIVOT PER ARM, ON ITS OWN SHOULDER.** Both shoulder
+balls are usually built in one loop and so share a single name, and a name is all
+`top_joint` has to choose by, so `("shoulder",)` on both arms put BOTH pivots on
+whichever ball sat highest. The far arm then swung about a joint a foot away and
+the assassin's knives went over his head. Derive each pivot from that arm's own
+upper segment instead, written `^upperL`: the caret means the part's TOP rather
+than its centre, and an upper arm's top IS its shoulder.
+
+**KEEP THE SHOULDER MASSES OUT OF A LARGE TWO-HANDED SWING.** A two-handed grip
+pivots about the midpoint between the shoulders, and rotating the shoulder
+spheres with it by 92 degrees sweeps one of them from beside the head to above
+it, straight across the face. Rotate the arm chain and the weapon; leave the
+shoulder balls on the torso. They bury the upper arms' tops well enough that no
+gap opens at the joint.
+
+**ACCOUNT FOR WHERE THE WEAPON ALREADY IS.** A wind-up assumes the weapon starts
+low. The paladin carries his warhammer head-UP, so `OVERHAND` spent its whole
+raise laying the haft flat across his eyes and never got the head overhead;
+`CHOP` gives that case a short wind back and one long drive forward. Measure it
+rather than guessing: track the weapon's head per frame and read the numbers. His
+hammer head sits at z 2.14 at rest and his shoulder pivot is at the same height,
+which is why the head travels only 0.58 units across the whole chop -- a pendulum
+pivoted at its own mass moves that mass very little, and no table of angles fixes
+that. It is a rest-pose question, not an animation one.
 
 **A frame needs two angles, not one.**
 

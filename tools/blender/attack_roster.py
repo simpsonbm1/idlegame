@@ -36,8 +36,15 @@ class Attack:
         self.env = env or {}
 
 
-def _dual(sh, left, right, lroot, rroot):
-    return [(sh, left, lroot), (sh, right, rroot)]
+def _dual(left, right, lroot, rroot):
+    """Dual wield: one pivot per arm, each on that arm's OWN shoulder.
+
+    Derived from the arm's first part, which is always its upper segment, and
+    read as `^name` so the joint is that segment's TOP. A shared shoulder name
+    cannot express two sides -- see `animkit.top_joint`.
+    """
+    return [([("^" + left[0],)], left, lroot),
+            ([("^" + right[0],)], right, rroot)]
 
 
 HERO_ARM_L = ("upperL", "foreL", "fistL")
@@ -51,17 +58,23 @@ LIMB_R = ("armR_shoulder", "armR_upper", "armR_elbow", "armR_fore", "armR_hand")
 ATTACKS = [
     # ---- heroes -------------------------------------------------------------
     Attack("hero_fighter", "build_hero_fighter",
-           [([("upperL",), ("upperR",)], HERO_ARM_L + HERO_ARM_R + ("shoulder",), "sword_root")],
+           [([("upperL",), ("upperR",)], HERO_ARM_L + HERO_ARM_R, "sword_root")],
            A.SMASH),
     Attack("hero_ranged", "build_hero_ranged",
-           [([("upperL",), ("upperR",)], HERO_ARM_L + HERO_ARM_R + ("shoulder",), "bow_root")],
+           [([("upperL",), ("upperR",)], HERO_ARM_L + HERO_ARM_R, "bow_root")],
            A.LOOSE),
     Attack("hero_mender", "build_hero_mender",
            [([("armL_shoulder",)], LIMB_L, "staff_root")], A.CAST),
+    # CHOP, not OVERHAND: he already carries the hammer head-up, so a wind-up
+    # that raises it only lays the haft flat across his eyes.
     Attack("hero_paladin", "build_hero_paladin",
-           [([("pauldron",)], HERO_ARM_L, "hammer_root")], A.OVERHAND),
+           [([("pauldron",)], HERO_ARM_L, "hammer_root")], A.CHOP),
+    # One pivot per arm, each on its OWN shoulder. His two shoulder balls are
+    # built in one loop and share the name "shoulder", so `_dual` handed both
+    # arms the same joint and the far knife swung a foot wide, over his head.
     Attack("hero_assassin", "build_hero_assassin",
-           _dual([("shoulder",)], HERO_ARM_L, HERO_ARM_R, "dagL_root", "dagR_root"),
+           [([("^upperL",)], HERO_ARM_L, "dagL_root"),
+            ([("^upperR",)], HERO_ARM_R, "dagR_root")],
            A.SLASH),
     Attack("hero_battlemage", "build_hero_battlemage",
            [([("armL_shoulder",)], LIMB_L, "staff_root")], A.CAST),
@@ -69,9 +82,8 @@ ATTACKS = [
     # this drove a `sword_root` that no longer exists. `pivot_arm` would not have
     # raised on it either -- it only fails when NOTHING matches, so the arm parts
     # alone kept it quiet and it would have swung an empty hand.
-    # UNVERIFIED: the cell is a guess. Attack sheets are broken for every hero
-    # (`animkit.twohand_sheet`'s IK) and are not being rendered, so a swinging
-    # five-unit polearm has never been framed. Check it in that pass.
+    # The 192 cell is now VERIFIED: rendered 2026-08-02, and the polearm stays
+    # inside the frame through the whole sweep, horizontal frame included.
     Attack("hero_banneret", "build_hero_banneret",
            [([("pauldron",)], HERO_ARM_L, "banner_root")], A.SWEEP, cell=192),
     Attack("hero_frostadept", "build_hero_frostadept",
@@ -79,7 +91,7 @@ ATTACKS = [
 
     # ---- goblin raid --------------------------------------------------------
     Attack("goblin_skirmisher", "build_goblin_skirmisher",
-           _dual([("gshoulder",)], G_L, G_R, "dagL_root", "dagR_root"), A.SLASH),
+           _dual(G_L, G_R, "dagL_root", "dagR_root"), A.SLASH),
     Attack("goblin_caster", "build_goblin_caster",
            [([("gshoulder",)], G_L, "sling_root")], A.LOOSE),
     Attack("goblin_shaman", "build_goblin_shaman",
@@ -95,7 +107,7 @@ ATTACKS = [
            [([("oupperL",), ("oupperR",)], O_L + O_R + ("oshoulder",), "maul_root")],
            A.SMASH),
     Attack("orc_skirmisher", "build_orc_skirmisher",
-           _dual([("oshoulder",)], O_L, O_R, "axeL_root", "axeR_root"), A.SLASH),
+           _dual(O_L, O_R, "axeL_root", "axeR_root"), A.SLASH),
     Attack("orc_caster", "build_orc_caster",
            [([("oshoulder",)], O_L, "staff_root")], A.CAST),
     Attack("orc_shaman", "build_orc_shaman",
@@ -111,7 +123,7 @@ ATTACKS = [
            [([("bupperL",), ("bupperR",)], B_L + B_R + ("bshoulder",), "club_root")],
            A.SMASH),
     Attack("bandit_skirmisher", "build_bandit_skirmisher",
-           _dual([("bshoulder",)], B_L, B_R, "knifeL_root", "knifeR_root"), A.SLASH),
+           _dual(B_L, B_R, "knifeL_root", "knifeR_root"), A.SLASH),
     Attack("bandit_caster", "build_bandit_caster",
            [([("bupperL",), ("bupperR",)], B_L + B_R + ("bshoulder",), "bow_root")],
            A.LOOSE),
@@ -129,7 +141,7 @@ ATTACKS = [
            [([("pauldron",)], ("upper", "fore", "bonehand", "pauldron"), "sword_root")],
            A.SMASH),
     Attack("undead_skirmisher", "build_undead_skirmisher",
-           _dual([("shoulder",)], ("upperL", "foreL", "handL"), ("upperR", "foreR", "handR"),
+           _dual(("upperL", "foreL", "handL"), ("upperR", "foreR", "handR"),
                  "bladeL_root", "bladeR_root"), A.SLASH),
     Attack("undead_caster", "build_undead_caster",
            [([("shoulderL",)], ("sleeveA1", "sleeveA2", "handA"), "staff_root")], A.CAST),

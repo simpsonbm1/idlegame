@@ -44,10 +44,20 @@ everything that says who a character is belongs in that character's own builder.
 published (2026-08-02). The per-line records are in `M15_ASSET_SPECS.md` under the
 APPROVED headings; the rules the rejected renders paid for are in
 `tools/blender/README.md`. **The five enemy families, the buildings and the townsfolk
-have still never been judged**, and the attack sheets are broken for every character.
+have still never been judged.**
 `SESSION_HANDOFF.md` holds the loop and the pick-up point. Read
 `M15_ASSET_SPECS.md` and `tools/blender/README.md` before touching a hero builder — they
 carry the rules each rejected render paid for, and none of them are guessable.
+
+**The attack rig is fixed and the 32 hero attack sheets are rendered and published**
+(2026-08-02), awaiting the user's verdict. The detached limbs on every sheet came from
+`pixelrig.reparent_keep` applying one shared parent inverse to parts that each had their
+own parent chain, not from the inverse-kinematics solve. Three more faults went with it:
+attack shapes were signed against the world while heroes and enemies face opposite ways,
+a dual-wielder's two pivots both landed on one shoulder, and a two-handed swing dragged
+the shoulder masses across the face. **The 29 enemy sheets are not re-rendered**; they
+inherit the same fixes and need the same review pass. Review one with
+`compose_attack_contact.py`.
 
 **None of it is wired into the game yet.**
 

@@ -77,6 +77,15 @@ def centre_of(ob):
     return sum(cs, Vector((0, 0, 0))) / len(cs)
 
 
+def top_of(ob):
+    """The world point at the top of a part, on its own centre line."""
+    from mathutils import Vector
+    m = world_of(ob)
+    cs = [m @ Vector(c) for c in ob.bound_box]
+    c = sum(cs, Vector((0, 0, 0))) / len(cs)
+    return Vector((c.x, c.y, max(p.z for p in cs)))
+
+
 def top_joint(scn, names):
     """The shoulder, derived: the centre of whichever named part sits highest.
 
@@ -85,8 +94,24 @@ def top_joint(scn, names):
     joint the limb actually turns about -- anywhere else and the limb translates
     as well as rotating, which reads unmistakably as the arm coming away from the
     shoulder.
+
+    **A name written `^part` means the TOP of that part rather than its centre**,
+    which is how a dual-wielder gets one pivot per arm. Both his shoulder balls
+    are usually built in one loop and so share a single name, and a name is all
+    this has to choose by: `("shoulder",)` on both arms puts BOTH pivots on
+    whichever ball happened to sit highest, and the far arm then swings about the
+    other shoulder, a foot away. The assassin's knives went over his head that
+    way. `^upperL` needs no name to be unique, because an upper arm's top IS its
+    own shoulder joint.
     """
-    parts = P.find(scn, *names)
+    tops = [n[1:] for n in names if n.startswith("^")]
+    plain = [n for n in names if not n.startswith("^")]
+    if tops:
+        parts = P.find(scn, *tops)
+        if not parts:
+            raise KeyError("no parts found for %s" % (tops,))
+        return top_of(max(parts, key=lambda o: top_of(o).z))
+    parts = P.find(scn, *plain)
     if not parts:
         raise KeyError("no parts found for %s" % (names,))
     return centre_of(max(parts, key=lambda o: centre_of(o).z))
@@ -111,6 +136,22 @@ def figure_root(scn, key):
     if not found:
         raise KeyError("no root for %s" % key)
     return found[0]
+
+
+def facing_sign(root):
+    """+1 for a figure facing screen-right, -1 for one facing screen-left.
+
+    Read off the figure's own root, because that is where `spritekit.finish()`
+    put the facing: heroes and townsfolk at +30 degrees about Z, every enemy
+    family at -30.
+
+    A swing turns the pivot about WORLD Y, which points one fixed way, so the
+    same table of angles drives a right-facing figure forward and a left-facing
+    one backward. Multiplying swing by this makes a shape mean the same thing on
+    both, which is what `attack_shapes` documents: positive is forward and down,
+    the way the figure faces.
+    """
+    return -1.0 if root.rotation_euler.z < 0.0 else 1.0
 
 
 # --------------------------------------------------------------------------
@@ -182,6 +223,7 @@ def pivot_arm(scn, root, shoulder_groups, part_names, weapon_root_name=None):
 def swing_sheet(scn, key, root, pivots, frames, res=128, out_name=None):
     """Render one frame per (lift, swing, lunge) triple as a horizontal sheet."""
     base = tuple(root.location)
+    sign = facing_sign(root)
     px = anim_cam(scn, res)
 
     def make(f):
@@ -189,7 +231,7 @@ def swing_sheet(scn, key, root, pivots, frames, res=128, out_name=None):
 
         def pose():
             for p in pivots:
-                p.rotation_euler = (math.radians(lift), math.radians(swing), 0)
+                p.rotation_euler = (math.radians(lift), math.radians(swing * sign), 0)
             root.location = (base[0], base[1] + lunge, base[2])
         return pose
 
@@ -247,13 +289,15 @@ def twohand_sheet(scn, key, root, weapon_name, arms, frames, res=128,
         mid = Vector(mid)
 
     base = tuple(root.location)
+    sign = facing_sign(root)
     px = anim_cam(scn, res)
 
     def make(f):
         lift, swing, lunge = f
 
         def pose():
-            R = Euler((math.radians(lift), math.radians(swing), 0), 'XYZ').to_matrix().to_4x4()
+            R = Euler((math.radians(lift), math.radians(swing * sign), 0),
+                      'XYZ').to_matrix().to_4x4()
             weapon.matrix_basis = (Matrix.Translation(mid) @ R
                                    @ Matrix.Translation(-mid) @ rest)
             for a in solved:
@@ -278,4 +322,4 @@ def twohand_sheet(scn, key, root, weapon_name, arms, frames, res=128,
 # the system Python can read the roster that uses them. Re-exported here for
 # anything already importing animkit.
 from attack_shapes import (OVERHAND, SMASH, SLASH, SWEEP, CAST,  # noqa: E402,F401
-                           LOOSE)
+                           LOOSE, CHOP)

@@ -617,13 +617,17 @@ def world_matrix(ob):
     rather than the one these builders work in, so it reads stale. Composing the
     basis matrices is exact and needs no depsgraph.
 
-    Valid because `parent_all` always sets an identity parent inverse.
+    **Every link carries a parent inverse.** Blender's own rule is
+    `world = parent.world @ matrix_parent_inverse @ matrix_basis`, and dropping
+    that middle term is only harmless while every inverse is the identity that
+    `parent_all` sets. `reparent_keep` and the animation pivots set real ones, so
+    an omitted term is a whole extra transform in the answer.
     """
     m = ob.matrix_basis
-    p = ob.parent
+    node, p = ob, ob.parent
     while p is not None:
-        m = p.matrix_basis @ m
-        p = p.parent
+        m = p.matrix_basis @ node.matrix_parent_inverse @ m
+        node, p = p, p.parent
     return m
 
 
@@ -635,14 +639,24 @@ def reparent_keep(root, objs):
     local to the root. Animation needs this form -- an arm is modelled in place
     and then handed a pivot to swing around.
 
+    **The child's EXISTING parent chain is part of what has to be preserved.**
+    One shared inverse for every child is only correct when each child's basis
+    already IS its world matrix, which means it has no parent. No part of a
+    finished figure qualifies, because `spritekit.finish()` parents everything to
+    a figure root and scales that root to the role height. Handing the hero arms
+    the root's inverse alone therefore applied the figure's 30-degree facing and
+    1.08 scale backwards: the fighter's fist jumped 1.64 units and landed below
+    the ground line, and that is the detached-limb attack sheet.
+
     Uses the hand-composed world matrix, not `matrix_world`. Reading the stale
     one detached the Lich Commander's staff from his arm: the weapon swung and
     the arm holding it stayed where it was.
     """
-    inv = world_matrix(root).inverted()
-    for ob in objs:
+    inv_root = world_matrix(root).inverted()
+    keep = [(ob, world_matrix(ob)) for ob in objs]
+    for ob, w in keep:
         ob.parent = root
-        ob.matrix_parent_inverse = inv
+        ob.matrix_parent_inverse = inv_root @ w @ ob.matrix_basis.inverted()
 
 
 def two_bone_ik(shoulder, target, len_a, len_b, pole, stretch=0.0):
