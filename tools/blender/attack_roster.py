@@ -55,6 +55,14 @@ B_L, B_R = ("bupperL", "bforeL", "bfistL"), ("bupperR", "bforeR", "bfistR")
 LIMB_L = ("armL_shoulder", "armL_upper", "armL_elbow", "armL_fore", "armL_hand")
 LIMB_R = ("armR_shoulder", "armR_upper", "armR_elbow", "armR_fore", "armR_hand")
 
+# The same arms WITHOUT their shoulder balls, for a two-handed grip. That swing
+# pivots about the midpoint between the shoulders, so a shoulder ball taken along
+# sweeps from beside the head to above it and lands across the face. Leave the
+# balls on the torso: they bury the upper arms' tops, so no gap opens at the
+# joint. A ONE-handed pivot is the opposite case -- there the ball is the joint
+# itself and turns in place, so those entries keep it.
+ARM_L, ARM_R = LIMB_L[1:], LIMB_R[1:]
+
 ATTACKS = [
     # ---- heroes -------------------------------------------------------------
     Attack("hero_fighter", "build_hero_fighter",
@@ -97,14 +105,14 @@ ATTACKS = [
     Attack("goblin_shaman", "build_goblin_shaman",
            [([("gshoulder",)], G_L, "staff_root")], A.CAST),
     Attack("goblin_sapper", "build_goblin_sapper",
-           [([("gupperL",), ("gupperR",)], G_L + G_R + ("gshoulder",), "pick_root")],
+           [([("gupperL",), ("gupperR",)], G_L + G_R, "pick_root")],
            A.SMASH),
     Attack("goblin_boss", "build_goblin_boss",
            [([("gshoulder",)], G_R, "blade_root")], A.OVERHAND, cell=144),
 
     # ---- orc warband --------------------------------------------------------
     Attack("orc_brute", "build_orc_brute",
-           [([("oupperL",), ("oupperR",)], O_L + O_R + ("oshoulder",), "maul_root")],
+           [([("oupperL",), ("oupperR",)], O_L + O_R, "maul_root")],
            A.SMASH),
     Attack("orc_skirmisher", "build_orc_skirmisher",
            _dual(O_L, O_R, "axeL_root", "axeR_root"), A.SLASH),
@@ -115,17 +123,17 @@ ATTACKS = [
     Attack("orc_sapper", "build_orc_sapper",
            [([("oshoulder",)], O_R, "torch_root")], A.SLASH),
     Attack("orc_boss", "build_orc_boss",
-           [([("oupperL",), ("oupperR",)], O_L + O_R + ("oshoulder",), "axe_root")],
+           [([("oupperL",), ("oupperR",)], O_L + O_R, "axe_root")],
            A.SWEEP, cell=176),
 
     # ---- bandit horde -------------------------------------------------------
     Attack("bandit_brute", "build_bandit_brute",
-           [([("bupperL",), ("bupperR",)], B_L + B_R + ("bshoulder",), "club_root")],
+           [([("bupperL",), ("bupperR",)], B_L + B_R, "club_root")],
            A.SMASH),
     Attack("bandit_skirmisher", "build_bandit_skirmisher",
            _dual(B_L, B_R, "knifeL_root", "knifeR_root"), A.SLASH),
     Attack("bandit_caster", "build_bandit_caster",
-           [([("bupperL",), ("bupperR",)], B_L + B_R + ("bshoulder",), "bow_root")],
+           [([("bupperL",), ("bupperR",)], B_L + B_R, "bow_root")],
            A.LOOSE),
     Attack("bandit_shaman", "build_bandit_shaman",
            [([("bshoulder",)], B_R, "bottle_root")], A.CAST),
@@ -154,7 +162,7 @@ ATTACKS = [
 
     # ---- infernal siege -----------------------------------------------------
     Attack("infernal_brute", "build_infernal_brute",
-           [([("armL_shoulder",), ("armR_shoulder",)], LIMB_L + LIMB_R + ("iclaw",),
+           [([("armL_shoulder",), ("armR_shoulder",)], ARM_L + ARM_R + ("iclaw",),
              "cleaver_root")], A.SMASH),
     # The only quadruped: no arms to swing, so the attack is a head-snap driven
     # from the neck.
@@ -164,11 +172,11 @@ ATTACKS = [
     # No weapon root: the hellfire arc IS the weapon, so it swings with the arms.
     Attack("infernal_caster", "build_infernal_caster",
            [([("armL_shoulder",), ("armR_shoulder",)],
-             LIMB_L + LIMB_R + ("iclaw", "iarc", "ispark"), None)], A.CAST),
+             ARM_L + ARM_R + ("iclaw", "iarc", "ispark"), None)], A.CAST),
     Attack("infernal_shaman", "build_infernal_shaman",
            [([("armR_shoulder",)], LIMB_R + ("iclaw",), "chalice_root")], A.CAST),
     Attack("infernal_sapper", "build_infernal_sapper",
-           [([("armL_shoulder",), ("armR_shoulder",)], LIMB_L + LIMB_R + ("iclaw",),
+           [([("armL_shoulder",), ("armR_shoulder",)], ARM_L + ARM_R + ("iclaw",),
              "brazier_root")], A.CAST),
     Attack("infernal_boss", "build_infernal_boss",
            [([("armL_shoulder",)], LIMB_L + ("iclaw",), "scepter_root")], A.CAST, cell=176),

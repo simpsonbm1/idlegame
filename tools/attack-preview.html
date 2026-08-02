@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Attack preview — the animations in motion</title>
+<!--
+  Plays the rendered attack sheets so they can be judged as MOTION rather than as
+  a row of stills. An eight-frame strip tells you nothing about whether a swing
+  reads; only playback does.
+
+  Opens by DOUBLE-CLICK, with no server. That is why nothing here fetches or
+  touches canvas pixels: the roster is inlined, the frame count is read off each
+  image's own dimensions, and animation is a background-position step. The
+  runtime sprite pipeline in game.js does need canvas, which is why the game
+  itself wants http, but a review tool that needs a server does not get used.
+
+  EVERY CELL SEATS ON ONE GROUND LINE. World z=0 sits 10% up from the bottom of
+  every cell whatever its size, so a 176px boss cell and a 128px hero cell only
+  line up if each is pushed down by its OWN 10%. Bottom-aligning the images
+  instead puts the boss's feet 5px below everyone else's.
+-->
+<style>
+  :root { --ink: #d8cba8; --dim: #8a7f63; --gold: #c9a84c; }
+  body { background: #14110c; color: var(--ink);
+         font-family: Georgia, "Times New Roman", serif; margin: 0; padding: 20px 24px 60px; }
+  h1 { font-size: 21px; color: var(--gold); margin: 0 0 4px; }
+  .sub { font-size: 13px; color: var(--dim); margin-bottom: 18px; max-width: 62em; line-height: 1.5; }
+  .note { color: #b9a978; }
+
+  #bar { position: sticky; top: 0; z-index: 5; background: #14110c;
+         border-bottom: 1px solid #2e2617; padding: 10px 0 12px; margin-bottom: 18px;
+         display: flex; flex-wrap: wrap; gap: 16px 22px; align-items: center; }
+  #bar label { font-size: 12px; color: var(--dim); display: flex; align-items: center; gap: 7px; }
+  #bar output { color: var(--ink); min-width: 2.4em; display: inline-block; font-variant-numeric: tabular-nums; }
+  button, select { font-family: inherit; font-size: 13px; color: var(--ink);
+                   background: #241d12; border: 1px solid #4a3d25; border-radius: 3px;
+                   padding: 5px 12px; cursor: pointer; }
+  button:hover, select:hover { background: #2f2617; }
+  input[type=range] { accent-color: var(--gold); width: 130px; }
+
+  .grid { display: flex; flex-wrap: wrap; gap: 26px 20px; }
+  .cell { text-align: center; }
+  .stage { position: relative; background: #1b1710; border: 1px solid #2e2617;
+           border-radius: 3px; overflow: hidden; }
+  .ground { position: absolute; left: 0; right: 0; border-top: 1px solid #352c1a; }
+  .unit { position: absolute; image-rendering: pixelated;
+          background-repeat: no-repeat; }
+  .name { font-size: 11px; color: var(--dim); margin-top: 6px;
+          letter-spacing: 0.06em; text-transform: uppercase; }
+
+  .duel { display: flex; flex-wrap: wrap; gap: 26px 20px; }
+  .duel .stage { background: #1b1710; }
+  .duelname { font-size: 11px; color: var(--dim); margin-top: 6px; letter-spacing: 0.06em; }
+  .missing { color: #c46b52; font-size: 12px; padding: 12px; }
+</style>
+</head>
+<body>
+
+<h1>Attack preview</h1>
+<div class="sub">
+  Every rendered attack sheet, playing. Heroes face right and enemies face left, exactly as they
+  are drawn, so a duel row shows them meeting. <span class="note">Rest beat</span> holds frame 0
+  for a few extra frames, which is closer to how an attack fires in play than a continuous loop.
+  Sheets load from <code>assets/rendered/attack/</code>; anything not yet rendered shows as a gap.
+</div>
+
+<div id="bar">
+  <button id="play">Pause</button>
+  <button id="step">Step</button>
+  <label>Speed <input id="fps" type="range" min="2" max="24" value="12"><output id="fpsv">12</output> fps</label>
+  <label>Rest beat <input id="rest" type="range" min="0" max="16" value="5"><output id="restv">5</output></label>
+  <label>Zoom <input id="zoom" type="range" min="1" max="5" value="3"><output id="zoomv">3</output>x</label>
+  <label>Show
+    <select id="view">
+      <option value="hero-base">Hero lines (8)</option>
+      <option value="hero-all">Hero lines + rarity tiers (32)</option>
+      <option value="duel">Duels: hero vs enemy</option>
+      <option value="goblin">Goblin raid</option>
+      <option value="orc">Orc warband</option>
+      <option value="bandit">Bandit horde</option>
+      <option value="undead">Undead legion</option>
+      <option value="infernal">Infernal siege</option>
+      <option value="all">Everything (61)</option>
+    </select>
+  </label>
+  <label>Frame <output id="frame">0</output></label>
+</div>
+
+<div id="out"></div>
+
+<script>
+// The roster, inlined because file:// cannot fetch a manifest. Keep in step with
+// tools/blender/attack_roster.py; `render_attacks.py --list` prints it.
+const HERO_BASE = ['hero_fighter', 'hero_ranged', 'hero_mender', 'hero_paladin',
+                   'hero_assassin', 'hero_battlemage', 'hero_banneret', 'hero_frostadept'];
+const TIERS = ['', '_rare', '_epic', '_legendary'];
+// Two lines were auditioned at a tier other than common, so their base sprite IS
+// that tier and the missing one is generated instead.
+const BASE_TIER = { hero_mender: '_rare', hero_paladin: '_epic' };
+const FAMILIES = {
+  goblin:   ['goblin_skirmisher', 'goblin_caster', 'goblin_shaman', 'goblin_sapper', 'goblin_boss'],
+  orc:      ['orc_brute', 'orc_skirmisher', 'orc_caster', 'orc_shaman', 'orc_sapper', 'orc_boss'],
+  bandit:   ['bandit_brute', 'bandit_skirmisher', 'bandit_caster', 'bandit_shaman', 'bandit_sapper', 'bandit_boss'],
+  undead:   ['undead_brute', 'undead_skirmisher', 'undead_caster', 'undead_shaman', 'undead_sapper', 'undead_boss'],
+  infernal: ['infernal_brute', 'infernal_skirmisher', 'infernal_caster', 'infernal_shaman', 'infernal_sapper', 'infernal_boss'],
+};
+// One opponent per hero, spread across the five families so a single screen shows
+// every family at least once.
+const DUELS = [
+  ['hero_fighter',    'orc_brute'],
+  ['hero_ranged',     'goblin_skirmisher'],
+  ['hero_mender',     'undead_caster'],
+  ['hero_paladin',    'undead_brute'],
+  ['hero_assassin',   'bandit_skirmisher'],
+  ['hero_battlemage', 'infernal_skirmisher'],
+  ['hero_banneret',   'orc_boss'],
+  ['hero_frostadept', 'infernal_caster'],
+];
+
+const GROUND_FRAC = 0.10;   // spritekit.GROUND_FRAC: world z=0 sits this far up every cell
+const SRC = key => '../assets/rendered/attack/' + key + '.png';
+
+function heroAll() {
+  const out = [];
+  for (const line of HERO_BASE) {
+    for (const t of TIERS) {
+      out.push(t === (BASE_TIER[line] || '') ? line : line + t);
+    }
+  }
+  return out;
+}
+
+const el = id => document.getElementById(id);
+const out = el('out');
+
+let playing = true, frame = 0, timer = null;
+const units = [];          // {node, frames, cell} for every unit on screen
+
+function zoom() { return +el('zoom').value; }
+
+/** One animating figure. Frame count comes from the image itself: a strip is
+ *  square cells laid in a row, so frames = width / height and cell = height. */
+function makeUnit(key, stage, xFrac) {
+  const node = document.createElement('div');
+  node.className = 'unit';
+  node.style.backgroundImage = `url("${SRC(key)}")`;
+  stage.appendChild(node);
+  const rec = { node, frames: 8, cell: 128, xFrac, ready: false };
+  stage._units.push(rec);
+  const probe = new Image();
+  probe.onload = () => {
+    rec.cell = probe.naturalHeight;
+    rec.frames = Math.max(1, Math.round(probe.naturalWidth / probe.naturalHeight));
+    rec.ready = true;
+    fitStage(stage);
+    paint(rec);
+  };
+  probe.onerror = () => { node.remove(); };
+  probe.src = SRC(key);
+  units.push(rec);
+  return rec;
+}
+
+/** Size the stage from the art it holds, then seat every unit on one ground line.
+ *  Cells are not one size -- 128 for most, 192 for the banneret, 176 for a boss --
+ *  so a fixed stage clips the big ones. The tallest cell present sets the stage. */
+function fitStage(stage) {
+  const z = zoom();
+  const ready = stage._units.filter(r => r.ready);
+  if (!ready.length) return;
+  const cell = Math.max(...ready.map(r => r.cell));
+  const h = cell * z;
+  stage.style.height = h + 'px';
+  stage.style.width = (h * stage._aspect) + 'px';
+  // The ground line is where the TALLEST cell's own ground row falls.
+  stage._groundPx = cell * GROUND_FRAC * z;
+  stage._ground.style.bottom = stage._groundPx + 'px';
+  for (const r of ready) layout(r, stage);
+}
+
+function layout(rec, stage) {
+  const z = zoom(), px = rec.cell * z;
+  rec.node.style.width = px + 'px';
+  rec.node.style.height = px + 'px';
+  rec.node.style.backgroundSize = (px * rec.frames) + 'px ' + px + 'px';
+  rec.node.style.left = (parseFloat(stage.style.width) * rec.xFrac - px / 2) + 'px';
+  // Push each cell down by its OWN ground fraction so feet share one line
+  // whatever the cell size.
+  rec.node.style.bottom = (stage._groundPx - rec.cell * GROUND_FRAC * z) + 'px';
+}
+
+function paint(rec) {
+  if (!rec.ready) return;
+  const f = Math.min(frame, rec.frames - 1);
+  rec.node.style.backgroundPositionX = (-f * rec.cell * zoom()) + 'px';
+}
+
+/** `aspect` is width as a multiple of height; the real size is set by `fitStage`
+ *  once the art has loaded and its cell size is known. */
+function stage(aspect) {
+  const s = document.createElement('div');
+  s.className = 'stage';
+  s._aspect = aspect;
+  s._units = [];
+  s._groundPx = 0;
+  s.style.width = (128 * zoom() * aspect) + 'px';
+  s.style.height = (128 * zoom()) + 'px';
+  const g = document.createElement('div');
+  g.className = 'ground';
+  s._ground = g;
+  s.appendChild(g);
+  return s;
+}
+
+function render() {
+  units.length = 0;
+  out.innerHTML = '';
+  const view = el('view').value;
+
+  if (view === 'duel') {
+    const wrap = document.createElement('div');
+    wrap.className = 'duel';
+    for (const [hero, foe] of DUELS) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      const s = stage(2.0);
+      cell.appendChild(s);
+      const cap = document.createElement('div');
+      cap.className = 'duelname';
+      cap.textContent = hero.replace('hero_', '') + '  vs  ' + foe.replace('_', ' ');
+      cell.appendChild(cap);
+      wrap.appendChild(cell);
+      makeUnit(hero, s, 0.34);
+      makeUnit(foe, s, 0.66);
+    }
+    out.appendChild(wrap);
+    return;
+  }
+
+  let keys;
+  if (view === 'hero-base') keys = HERO_BASE;
+  else if (view === 'hero-all') keys = heroAll();
+  else if (view === 'all') keys = heroAll().concat(...Object.values(FAMILIES));
+  else keys = FAMILIES[view];
+
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+  for (const key of keys) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    const s = stage(1.0);
+    cell.appendChild(s);
+    const n = document.createElement('div');
+    n.className = 'name';
+    n.textContent = key.replace(/_/g, ' ');
+    cell.appendChild(n);
+    grid.appendChild(cell);
+    makeUnit(key, s, 0.5);
+  }
+  out.appendChild(grid);
+}
+
+function advance() {
+  const rest = +el('rest').value;
+  const span = 8 + rest;                 // hold frame 0 for `rest` extra ticks
+  frame = (frame + 1) % span;
+  if (frame >= 8) frame = 0;
+  el('frame').textContent = frame;
+  for (const r of units) paint(r);
+}
+
+function restart() {
+  if (timer) clearInterval(timer);
+  timer = setInterval(() => { if (playing) advance(); }, 1000 / +el('fps').value);
+}
+
+el('play').onclick = () => {
+  playing = !playing;
+  el('play').textContent = playing ? 'Pause' : 'Play';
+};
+el('step').onclick = () => { playing = false; el('play').textContent = 'Play'; advance(); };
+el('fps').oninput = () => { el('fpsv').textContent = el('fps').value; restart(); };
+el('rest').oninput = () => { el('restv').textContent = el('rest').value; };
+el('zoom').oninput = () => { el('zoomv').textContent = el('zoom').value; render(); };
+el('view').onchange = render;
+
+render();
+restart();
+</script>
+</body>
+</html>

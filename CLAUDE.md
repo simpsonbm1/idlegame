@@ -114,6 +114,10 @@ Shipping the game to players who can't run a server is **M17: distribution & pac
   Rerun for any balance change. **Keep its constant tables in sync with game.js.**
 - `tools/process-art.html` / `tools/plot-placer.html` / `tools/scene-prototype.html` — art
   pipeline and layout tools
+- `tools/attack-preview.html` — **plays the attack sheets**, so animation is judged as
+  motion rather than as a row of stills. Double-click it; no server, because it neither
+  fetches nor touches canvas pixels. Grid view per family, plus a duel view pairing each
+  hero with an enemy.
 - `tools/blender/` — **the art pipeline going forward** (user decision 2026-07-31). Python
   that models and renders sprites, buildings and the backdrop as 3D pixel art, with no
   manual modelling. `render_all.py` drives Blender **headless**, one process per asset;
