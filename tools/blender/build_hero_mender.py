@@ -138,10 +138,16 @@ else:
 
 # ---- arms. The ORDER of these two calls names armL before armR, and
 # ---- attack_roster.py drives this hero by armL_*. Do not swap them.
-figure += S.limb(scn, (-0.48, -0.12, 2.34), (-0.66, -0.56, 1.80), M[ROBE], 0.13, 0.115,
-                 hand_mat=M["skin"])
-figure += S.limb(scn, (0.48, -0.12, 2.36), (0.66, -0.58, 2.30), M[ROBE], 0.13, 0.115,
-                 hand_mat=M["skin"])
+#
+# USER 2026-08-02: the same hand fix the battlemages got. This line was approved
+# and published BEFORE it, and it called `S.limb` at the stock radii, which build
+# a hand 2.02 times the wrist it grows from where the assassin's hand-written
+# arms give 1.40. Half of a mitt is a wrist too thin, so the forearm rises as the
+# hand falls. These are the battlemage's numbers exactly, deliberately: two robed
+# lines that stand side by side on the `heroes` sheet should not differ here.
+ARM = dict(upper_r=0.145, fore_r=0.14, hand_r=0.17, hand_mat=M["skin"])
+figure += S.limb(scn, (-0.48, -0.12, 2.34), (-0.66, -0.56, 1.80), M[ROBE], **ARM)
+figure += S.limb(scn, (0.48, -0.12, 2.36), (0.66, -0.58, 2.30), M[ROBE], **ARM)
 
 # ---------------------------------------------------------------------------
 # the staff, and the thing on the end of it

@@ -246,7 +246,7 @@ def flame(scn, loc, hot, cool, scale=1.0):
 
 
 def limb(scn, shoulder, hand, mat, upper_r=0.075, fore_r=0.065, joint_mat=None,
-         hand_mat=None):
+         hand_mat=None, hand_r=None):
     """Two segments and a hand, aimed shoulder -> hand, with a bend at the elbow.
 
     The elbow is pushed toward the camera and up, which is what stops the two
@@ -257,9 +257,20 @@ def limb(scn, shoulder, hand, mat, upper_r=0.075, fore_r=0.065, joint_mat=None,
     which on a robed or sleeved figure reads as bulging naked arms rather than as
     a person wearing clothes. Every townsperson and every robed hero had that
     until it was separated.
+
+    **`hand_r` overrides the hand, and the default is deliberately left alone.**
+    The stock `fore_r * 1.7` makes a hand TWICE the wrist it grows from, and on
+    the battlemages the user's verdict was "their hands are too big" (2026-08-02),
+    measured against the assassin, whose arms are hand-written cones rather than
+    this helper: his fist is 1.40 times his wrist, not 2.02. The default stays at
+    1.7 because the mender is APPROVED AND PUBLISHED with it, and changing a
+    shared default silently re-renders every figure that ever accepted it.
+    Callers that want the assassin's proportions pass `hand_r` and raise `fore_r`
+    to match -- half of the mitt effect is a wrist too thin, not a hand too wide.
     """
     joint_mat = joint_mat or mat
     hand_mat = hand_mat or joint_mat
+    hand_r = fore_r * 1.7 if hand_r is None else hand_r
     sx, sy, sz = shoulder
     hx, hy, hz = hand
     mid = ((sx + hx) * 0.5, (sy + hy) * 0.5 - 0.10, (sz + hz) * 0.5 + 0.10)
@@ -281,4 +292,4 @@ def limb(scn, shoulder, hand, mat, upper_r=0.075, fore_r=0.065, joint_mat=None,
             aimed_cone(scn, a + "_upper", shoulder, mid, upper_r, fore_r * 0.78, mat),
             P.add_sphere(scn, a + "_elbow", mid, fore_r, joint_mat),
             aimed_cone(scn, a + "_fore", mid, hand, fore_r, fore_r * 0.84, mat),
-            P.add_sphere(scn, a + "_hand", hand, fore_r * 1.7, hand_mat)]
+            P.add_sphere(scn, a + "_hand", hand, hand_r, hand_mat)]

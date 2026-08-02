@@ -57,6 +57,59 @@ lower, buried inside his chest, and no visor slit on that hero had ever appeared
 To skip the outline on a torso part, collect it in its own list, append that list to
 `tors`, and pass the names through `skip_extra`.
 
+**A HAND IS SIZED BY ITS RATIO TO THE WRIST, AND COMPARED ACROSS LINES IN WORLD
+UNITS.** The user's verdict on the battlemages was "their hands are too big",
+measured against the assassin. Two separate causes, and the second is the one that
+matters. `spritekit.limb()` builds a hand at `fore_r * 1.7`, which is 2.02 times the
+wrist it grows from once the forearm's own 0.84 taper is counted; the assassin's
+hand-written arms give 1.40. **Half of a mitt is a wrist too thin, not a hand too
+wide.** Fix both or the hand still reads wrong at a smaller radius.
+
+Compare sizes in WORLD units, never in builder coordinates. `finish()` scales every
+figure to the role height, and the factor it prints varies from 0.84 to 1.16 across
+the roster, so identical builder numbers render at different sizes. Read the factor
+off the render log line: `scaled 0.913 to 2.95 units`.
+
+`limb()`'s default is still 1.7 and both judged robed lines now override it: the
+battlemage and the mender pass `upper_r=0.145, fore_r=0.14, hand_r=0.17`, and any
+third robed hero should pass the same three so they match on the `heroes` sheet. What
+still takes the default is the frost adept, the eight townsfolk and `infernal_kit`,
+all of them unjudged. **Do not "fix" the default to sweep them in.** Changing a shared
+default silently re-renders every figure that ever accepted it, including ones already
+signed off; each family takes the override when its own review comes round.
+
+After any edit to a shared kit, prove the approved sprites did not move by rendering
+them and counting differing pixels against `assets/rendered/sprites/`. Blender can do
+it in one `--python-expr` with numpy over `bpy.data.images`, and the count separates
+the two cases outright: the mender read 0 across all four tiers when only the
+parameter was added, and 98-126 once it actually opted in.
+
+**ONLY ONE MASS AT THE SHOULDER LINE, AND MAKE IT CURVED.** The warmage carried a
+wide shallow mantle cone, pauldrons and a cuirass at the same height, and the three
+fused into one flat plate jutting across his chest. A 0.32-deep cone is a disc: it
+has one normal, so the ramp gives it one tone, and it is the widest thing on the
+figure. Spheres survive where it cannot, because they turn through all three tones
+and read as two bumps rather than one slab. Pick the pauldrons and delete the rest.
+
+**A HELD SHAFT MUST NOT TILT ITS HEAD ACROSS THE FACE.** The battlemage's war-staff
+leaned top-toward-the-body at 24 degrees and put its spearhead over his own cheek.
+Measure the blade tip's x against the HEAD's span, not against the figure: the head
+is about 0.27 either side of centre, so the tip needs to land past that with a few
+pixels to spare. Twelve degrees over a 2.3 shaft still leans ten pixels, which is
+plenty to read as angled.
+
+**HEADGEAR GOES ON ITS OWN ROOT, LIKE A WEAPON.** `finish()` measures `figure` and
+scales the body to the role height, so a hat or a crest listed in `figure` makes the
+man under it shorter to pay for itself. Parent it to its own root and pass that root
+in `roots`: it is still outlined, because `outline_all` walks the whole scene, and it
+is no longer measured. `crown_root` in `build_hero_battlemage.py` is the worked case.
+
+**A CREST IS AN ARC GROWN OUT OF THE HELM, NOT A BOX STOOD ON IT.** A tall rectangle
+seated on the warmage's helm read as a gold signboard floating over his head. Two
+things fix it, and it needs both: give it a tapering outline with `add_prism` so its
+shape says crest, and bury a third of it inside the shell, because a part that merely
+touches another part reads as a separate object.
+
 **A POSE HAS TO BE A GRIP A PERSON WOULD USE.** Four assassin arm poses picked purely
 for outline shape did separate the silhouettes and were rejected anyway: "the way he's
 holding the knives now doesn't really make sense" (user, 2026-08-02). Start from how

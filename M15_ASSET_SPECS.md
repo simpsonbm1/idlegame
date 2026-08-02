@@ -458,6 +458,43 @@ written at fixed coordinates stayed at the old pose's wrists once the arms moved
 they floated at the waist. Anything that rides a limb has to be derived from that limb's
 own posed position.
 
+### The battlemage line, APPROVED 2026-08-02
+
+The 2026-08-01 verdict was "all the same guy with a different staff and hat", and the
+code made it literally true: one shared robe cone, one chest, one arm pose and one
+vertical staff, with only the head and the staff's tip branching per tier.
+
+**The four differ in BODY SHAPE first**, because that is what a 112-pixel figure is read
+from. The Adept is a narrow hooded cone in undyed wool carrying no metal at all. The
+Battlemage is a MAN rather than a cone, with armoured legs showing under a knee-length
+war coat. The Warmage is an inverted triangle, all pauldron and plate under a crested
+helm. The Archmage is a diamond: broad hat, narrow shoulders, the widest hem in the line.
+Hue carries the second read, since four blues would not separate them -- undyed cream,
+crimson, deep azure, violet. The arcane blue is the only thing all four share, which is
+what keeps them one line, and the AMOUNT of it is the ladder from a single spark to a
+contained storm.
+
+Three changes the developer made during the review, each with its reason:
+
+1. **The Archmage carries a drawn sword, not a floating tome.** "Like a gandalf
+   staff-and-sword deal." It hangs lowered and angled out, because raised it crossed the
+   hat brim, and the hat is his other read.
+2. **The Battlemage carries an iron-shod war-staff, not a spear.** "He does read like a
+   spearman." A leaf point on a long shaft is a polearm whatever the man is wearing. It
+   is capped at BOTH ends, because one cap alone reads as the business end of something.
+   His twelve-degree lean stayed: the blade was doing the spearman read, not the angle.
+3. **The hands came down.** "Their hands are too big, compare them with the assassin."
+   Detail under the rule in `tools/blender/README.md`; the short version is that
+   `spritekit.limb()` built a hand 2.02x the wrist it grows from where the assassin's
+   hand-written arms give 1.40, and half of a mitt is a wrist too thin.
+
+**The mender was corrected at the same time** ("might as well fix the mender hands while
+we're here"). It had been approved and published earlier with the stock radii, so its
+hands rendered the size that had just been rejected, on a figure standing beside the
+battlemage on the `heroes` sheet. It now passes the battlemage's three numbers exactly.
+The frost adept, the eight townsfolk and the infernal family still take the old default
+and are unjudged; each gets the override at its own review.
+
 ### USER RULING 2026-08-02: every character and variant is individually designed
 
 "The idea is that every character/variant should be individually designed, not just

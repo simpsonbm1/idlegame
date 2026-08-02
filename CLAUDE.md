@@ -40,9 +40,9 @@ under several rounds of art feedback: the shared kits keep only what must be ide
 across the roster (rig, palette, outline weight, role height, limb construction), and
 everything that says who a character is belongs in that character's own builder.
 
-**The nine hero lines are being reworked one at a time against the user's review.** Six
-are approved and published (ranged, fighter, knight, mender, paladin, assassin); the
-battlemage, banneret and frost adept have not started.
+**The nine hero lines are being reworked one at a time against the user's review.** Seven
+are approved and published (ranged, fighter, knight, mender, paladin, assassin,
+battlemage); the banneret and frost adept have not started.
 `SESSION_HANDOFF.md` holds the loop and the pick-up point. Read
 `M15_ASSET_SPECS.md` and `tools/blender/README.md` before touching a hero builder — they
 carry the rules each rejected render paid for, and none of them are guessable.
@@ -103,9 +103,10 @@ Shipping the game to players who can't run a server is **M17: distribution & pac
 - `tools/process-art.html` / `tools/plot-placer.html` / `tools/scene-prototype.html` — art
   pipeline and layout tools
 - `tools/blender/` — **the art pipeline going forward** (user decision 2026-07-31). Python
-  that models and renders sprites, buildings and the backdrop as 3D pixel art, driven over
-  the Blender MCP connection with no manual modelling. Renders go to the gitignored
-  `tools/blender/out/`. **Read `tools/blender/README.md` before touching it** — it carries a
+  that models and renders sprites, buildings and the backdrop as 3D pixel art, with no
+  manual modelling. `render_all.py` drives Blender **headless**, one process per asset;
+  nothing here uses the Blender MCP connection, which is only for interactive work.
+  Renders go to the gitignored `tools/blender/out/`. **Read `tools/blender/README.md` before touching it** — it carries a
   dozen rules that each cost a real debugging round, and most of them are counter-intuitive
   (ramp stops go on a measured histogram, not evenly; terrain must be smooth-shaded; light
   azimuth differs per camera). Nothing here is wired into the game yet.
