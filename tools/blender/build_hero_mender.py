@@ -44,8 +44,16 @@ TIER = H.tier()
 if TIER == "base":
     TIER = "rare"           # the Cleric IS this builder's own sprite
 
-ROBE = {"common": "cream", "rare": "cream", "epic": "green", "legendary": "cream"}[TIER]
+# USER REVIEW 2026-08-01: "the epic one is fairly distinct, but common, rare and
+# legendary are nearly the same". They were, and the reason is that the ROBE is
+# most of this figure's pixels -- a cone from the shoulders to the floor. Three
+# cream robes swamped every other difference between them, including a bare head,
+# a mitre and three different staff tops. Four robes, four colours.
+# Undyed homespun, cream-and-gold, forest green, then liturgical violet.
+ROBE = {"common": "leath", "rare": "cream", "epic": "green", "legendary": "violet"}[TIER]
 BAND = {"common": None, "rare": "gold", "epic": "leath", "legendary": "brightgold"}[TIER]
+# The novice's linen bag reads against his brown robe; everyone else's is leather.
+SATCHEL = "cream" if TIER == "common" else "leath"
 
 figure, detail, noline = [], [], []
 
@@ -88,7 +96,7 @@ if TIER == "rare":
 elif TIER == "common":
     # a novice: bare headed, cropped hair, no ornament anywhere on him
     hd, hd_det = H.head(scn, M, HEAD_AT, r=0.27)
-    figure.append(P.add_sphere(scn, "hair", (0, 0.04, 2.92), 0.29, M["leath"],
+    figure.append(P.add_sphere(scn, "hair", (0, 0.04, 2.92), 0.29, M["charcoal"],
                                scale=(1.0, 1.0, 0.86), segs=12, rings=7))
 elif TIER == "epic":
     # the Druid: antlers. Nothing else in the roster has them, and they are the
@@ -110,7 +118,7 @@ else:
     # top of a head that is otherwise unchanged.
     hd, hd_det = H.head(scn, M, HEAD_AT, r=0.27)
     figure.append(P.add_cone(scn, "mitre", (0, -0.02, 3.14), 0.30, 0.06, 0.54,
-                             M["cream"], verts=10))
+                             M[ROBE], verts=10))
     detail.append(P.add_box(scn, "mitreband", (0, -0.22, 2.96), (0.52, 0.14, 0.10),
                             M["brightgold"]))
 figure += hd
@@ -124,8 +132,8 @@ if TIER == "epic":
                              M["green"], verts=6))
 else:
     figure.append(P.add_box(scn, "satchel", (0.46, -0.26, 1.58), (0.40, 0.30, 0.36),
-                            M["leath"], bevel=0.04))
-    detail.append(P.add_box(scn, "satchelflap", (0.46, -0.40, 1.72), (0.42, 0.18, 0.14), M["leath"]))
+                            M[SATCHEL], bevel=0.04))
+    detail.append(P.add_box(scn, "satchelflap", (0.46, -0.40, 1.72), (0.42, 0.18, 0.14), M[SATCHEL]))
     detail.append(P.add_box(scn, "bandage", (0.46, -0.42, 1.52), (0.30, 0.05, 0.16), M["cream"]))
 
 # ---- arms. The ORDER of these two calls names armL before armR, and

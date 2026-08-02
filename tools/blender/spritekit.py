@@ -197,6 +197,20 @@ def aimed_cyl(scn, name, a, b, radius, mat, verts=6):
     return ob
 
 
+def aimed_cone(scn, name, a, b, r_a, r_b, mat, verts=6):
+    """`aimed_cyl` with a different radius at each end, for a tapering limb.
+
+    `r_a` is the radius at `a` and `r_b` at `b`. The mesh's own +Z end is `b`,
+    which is why `radius1`/`radius2` go in that order.
+    """
+    from mathutils import Vector
+    va, vb = Vector(a), Vector(b)
+    d = vb - va
+    ob = P.add_cone(scn, name, tuple((va + vb) * 0.5), r_a, r_b, d.length, mat, verts=verts)
+    ob.rotation_euler = d.to_track_quat('Z', 'Y').to_euler()
+    return ob
+
+
 def tatters(scn, loc, width, mat, count=5, drop=0.34, seed=0):
     """Ragged strips hanging off a hem.
 
@@ -255,8 +269,16 @@ def limb(scn, shoulder, hand, mat, upper_r=0.075, fore_r=0.065, joint_mat=None,
     # the side from the shoulder's own x makes them unique without a single
     # builder having to pass anything.
     a = "armL" if sx < 0 else "armR"
-    return [P.add_sphere(scn, a + "_shoulder", shoulder, upper_r * 1.5, joint_mat),
-            aimed_cyl(scn, a + "_upper", shoulder, mid, upper_r, mat),
-            P.add_sphere(scn, a + "_elbow", mid, fore_r * 1.45, joint_mat),
-            aimed_cyl(scn, a + "_fore", mid, hand, fore_r, mat),
+    # SEGMENTS TAPER so every end cap is buried in the piece that swallows it.
+    # The outline is a per-object inverted hull, so an exposed cap draws a dark
+    # line straight across the limb, and five equal-width parts in a row read as
+    # a chain of separate lumps rather than an arm (user, 2026-08-01; the rule
+    # and its measurements are in README.md). The elbow sphere SHRANK for the
+    # same reason: at `fore_r * 1.45` it was fatter than both segments and its
+    # own outline was one of the lines. It is kept, at a size that hides inside
+    # the forearm, because `attack_roster.LIMB_L/R` names it as a moving part.
+    return [P.add_sphere(scn, a + "_shoulder", shoulder, upper_r * 1.6, joint_mat),
+            aimed_cone(scn, a + "_upper", shoulder, mid, upper_r, fore_r * 0.78, mat),
+            P.add_sphere(scn, a + "_elbow", mid, fore_r, joint_mat),
+            aimed_cone(scn, a + "_fore", mid, hand, fore_r, fore_r * 0.84, mat),
             P.add_sphere(scn, a + "_hand", hand, fore_r * 1.7, hand_mat)]
