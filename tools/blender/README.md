@@ -41,6 +41,28 @@ torso's chest sphere is wider than the jerkin in front of it. Every base sprite 
 verified pixel-identical after a tier rework; `H.stance()` must not be called on a
 hero whose own art is the epic or legendary tier.
 
+**EVERY CHARACTER AND EVERY VARIANT IS INDIVIDUALLY DESIGNED** (user ruling
+2026-08-02). They are not reassembled from parts shared with other units. `hero_kit`
+and `spritekit` exist for the things that must be IDENTICAL across the roster -- the
+rig, the palette, the outline weight, role height, limb construction -- not for
+identity. Anything that says who a character is belongs in that character's own
+builder. `hero_kit.head(helm=...)` is the cautionary case: one generic helmet shared
+by three heroes, and it read as a soft cap on all of them. It is deprecated; the
+paladin now builds his own three, and the fighter and banneret should grow theirs.
+
+**A part written in torso-local coordinates must go in `tors`, not `detail`.**
+Everything in `tors` is parented to `tors_root`; `detail` is parented to the FIGURE
+root instead. A paladin visor slit written at z 1.24 therefore rendered 1.4 units
+lower, buried inside his chest, and no visor slit on that hero had ever appeared.
+To skip the outline on a torso part, collect it in its own list, append that list to
+`tors`, and pass the names through `skip_extra`.
+
+**A DETAIL HAS TO BREAK THE SILHOUETTE OR IT DOES NOT EXIST.** The pig-faced
+bascinet's snout projected 0.08 past its helm shell, which is about two pixels, and
+was invisible. At 112 pixels a figure is read from its outline first, so a feature
+that stays inside another part's hull is wasted geometry. Measure the projection
+against the shell it grows from, not against the figure.
+
 **A LIMB'S SEGMENTS MUST TAPER INTO EACH OTHER, AND A JOINT SPHERE IS NOT THE FIX.**
 The outline is a per-object inverted hull (`pixelrig.outline`), so every part's end
 CAP carries its own dark shell and a cap sitting in open air draws a line straight

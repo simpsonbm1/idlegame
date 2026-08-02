@@ -123,6 +123,13 @@ def head(scn, M, loc, r=0.30, hood=None, helm=None, shadowed=False):
                                 r * 1.06, hood, scale=(1.0, 0.88, 1.0), segs=10, rings=6))
         fig.append(P.add_cone(scn, "hcowl", (x, y + r * 0.22, z - r * 1.24),
                               r * 1.42, r * 0.86, r * 0.96, hood, verts=10))
+    # `helm` IS DEPRECATED. Do not reach for it on a new hero.
+    # USER RULING 2026-08-02: every character and every rarity variant is
+    # INDIVIDUALLY DESIGNED, not reassembled from parts shared with other units.
+    # A helmet is the most identity-bearing thing an armoured figure owns, so it
+    # belongs in that hero's own builder. This generic one survives because the
+    # fighter's legendary and the banneret still use it and their art is either
+    # approved or unjudged; both should grow their own and drop it.
     if helm is not None:
         fig.append(P.add_sphere(scn, "hhelm", (x, y, z + r * 0.30), r * 1.14, helm,
                                 scale=(1.0, 1.0, 0.82), segs=12, rings=7))

@@ -409,6 +409,24 @@ Character rules from the top of this doc all apply. Escalation still runs plain 
 at Common up to the stuff of legend at Legendary; what changed is that presence and regalia are
 no longer the ONLY thing separating the tiers.
 
+### USER RULING 2026-08-02: every character and variant is individually designed
+
+"The idea is that every character/variant should be individually designed, not just
+reassembled from parts shared with the other units."
+
+This is the root of several rounds of feedback rather than another item in them. A
+shared builder can only produce a shared read, so a generic part is a generic
+character. The shared kits keep the things that must be IDENTICAL across the roster,
+which is the rig, the palette, the outline weight, role height and limb
+construction. Everything that says WHO a character is belongs in that character's
+own builder.
+
+The case that produced the ruling: one generic helmet in `hero_kit.head(helm=...)`
+was worn by the fighter, the paladin and the banneret, and read as a soft cap on all
+of them. Two attempts to fix the shared helmet were two attempts at the wrong
+problem. The paladin now builds three closed helms of his own, none of them
+repeating one of the guardian knight's four.
+
 ### USER REVIEW 2026-08-01: the first full-sheet verdict on all nine lines
 
 The developer judged all four tiers of all nine heroes side by side. **Only the ranged line
