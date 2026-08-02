@@ -118,7 +118,14 @@ const DUELS = [
 ];
 
 const GROUND_FRAC = 0.10;   // spritekit.GROUND_FRAC: world z=0 sits this far up every cell
-const SRC = key => '../assets/rendered/attack/' + key + '.png';
+
+// Stamped once per page load, so a reload always shows the newest render. These
+// sheets are republished constantly, and a cached one is worse than a stale
+// picture: the CELL SIZE is read off the image, so an old file lays the whole
+// stage out to the wrong size and the figure sits off its ground line. Both the
+// probe and the background use this same string, so it stays one request.
+const BUST = '?v=' + Date.now();
+const SRC = key => '../assets/rendered/attack/' + key + '.png' + BUST;
 
 function heroAll() {
   const out = [];
