@@ -49,15 +49,15 @@ have still never been judged.**
 `M15_ASSET_SPECS.md` and `tools/blender/README.md` before touching a hero builder — they
 carry the rules each rejected render paid for, and none of them are guessable.
 
-**The attack rig is fixed and the 32 hero attack sheets are rendered and published**
-(2026-08-02), awaiting the user's verdict. The detached limbs on every sheet came from
-`pixelrig.reparent_keep` applying one shared parent inverse to parts that each had their
-own parent chain, not from the inverse-kinematics solve. Three more faults went with it:
-attack shapes were signed against the world while heroes and enemies face opposite ways,
-a dual-wielder's two pivots both landed on one shoulder, and a two-handed swing dragged
-the shoulder masses across the face. **The 29 enemy sheets are not re-rendered**; they
-inherit the same fixes and need the same review pass. Review one with
-`compose_attack_contact.py`.
+**All 61 attack sheets are rendered and published** (2026-08-02), through one rig fix and
+one round of the developer's review in motion. **Judge animation by playing it**, with
+`tools/attack-preview.html`; stills cannot answer whether a swing reads, and asking for a
+verdict on contact sheets wasted a round. **Check framing with
+`render_attacks.py --check`**, never by eye — a clipped blade tip just looks like a short
+blade. The rules each fault paid for are in `tools/blender/README.md`, and the two that
+govern everything else are that a lunge must step in world X (world Y is the camera axis,
+where it moves nothing) and that a swing over about 60 degrees pulls an arm off its
+shoulder. Nothing here has been judged in motion yet.
 
 **None of it is wired into the game yet.**
 

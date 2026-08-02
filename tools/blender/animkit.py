@@ -191,7 +191,8 @@ def joint_between(scn, shoulder_groups):
     return sum(pts, Vector((0, 0, 0))) / len(pts)
 
 
-def pivot_arm(scn, root, shoulder_groups, part_names, weapon_root_name=None):
+def pivot_arm(scn, root, shoulder_groups, part_names, weapon_root_name=None,
+              name="atk_pivot"):
     """One empty at the derived joint, holding the arm parts AND the weapon.
 
     **The weapon goes in the pivot with the arms, which is what makes this safe
@@ -206,8 +207,12 @@ def pivot_arm(scn, root, shoulder_groups, part_names, weapon_root_name=None):
     the goblin brute stay as the worked example. For a plain swing this is
     simpler, has no bone lengths to get wrong, and works on figures whose limb
     parts share a name.
+
+    **`name` must be unique per pivot.** `P.find` matches on the name before
+    Blender's `.001` suffix, so two pivots called `atk_pivot` are one name to it
+    and a chained pivot would collect its own sibling.
     """
-    pivot = P.make_root(scn, "atk_pivot", loc=tuple(joint_between(scn, shoulder_groups)))
+    pivot = P.make_root(scn, name, loc=tuple(joint_between(scn, shoulder_groups)))
     pivot.parent = root
     pivot.matrix_parent_inverse = world_of(root).inverted()
     names = list(part_names)
@@ -220,24 +225,59 @@ def pivot_arm(scn, root, shoulder_groups, part_names, weapon_root_name=None):
     return pivot
 
 
+def chain_pivot(child, parent):
+    """Hang one pivot off another, so the child's joint rides the parent's arc.
+
+    **This is what lets a weapon turn about the FIST while the arm turns about
+    the shoulder.** A weapon whose mass sits at the shoulder cannot be swung from
+    the shoulder at all: the paladin's hammer head is at world z 2.14 and so is
+    his shoulder, so rotating his arm moved the head 0.58 units across a whole
+    chop and read as a caster's gesture. Rotating the hammer about the fist gives
+    it the haft's length as a lever, and chaining that pivot under the arm's keeps
+    the grip in the hand.
+
+    The child must be built FIRST, so it has already taken the weapon, and the
+    parent then takes the arm. Order the other way round and the arm pivot
+    collects the weapon too.
+    """
+    P.reparent_keep(parent, [child])
+    return child
+
+
 def swing_sheet(scn, key, root, pivots, frames, res=128, out_name=None):
-    """Render one frame per (lift, swing, lunge) triple as a horizontal sheet."""
+    """Render one frame per (lift, swing, lunge) triple as a horizontal sheet.
+
+    `pivots` is a list of pivot empties, or of `(pivot, frames)` pairs when a
+    pivot needs a table of its own. **Per-pivot tables are what an archer needs:**
+    a draw is the string hand travelling back while the bow hand holds still, and
+    one shared table can only rock the whole assembly.
+
+    **`lunge` is a STEP TOWARD THE ENEMY, in world x.** It used to move the figure
+    in y, which is the axis the camera looks down, so at this camera's 3-degree
+    tilt a 0.3 lunge produced under half a pixel on screen and every attack read
+    as happening on the spot. Multiplying by the facing sign sends heroes right
+    and enemies left, so one table steps both toward the fight.
+    """
     base = tuple(root.location)
     sign = facing_sign(root)
+    tracks = [p if isinstance(p, (tuple, list)) else (p, None) for p in pivots]
     px = anim_cam(scn, res)
 
-    def make(f):
-        lift, swing, lunge = f
-
+    def make(i):
         def pose():
-            for p in pivots:
-                p.rotation_euler = (math.radians(lift), math.radians(swing * sign), 0)
-            root.location = (base[0], base[1] + lunge, base[2])
+            for pivot, own in tracks:
+                lift, swing, _ = (own or frames)[i]
+                pivot.rotation_euler = (math.radians(lift),
+                                        math.radians(swing * sign), 0)
+            # The body follows the DEFAULT table, so a per-pivot override moves a
+            # limb without teleporting the man it belongs to.
+            root.location = (base[0] + frames[i][2] * sign, base[1], base[2])
         return pose
 
     out = P.out_dir()
     name = out_name or ("atk_" + key)
-    path = P.render_strip(scn, [make(f) for f in frames], os.path.join(out, name + ".png"))
+    path = P.render_strip(scn, [make(i) for i in range(len(frames))],
+                          os.path.join(out, name + ".png"))
     P.upscale_nearest(path, os.path.join(out, name + "_big.png"), 4, bg="#2a2320")
     print("%s -> %d frames (pivot)" % (name, len(frames)))
     return path
@@ -307,7 +347,7 @@ def twohand_sheet(scn, key, root, weapon_name, arms, frames, res=128,
                 P.aim_segment(a["up"], a["S"], elbow, a["a"])
                 P.aim_segment(a["fo"], elbow, hand, a["b"])
                 a["fi"].location = hand
-            root.location = (base[0], base[1] + lunge, base[2])
+            root.location = (base[0] + lunge * sign, base[1], base[2])
         return pose
 
     out = P.out_dir()
@@ -322,4 +362,6 @@ def twohand_sheet(scn, key, root, weapon_name, arms, frames, res=128,
 # the system Python can read the roster that uses them. Re-exported here for
 # anything already importing animkit.
 from attack_shapes import (OVERHAND, SMASH, SLASH, SWEEP, CAST,  # noqa: E402,F401
-                           LOOSE, CHOP)
+                           LOOSE, CHOP, BLESS, JAB, FROST,
+                           BOW_HOLD, BOW_DRAW, HAMMER_ARM, HAMMER_HEAD,
+                           POLE_ARM, POLE_HEAD)

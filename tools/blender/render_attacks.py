@@ -3,11 +3,19 @@
     python tools/blender/render_attacks.py            # every entry
     python tools/blender/render_attacks.py orc goblin # keys containing these
     python tools/blender/render_attacks.py --list
+    python tools/blender/render_attacks.py --check    # framing, renders nothing
 
 Same shape as `render_all.py` and for the same reason: one Blender process per
 sheet, so no state can leak between them. Reads `attack_roster.py`.
 
-Exit code is the number of failures.
+Exit code is the number of failures, or of clipped sheets under `--check`.
+
+**`--check` is how framing gets verified, because eyes cannot do it.** A swing
+that leaves its cell is cut off at the boundary, and on a strip of eight small
+cells a clipped blade tip looks like a short blade. It reports each sheet's
+smallest margin to any edge; anything at or below zero is losing pixels, and a
+margin in low single digits means the next tweak will. Raising an entry's `cell`
+is the fix, never shrinking the attack.
 """
 
 import argparse
@@ -44,10 +52,84 @@ scn = P.get_scene()
 # its root "hero_fighter_rare_root", so deriving the root from the MODULE name
 # instead finds nothing -- which is what it did.
 root = A.figure_root(scn, key)
-pivots = [A.pivot_arm(scn, root, sh, parts, weapon) for sh, parts, weapon in spec.groups]
-A.swing_sheet(scn, key, root, pivots, spec.frames, res=spec.cell,
+
+# Each pivot gets a UNIQUE name: `P.find` matches on the name before Blender's
+# `.001` suffix, so two empties called "atk_pivot" read as one name to it.
+made = [A.pivot_arm(scn, root, g.joint, g.parts, g.weapon, name="atk_pivot_%d" % i)
+        for i, g in enumerate(spec.groups)]
+# Chaining runs AFTER every pivot has taken its parts, so a parent cannot collect
+# a child's weapon on the way past.
+for g, p in zip(spec.groups, made):
+    if g.parent is not None:
+        A.chain_pivot(p, made[g.parent])
+tracks = [(p, g.frames) for g, p in zip(spec.groups, made)]
+A.swing_sheet(scn, key, root, tracks, spec.frames, res=spec.cell,
               out_name="atk_" + key)
 '''
+
+
+CHECK_SRC = '''"""Written by render_attacks.py --check. Reports each sheet's edge margin."""
+import os, sys
+import numpy as np
+import bpy
+HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.append(HERE)
+import attack_roster as R
+
+keys = set(os.environ["CHECK_KEYS"].split(","))
+worst = 10 ** 9
+for a in R.ATTACKS:
+    if a.key not in keys:
+        continue
+    p = os.path.join(HERE, "out", "atk_%s.png" % a.key)
+    if not os.path.exists(p):
+        print("%-30s NOT RENDERED" % a.key)
+        continue
+    img = bpy.data.images.load(p, check_existing=False)
+    w, h = img.size
+    buf = np.empty(w * h * 4, dtype=np.float32)
+    img.pixels.foreach_get(buf)
+    alpha = buf.reshape(h, w, 4)[:, :, 3]
+    bpy.data.images.remove(img)
+    margin, clipped = 10 ** 9, []
+    for i in range(w // a.cell):
+        sub = alpha[:, i * a.cell:(i + 1) * a.cell]
+        cols = np.where(sub.max(axis=0) > 0)[0]
+        rows = np.where(sub.max(axis=1) > 0)[0]
+        if not len(cols):
+            continue
+        # Blender buffers are bottom-up, so the LAST row is the top of the cell.
+        m = min(cols.min(), a.cell - 1 - cols.max(), h - 1 - rows.max())
+        margin = min(margin, m)
+        if m <= 0:
+            clipped.append(i)
+    worst = min(worst, margin)
+    print("%-30s cell %3d  margin %3d px%s"
+          % (a.key, a.cell, margin,
+             "  CLIPPED frames " + str(clipped) if clipped else ""))
+print("WORST %d" % worst)
+'''
+
+
+def run_check(wanted):
+    blender = find_blender()
+    path = os.path.join(HERE, "_check_attack.py")
+    with open(path, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(CHECK_SRC)
+    env = dict(os.environ)
+    env["CHECK_KEYS"] = ",".join(a.key for a in wanted)
+    proc = subprocess.run([blender, "--background", "--factory-startup",
+                           "--python", path],
+                          cwd=HERE, env=env, capture_output=True, text=True)
+    lines = [l for l in proc.stdout.splitlines()
+             if " margin " in l or "NOT RENDERED" in l or l.startswith("WORST")]
+    print("\n".join(lines) or proc.stdout[-2000:])
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+    return sum(1 for l in lines if "CLIPPED" in l)
 
 
 def main():
@@ -55,6 +137,8 @@ def main():
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("filters", nargs="*", help="only keys containing these strings")
     ap.add_argument("--list", action="store_true")
+    ap.add_argument("--check", action="store_true",
+                    help="report each rendered sheet's margin to the cell edge")
     args = ap.parse_args()
 
     import attack_roster as R
@@ -67,6 +151,9 @@ def main():
                   % (a.key, a.module, len(a.frames), a.cell))
         print("\n%d attack sheet(s)" % len(wanted))
         return 0
+
+    if args.check:
+        return run_check(wanted)
 
     blender = find_blender()
     with open(RUNNER, "w", encoding="utf-8", newline="\n") as fh:

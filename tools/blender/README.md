@@ -500,6 +500,62 @@ it, straight across the face. Rotate the arm chain and the weapon; leave the
 shoulder balls on the torso. They bury the upper arms' tops well enough that no
 gap opens at the joint.
 
+**A LUNGE IS A STEP IN WORLD X, TOWARD THE ENEMY.** Translating a figure in world
+Y buys nothing, because that is the axis the camera looks down: at its 3-degree
+tilt a 0.3 move is under half a pixel on screen. The step is multiplied by the
+facing sign, so heroes go right and enemies left off one shared table.
+
+This matters more than any angle. **A rotation alone never sends a weapon at
+anybody**, which is why the assassin read as waving his knives about (user,
+2026-08-02): his blades moved, he did not. About 0.4 world units is ten pixels at
+a 128 cell, which reads clearly without walking a figure out of its frame. The
+step is also what pays for keeping swings small, and swings have to be small --
+see the next rule.
+
+**A SWING OVER ABOUT 60 DEGREES TEARS THE ARM OFF.** A rigid pivot rotates the arm
+about one point, so a large angle carries the upper arm's top clear of the
+shoulder ball meant to swallow it and the arm reads as detached. That was the
+fighter at 92 degrees (user, 2026-08-02). Both halves of the fix are needed: take
+the shoulder masses WITH the arm, and stay under about 60. Impact comes from the
+step, not from more rotation.
+
+**A WEAPON WHOSE MASS SITS AT THE SHOULDER CANNOT BE SWUNG FROM THE SHOULDER.**
+Turn it about the FIST instead, on its own pivot chained under the arm's, which is
+what `attack_roster.Swing(parent=...)` and `animkit.chain_pivot` are for. The
+paladin's warhammer is carried head-up at world z 2.14 and his shoulder is at the
+same height, so an arm-only swing moves the head 0.58 units across a whole chop
+and reads as a caster's gesture. Rotating the hammer about the fist gives it the
+haft as a lever: the head then travels from x -0.77 behind him to x +0.41 in front
+and drops 0.36. The banneret's five-unit polearm is the same case. **List the
+weapon's pivot BEFORE the arm's**, or the arm pivot collects the weapon first.
+
+**PER-PIVOT TABLES ARE WHAT A BOW NEEDS.** A draw is the string hand traveling
+back while the bow hand holds still, and one shared table can only rock the whole
+assembly, which swings a two-unit bow across the archer's face. Give each pivot its
+own frames, and hand the arrow and the bowstring to the string hand so the nock
+visibly loads and then empties. The body's step follows the entry's default table,
+so an override moves a limb without teleporting the man.
+
+**THREE FIGURES HOLDING THE SAME PROP MUST NOT RUN THE SAME TABLE.** The mender,
+the battlemage and the frost adept all carry a staff in the left hand and all ran
+`CAST`, so all three played the identical animation and the developer read them as
+one character (user, 2026-08-02). What separates them is the PATH the staff takes,
+because that is all a silhouette carries: one holds at the top of a raise, one
+drives straight out off the longest step, one travels the widest arc and never
+steps at all.
+
+**A RAISE EXPRESSED AS A ROTATION LAYS A STAFF FLAT.** A vertical staff rotated
+about the shoulder tips over long before it lifts, so the mender's blessing at 50
+degrees put his own staff across his face. Under 30 keeps it upright. Actually
+raising it needs the pivot to TRANSLATE, which the (lift, swing, lunge) table
+cannot say.
+
+**FRAMING IS CHECKED WITH `render_attacks.py --check`, NOT WITH EYES.** It reports
+each sheet's smallest margin to a cell edge. A clipped blade tip on a strip of
+small cells just looks like a short blade, which is how the goblin boss kept all
+eight of his frames cut off at a 144 cell. Raise the entry's `cell`; never shrink
+the attack to fit. A margin in low single digits means the next tweak will clip.
+
 **ACCOUNT FOR WHERE THE WEAPON ALREADY IS.** A wind-up assumes the weapon starts
 low. The paladin carries his warhammer head-UP, so `OVERHAND` spent its whole
 raise laying the haft flat across his eyes and never got the head overhead;
