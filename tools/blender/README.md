@@ -84,6 +84,25 @@ it in one `--python-expr` with numpy over `bpy.data.images`, and the count separ
 the two cases outright: the mender read 0 across all four tiers when only the
 parameter was added, and 98-126 once it actually opted in.
 
+**A CONE IS PLACED BY ITS CENTRE AND AIMED BY ITS LOCAL +Z.** Both bite when you
+grow spikes out of a figure, and the frost adept's ice shards hit all four faces of
+it. `add_cone` centres on the location given, so a shard placed at the shoulder
+buries half its length inside the body and the visible half reads as a fringe on the
+collar; compute the centre as `base + direction * length / 2` instead. Its axis is
+local +Z, which `rot=(0, ry, 0)` maps to `(sin ry, 0, cos ry)`, so aiming a left-side
+spike outward and up needs ry NEGATIVE -- the sign that looks right is the one that
+points every shard back into the chest. Make them SHORT AND FAT: at 0.13 across a
+1.20 length they taper away within two pixels and read as antennae. And they must
+CONTRAST with what they grow from, which `ice` shards on an `ice` robe did not, so
+they had never once existed.
+
+**A SHOULDER WRAP IS WIDE AND SHORT, NEVER A CONE.** A cone whose base is at the
+chest and whose top is at the neck flares DOWNWARD, and at 112 pixels that reads as a
+bib rather than as fur over the shoulders -- the user could not identify it on two
+separate figures. Use two overlapping spheres across the shoulder line sharing one
+material: the inverted-hull outline draws no seam where they meet, so they read as a
+single wrap that follows the shoulders.
+
 **ONLY ONE MASS AT THE SHOULDER LINE, AND MAKE IT CURVED.** The warmage carried a
 wide shallow mantle cone, pauldrons and a cuirass at the same height, and the three
 fused into one flat plate jutting across his chest. A 0.32-deep cone is a disc: it

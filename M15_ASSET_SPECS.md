@@ -532,6 +532,37 @@ part that generalises: the value break goes at the ELBOW, never at the wrist. A 
 gauntlet closing a dark sleeve read as one more joint even after the geometry was
 correct, because the approved fighter shares one material between forearm and fist.
 
+### The frost adept line, APPROVED 2026-08-02 — and the rework is COMPLETE
+
+The last of the nine. Its verdict was "at scale they effectively look the exact same",
+and the code had not tried: one robe cone at one width, one arm pose, one staff, and all
+four tiers in the SAME pale ice-blue, so the only differences were a hood swapped for
+hair and a few crystals.
+
+**The hue ladder runs DARK TO PALE** — charcoal wool, ice blue, deep azure, near-white —
+because becoming winter is this line's arc, and four shades of one blue could never have
+separated them. Body shape carries the rest: a narrow-hemmed Frost Apprentice buried in
+a borrowed fur wrap, a Frost Adept with no shoulder mass at all under a high standing
+collar, a Rimecaller with ice bursting out of her, and Winter's Voice with the widest hem
+and shoulders made of ice.
+
+Two changes the developer asked for, and both were the same defect twice. A fur wrap
+built as a cone flares DOWNWARD from the neck, so at sprite scale it reads as a bib
+rather than as fur: "i dont really understand the white cone under the common one's
+head", then "legendary appears to have a bib too". A shoulder wrap has to be wide and
+short, following the shoulder line.
+
+**"I think the legendary needs to go a bit further"** had two real faults under it. The
+Rimecaller was carrying MORE ice than Winter's Voice, who had a crown and no shoulder ice
+at all, so the tier below out-did her at the one thing the line escalates. And a
+near-white robe over near-white sleeves under pale-blue ice is one washed mass with no
+internal edges. She lost the fur mantle and gained ice shoulders — six shards to the
+Rimecaller's four — plus hem spikes, a taller crown, and a navy gown down the front to
+give every white thing on her a value to sit against.
+
+**All nine hero lines are now approved and published.** The rules these reworks paid for
+live in `tools/blender/README.md`; the per-line records are the APPROVED headings above.
+
 ### USER RULING 2026-08-02: every character and variant is individually designed
 
 "The idea is that every character/variant should be individually designed, not just

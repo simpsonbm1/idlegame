@@ -40,9 +40,11 @@ under several rounds of art feedback: the shared kits keep only what must be ide
 across the roster (rig, palette, outline weight, role height, limb construction), and
 everything that says who a character is belongs in that character's own builder.
 
-**The nine hero lines are being reworked one at a time against the user's review.** Eight
-are approved and published (ranged, fighter, knight, mender, paladin, assassin,
-battlemage, banneret); only the frost adept is left.
+**The nine hero rarity lines are COMPLETE** — all reworked against the user's review and
+published (2026-08-02). The per-line records are in `M15_ASSET_SPECS.md` under the
+APPROVED headings; the rules the rejected renders paid for are in
+`tools/blender/README.md`. **The five enemy families, the buildings and the townsfolk
+have still never been judged**, and the attack sheets are broken for every character.
 `SESSION_HANDOFF.md` holds the loop and the pick-up point. Read
 `M15_ASSET_SPECS.md` and `tools/blender/README.md` before touching a hero builder — they
 carry the rules each rejected render paid for, and none of them are guessable.
