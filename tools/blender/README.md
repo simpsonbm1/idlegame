@@ -243,28 +243,34 @@ key, recomposes every canonical contact sheet FROM the published files, and
 records every pixel hash in `assets/rendered/manifest.json`. Three properties
 carry the whole cross-machine story:
 
-- **Change detection is by PIXEL HASH** (`hash_pngs.py`), because Blender's PNG
-  bytes vary per run. `--dry-run` reporting "0 changed" after a re-render of
-  untouched builders is the expected result, and 115 files were verified to
-  report exactly that. The old byte-compare called all 83 sprites changed every
-  time, which is why publishing degenerated into the hand copies that caused
-  every drift.
+- **Change detection is by PIXEL HASH** (`pixhash.py` -- THE one definition,
+  Pillow under the system Python), because Blender's PNG bytes vary per run.
+  `--dry-run` reporting "0 changed" after a re-render of untouched builders is
+  the expected result, and 115 files were verified to report exactly that, in
+  0.3 seconds. The old byte-compare called all 83 sprites changed every time,
+  which is why publishing degenerated into the hand copies that caused every
+  drift. **Changing the hash definition means regenerating the manifest
+  (`publish.py --init-manifest`) in the SAME commit** -- no two definitions may
+  coexist.
 - **Canonical sheets are composed from `assets/rendered/`, never from `out/`.**
   `out/` is gitignored and never travels, so on 2026-08-02 sheets composed from
   it were committed showing four banneret sprites and twenty hero attack sheets
   the repository did not have. A sheet is a claim about the repository, so it is
   built from the repository; a stale `out/` can no longer poison one. The
+  composers write CANDIDATES into `out/` and `publish.py` does all bookkeeping:
+  Blender turns pixels into pixels, one system-Python tool owns every hash. The
   renderers no longer auto-compose canonical sheets at all. For judging
   UNPUBLISHED renders, the scratch modes remain: `compose_contact.py -- --line
   <hero>` and `compose_attack_contact.py -- <filter>`, both reading and writing
   `out/` only.
-- **The manifest records provenance, and the guard checks it as text.** Each
-  sheet entry carries the hash of every file it was composed from; the
-  pre-commit guard requires the manifest to travel with any art change, every
-  staged PNG to be bookkept, and every sheet's recorded inputs to match the
-  manifest's current entries -- no image decoding at commit time. All four
-  refusal paths are exercised in tests, and the block was fire-verified through
-  a real `git commit`.
+- **The guard verifies the STAGED PIXELS themselves.** Three layers: art
+  obliges its sheets in the same commit; every sheet's recorded inputs must
+  match the manifest's current entries; and every staged PNG is decoded from
+  its staged git blob and its pixel hash must equal its manifest entry. That
+  third layer is what catches a hand copy smuggled around `publish.py` -- it
+  was fire-verified refusing a real commit of a hand-copied sprite. The guard
+  FAILS CLOSED if Pillow is missing under the hook's interpreter, printing the
+  install command; it never degrades to the text-only check.
 
 Judging happens from `assets/rendered/` (the attack preview and the committed
 sheets both read it), so publish BEFORE asking for a verdict and `git checkout`
@@ -272,10 +278,14 @@ to reject. Publishing stays deliberate to keep history small: PNGs do not
 delta-compress, and four full render passes in one evening would have added
 about 76 MB if `out/` were committed.
 
-Residual gap, named: a hand copy that overwrites a published PNG without
-touching the manifest leaves a hash the guard cannot see past. There is no
-remaining reason to hand-copy; if `publish.py`'s report is ever wrong, fix the
-tool.
+Machine bootstrap: both interpreters need the imaging libraries, because the
+hook invokes `python` while sessions use `py`, and on Windows those are two
+different installs:
+
+```bash
+py -m pip install pillow numpy
+python -m pip install pillow numpy
+```
 
 **One Blender process per asset, deliberately.** A shared session lets state leak
 between builds, and that already happened: the necromancer on disk was rendered

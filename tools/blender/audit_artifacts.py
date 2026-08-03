@@ -14,28 +14,26 @@ sheets twice in one day, and then a third way on 2026-08-02: sheets composed
 from a stale scratch directory were committed showing four banneret sprites and
 twenty hero attack sheets the repository did not have.
 
-Two layers of defence, both cheap text checks with zero image decoding:
+Three layers of defence:
 
 1. **Staged-set completeness** (the original guard): publishing a sprite obliges
    the sheets that display it, in the same commit.
 2. **Manifest consistency**: `assets/rendered/manifest.json` records the pixel
    hash of every published file and, for each sheet, the hashes of the files it
-   was composed FROM (written by `publish.py` and the composers -- the only
-   sanctioned path). The guard requires the manifest to travel with any art
-   change, requires every staged PNG to be bookkept in it, and requires every
+   was composed FROM (written by `publish.py`, the only sanctioned path). The
+   guard requires the manifest to travel with any art change and requires every
    sheet's recorded inputs to match the manifest's own current entries. A sheet
-   whose inputs disagree is stale BY THE PIPELINE'S OWN RECORDS, whatever its
-   bytes look like.
+   whose inputs disagree is stale BY THE PIPELINE'S OWN RECORDS.
+3. **Staged pixels match the manifest.** Every staged PNG under
+   `assets/rendered/` is decoded FROM ITS STAGED BLOB (`git show :path`) and
+   its pixel hash must equal its manifest entry. This is what catches the
+   hand copy that layer 2 cannot: a PNG smuggled in around `publish.py` hashes
+   differently from what the manifest records, whatever its bytes look like.
+   Pixels, not bytes, because Blender's PNG encoding varies between runs.
 
-**Why not compare file contents.** Blender's PNG encoding varies between runs,
-so bytes cannot distinguish re-render noise from real change, and decoding
-pixels at commit time needs Blender. The manifest is written at the moment the
-pixels are in hand; the guard only has to check it against itself.
-
-Residual gap, named: a PNG hand-copied over a published file without touching
-the manifest leaves a stale hash the guard cannot see past. The manifest-staged
-requirement narrows it, and `publish.py` existing is the fix -- there is no
-reason left to hand-copy.
+Layer 3 needs Pillow under the hook's interpreter and FAILS CLOSED without it,
+printing the install command -- the accepted desktop-bootstrap speed bump
+(user-approved install, 2026-08-02). It never degrades to the text-only check.
 """
 
 import json
@@ -106,6 +104,11 @@ def staged_manifest():
     return json.loads(proc.stdout)
 
 
+def staged_blob(path):
+    proc = subprocess.run(["git", "show", ":" + path], capture_output=True)
+    return proc.stdout if proc.returncode == 0 else None
+
+
 def check_manifest(staged_set, fail):
     art = [p for p in staged_set
            if p.startswith("assets/rendered/") and p.endswith(".png")]
@@ -123,11 +126,31 @@ def check_manifest(staged_set, fail):
         fail("cannot read the staged %s." % MANIFEST)
         return
 
-    for p in art:
+    # Fail CLOSED if the pixel check cannot run: a guard that silently skips its
+    # strongest layer is how a bootstrap gap becomes a drift. `pixhash` raises
+    # with the install command when Pillow is absent; that message IS the
+    # refusal text.
+    try:
+        import pixhash
+    except ImportError as e:
+        fail(str(e))
+        return
+
+    for p in sorted(art):
         rel = p[len("assets/rendered/"):]
         if rel not in man:
             fail("%s is staged with no manifest entry." % p)
             fail("  Only publish.py writes art here; hand copies are the drift.")
+            continue
+        blob = staged_blob(p)
+        if blob is None:
+            fail("cannot read the staged blob of %s." % p)
+            continue
+        px = pixhash.hash_bytes(blob)
+        if px != man[rel].get("px"):
+            fail("%s: staged pixels do not match the manifest." % p)
+            fail("  This file did not come through publish.py. Re-run:"
+                 " python tools/blender/publish.py")
 
     # Every sheet's recorded inputs must match the manifest's current entries.
     # Checked globally, not only for staged sheets: a staged sprite with an
