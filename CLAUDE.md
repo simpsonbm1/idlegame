@@ -64,9 +64,8 @@ failed.** The three casters passed, because almost any movement reads as spellca
 the banneret passed as workable. **The fighter, the paladin, the assassin and the archer
 were all rejected for the same root cause: a rigid pivot cannot raise a grip or extend an
 arm.** All four are now REBUILT on inverse kinematics. The fighter and the paladin are
-approved, and **the assassin and the archer passed on 2026-08-03** after a second pass.
-**The banneret is rebuilt on the same method and is the one hero still awaiting a verdict**
-in `tools/attack-preview.html`. The archer's IDLE SPRITE was rebuilt in that pass (user
+approved, and the assassin, the archer and the banneret all passed on 2026-08-03.
+**ALL EIGHT HEROES NOW PASS IN MOTION.** The archer's IDLE SPRITE was rebuilt in that pass (user
 ruling 2026-08-03): he holds the bow in his screen-forward hand with the string down the
 middle of his body, because the old pose could not be animated into a draw at all. Read
 the Animation section of `tools/blender/README.md` first -- it now carries twenty-six
