@@ -67,6 +67,13 @@ def jobs():
     for g in roster.GROUPS + ["all_characters"]:
         out.append((os.path.join(SRC, "sheet_%s_big.png" % g),
                     os.path.join(DEST, "sheets", g + ".png")))
+    # **Attack contact sheets are ARTIFACTS, not scratch** (user ruling
+    # 2026-08-02: "if it requires re-rendering then it isn't a durable artifact
+    # and I do not consider it an asset"). They lived only in `out/` for a while,
+    # which meant reviewing an animation on a second machine began with a render.
+    for g, _ in attack_roster.SHEET_GROUPS:
+        out.append((os.path.join(SRC, "sheet_attacks_%s.png" % g),
+                    os.path.join(DEST, "sheets", "attacks_" + g + ".png")))
     return out
 
 

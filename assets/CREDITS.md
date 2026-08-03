@@ -158,8 +158,9 @@ folders is covered by this entry:**
 8 townsfolk, 9 buildings.
 `rendered/attack/*` — 63 eight-frame attack sheets, one per combatant plus the 27 hero
 rarity variants.
-`rendered/sheets/*` — contact sheets, one per group, for reviewing the set on a machine
-without Blender installed.
+`rendered/sheets/*` — contact sheets for reviewing the set on a machine without Blender
+installed: one per sprite group, plus `attacks_*` laying each combatant's eight animation
+frames out in a captioned row.
 
 Source and method: modelled and rendered entirely in-house from Python in
 `tools/blender/`, no image generator involved and no third-party art. Rebuildable from

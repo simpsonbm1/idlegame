@@ -221,7 +221,18 @@ Renders land in `tools/blender/out/`, which is gitignored. Paths resolve from
 
 **`out/` is SCRATCH; `assets/rendered/` is the artifact.** The scratch directory
 holds debug renders, probe images and eight-times upscales, and a render pass
-rewrites all 350 files in it. Promote finished work with:
+rewrites all 350 files in it.
+
+**IF LOOKING AT IT REQUIRES A RE-RENDER, IT IS NOT AN ASSET** (user ruling
+2026-08-02: "if it requires re-rendering then it isn't a durable artifact and I do
+not consider it an asset"). That covers contact sheets, not just sprites. The
+attack contact sheets lived only in `out/` for a day, which meant reviewing an
+animation on a second machine began with installing Blender and rendering the
+roster; they are published now, and `render_attacks.py` writes them at the end of
+every run the way `render_all.py` always has. Anything a human is asked to judge
+belongs in `assets/rendered/`.
+
+Promote finished work with:
 
 ```bash
 python tools/blender/publish.py --dry-run   # what would change

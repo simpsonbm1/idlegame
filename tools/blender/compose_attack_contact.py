@@ -122,18 +122,36 @@ def sheet(entries, path, upscale=UPSCALE):
     return save_rgba(big, path)
 
 
+def write_group(name, filters):
+    entries = rows(filters)
+    if not entries:
+        return None
+    path = sheet(entries, os.path.join(HERE, "out", "sheet_attacks_%s.png" % name))
+    print("%s -> %d attack(s)" % (path, len(entries)))
+    return path
+
+
 def main():
     # Blender puts its OWN arguments in sys.argv, so only what follows `--`
     # belongs to this script.
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     filters = [a for a in argv if not a.startswith("-")]
-    entries = rows(filters or None)
-    tag = "_".join(f.lstrip("=") for f in filters) if filters else "all"
+
+    # No filter means write every reviewable group, which is what `render_attacks`
+    # calls and what `publish.py` expects to find. A filter writes one ad-hoc sheet
+    # for looking at a specific thing.
+    import attack_roster as R
+    if not filters:
+        for name, f in R.SHEET_GROUPS:
+            write_group(name, f)
+        return 0
+
+    tag = "_".join(f.lstrip("=") for f in filters)
     if len(tag) > 40:
         tag = tag[:40].rstrip("_") + "_etc"
-    name = "sheet_attacks_%s.png" % tag
-    p = sheet(entries, os.path.join(HERE, "out", name))
-    print("%s -> %d attack(s)" % (p, len(entries)))
+    entries = rows(filters)
+    path = sheet(entries, os.path.join(HERE, "out", "sheet_attacks_%s.png" % tag))
+    print("%s -> %d attack(s)" % (path, len(entries)))
     return 0
 
 

@@ -272,3 +272,23 @@ for _a in ATTACKS:
         _variants.append(Attack(_a.key + "_" + _t, _a.module, _a.groups, _a.frames,
                                 _a.cell, env={"HERO_TIER": _t}))
 ATTACKS += _variants
+
+
+# The groups a human reviews an ANIMATION in, and the names their contact sheets
+# are published under. Lives here, not in `compose_attack_contact`, because
+# `publish.py` runs under the SYSTEM Python and must be able to read it without
+# Blender -- the same reason `attack_shapes` carries no `bpy` import.
+#
+# Heroes are split from their rarity variants because 32 rows in one image is
+# about 15,000 pixels tall.
+SHEET_GROUPS = [
+    ("heroes",   ["=hero_fighter", "=hero_ranged", "=hero_mender", "=hero_paladin",
+                  "=hero_assassin", "=hero_battlemage", "=hero_banneret",
+                  "=hero_frostadept"]),
+    ("variants", ["hero_"]),
+    ("goblin",   ["goblin_"]),
+    ("orc",      ["orc_"]),
+    ("bandit",   ["bandit_"]),
+    ("undead",   ["undead_"]),
+    ("infernal", ["infernal_"]),
+]
