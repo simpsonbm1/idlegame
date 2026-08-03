@@ -437,7 +437,8 @@ def _resolve_mid(scn, m, mine):
     return Vector(m)
 
 
-def ik_poses(scn, root, weapon_name, arms, frames, mid=None, stretch=0.22):
+def ik_poses(scn, root, weapon_name, arms, frames, mid=None, stretch=0.22,
+             link_specs=None):
     """One callable per frame, each posing the whole figure. No rendering.
 
     Split out of `twohand_sheet` so `probe_rig.py` can MEASURE an
@@ -469,7 +470,7 @@ def ik_poses(scn, root, weapon_name, arms, frames, mid=None, stretch=0.22):
     weapon's matrix. Without it the archer's draw was whatever his shoulder
     rotation could reach, which was his own stomach (user, 2026-08-02).
     """
-    from mathutils import Matrix, Euler, Vector
+    from mathutils import Matrix, Euler, Quaternion, Vector
     specs = ([{"root": weapon_name, "mid": mid}] if isinstance(weapon_name, str)
              else [dict(w) for w in weapon_name])
 
@@ -543,12 +544,59 @@ def ik_poses(scn, root, weapon_name, arms, frames, mid=None, stretch=0.22):
     for wi, ws in enumerate(specs):
         ob = P.find(scn, ws["root"])[0]
         mine = [a for a in solved if a["w"] == wi] or solved
+        rest = P.world_matrix(ob)
+        # ---- AIM: turn the weapon to POINT somewhere, rather than by an angle --
+        # A fixed swing column cannot be shared across a rarity line, because each
+        # tier holds its weapon differently and the same angle therefore leaves
+        # each blade pointing somewhere else. The assassin's four tiers grip their
+        # knives at four rotations by design. Naming the DIRECTION instead makes
+        # one table correct on all of them.
+        aim = None
+        if ws.get("aim"):
+            axis = Vector(ws.get("axis", (0.0, 0.0, 1.0)))
+            rest_dir = (rest.to_3x3() @ axis).normalized()
+            tgt = Vector(ws["aim"])
+            aim = rest_dir.rotation_difference(
+                Vector((tgt.x * facing_sign(root), tgt.y, tgt.z)).normalized())
         weapons.append({
             "ob": ob,
-            "rest": P.world_matrix(ob),
+            "rest": rest,
             "par": _parent_world(ob),
             "mid": _resolve_mid(scn, ws.get("mid"), mine),
             "frames": ws.get("frames"),
+            "aim": aim,
+            # `"follow": <index>` composes another weapon's MOTION on top of this
+            # one's own, which is what a nocked arrow needs: it rides the bow
+            # wherever the bow goes, and its own table says only how far back the
+            # string hand has dragged it. Without this a driven weapon is placed
+            # from its own rest matrix alone, so the bow would move out from under
+            # the arrow. Order matters -- a follower must be listed after what it
+            # follows.
+            "follow": ws.get("follow"),
+        })
+
+    # ---- LINKS: a part that has to stretch between two moving things ---------
+    # A bowstring is the case. Each half spans a fixed limb tip, which rides the
+    # bow, and the nock, which the drawing hand drags away from it -- so neither
+    # end is still and no parenting expresses it. A straight string while the hand
+    # pulls back reads as the archer having let go of it.
+    #
+    # The anchored end is DERIVED: of the part's two ends, it is the one farther
+    # from the moving weapon's rest origin. That way one entry describes the upper
+    # half and the lower half alike, and neither names a coordinate.
+    links = []
+    for lk in (link_specs or []):
+        part = P.find(scn, lk["part"])[lk.get("n", 0)]
+        rides, to = weapons[lk.get("rides", 0)], weapons[lk["to"]]
+        e0, e1 = segment_ends(part)
+        nock = to["rest"].translation
+        anchor = max((e0, e1), key=lambda e: (e - nock).length)
+        links.append({
+            "ob": part,
+            "anchor": rides["rest"].inverted() @ anchor,
+            "rides": rides,
+            "to": to,
+            "len": (e0 - e1).length,
         })
 
     # Grips are captured in the WEAPON's own space off world positions, so the
@@ -570,11 +618,22 @@ def ik_poses(scn, root, weapon_name, arms, frames, mid=None, stretch=0.22):
                 dx, dz = (f[3], f[4]) if len(f) > 4 else (0.0, 0.0)
                 R = Euler((math.radians(lift), math.radians(swing * sign), 0),
                           'XYZ').to_matrix().to_4x4()
+                # A sixth column blends the weapon from its rest orientation to
+                # the entry's `aim` direction: 0 is the idle sprite, 1 is fully
+                # pointed. It multiplies on the LEFT of the rest pose, so the
+                # blade ends up along the named world direction whatever angle the
+                # tier happens to carry it at.
+                if w["aim"] is not None and len(f) > 5 and f[5]:
+                    R = (R @ Quaternion().slerp(w["aim"], f[5]).to_matrix().to_4x4())
                 # Travel is applied in WORLD space, after the rotation, so `dz`
                 # means "this far up the screen" whatever angle the weapon is at.
                 T = Matrix.Translation(Vector((dx * sign, 0.0, dz)))
                 w["world"] = (T @ Matrix.Translation(w["mid"]) @ R
                               @ Matrix.Translation(-w["mid"]) @ w["rest"])
+                if w["follow"] is not None:
+                    lead = weapons[w["follow"]]
+                    w["world"] = (lead["world"] @ lead["rest"].inverted()
+                                  @ w["world"])
                 w["ob"].matrix_basis = w["par"].inverted() @ w["world"]
             for a in solved:
                 # The grip in world, then into this arm's own space to solve.
@@ -590,6 +649,16 @@ def ik_poses(scn, root, weapon_name, arms, frames, mid=None, stretch=0.22):
                 a["fi"].location = hand
                 for ob in a["cover"]:
                     ob.location = elbow
+            for lk in links:
+                # **The parent transform is read NOW, not at rest.** A bowstring
+                # hangs off the bow, and the bow has already moved this frame, so
+                # a cached parent inverse applies the bow's travel a second time:
+                # the string climbed with the bow and never followed the nock back
+                # at all.
+                par_inv = _parent_world(lk["ob"]).inverted()
+                A = par_inv @ (lk["rides"]["world"] @ lk["anchor"])
+                B = par_inv @ lk["to"]["world"].translation
+                P.aim_segment(lk["ob"], A, B, lk["len"])
             root.location = (base[0] + frames[i][2] * sign, base[1], base[2])
         return pose
 
@@ -597,7 +666,7 @@ def ik_poses(scn, root, weapon_name, arms, frames, mid=None, stretch=0.22):
 
 
 def twohand_sheet(scn, key, root, weapon_name, arms, frames, res=128,
-                  mid=None, stretch=0.22, out_name=None):
+                  mid=None, stretch=0.22, out_name=None, link_specs=None):
     """Drive the weapon; solve each arm to reach its grip.
 
     `arms` is a list of dicts with `shoulder` (part names to derive the joint
@@ -634,7 +703,8 @@ def twohand_sheet(scn, key, root, weapon_name, arms, frames, res=128,
     only turns, where a low centre is what keeps the arc off the face.
     """
     px = anim_cam(scn, res)
-    poses = ik_poses(scn, root, weapon_name, arms, frames, mid=mid, stretch=stretch)
+    poses = ik_poses(scn, root, weapon_name, arms, frames, mid=mid,
+                     stretch=stretch, link_specs=link_specs)
     out = P.out_dir()
     name = out_name or ("atk_" + key)
     path = P.render_strip(scn, poses, os.path.join(out, name + ".png"))
@@ -649,7 +719,7 @@ def twohand_sheet(scn, key, root, weapon_name, arms, frames, res=128,
 from attack_shapes import (OVERHAND, SMASH, SLASH, SWEEP, CAST,  # noqa: E402,F401
                            CHOP, LOOSE, CHOP_ARMS, CHOP_BLADE,
                            HAMMER_SWING, HAMMER_WRIST, POLE_ARM, POLE_HEAD,
-                           BOW_DRAW, BOW_BODY, BOW_PUSH, BOW_HAND,
+                           BOW_DRAW, BOW_BODY, BOW_PUSH, BOW_HAND, ARROW_DRAW, NOCK_DRAW,
                            DAGGER_ARM, DAGGER_WRIST,
                            STAB_LEAD, STAB_REAR, STAB_BODY,
                            BLESS, BLESS_HAND, JAB, JAB_HAND, FROST, FROST_HAND)

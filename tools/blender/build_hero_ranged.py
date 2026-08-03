@@ -114,10 +114,10 @@ if TIER == "common":
     tors.append(P.add_box(scn, "baldric", (0, -0.34, 0.46), (0.94, 0.09, 0.14),
                           M["leath"], rot=(0, math.radians(30), 0)))
 elif TIER == "rare":
-    # A shooting glove and a long bracer, on bare arms. The Sharpshooter's whole
-    # read is that he is dressed for speed and carries nothing spare.
-    tors.append(P.add_cyl(scn, "bracer", (-0.58, -0.42, 0.18), 0.17, 0.40,
-                          M["leath"], verts=8, rot=(math.radians(64), 0, 0)))
+    # A shooting glove on bare arms. The Sharpshooter's whole read is that he is
+    # dressed for speed and carries nothing spare. It is built with the arms
+    # below, because a fixed coordinate strands it once the pose changes -- which
+    # is exactly what happened to it.
     tors.append(P.add_box(scn, "sash", (0, -0.30, 0.30), (0.92, 0.14, 0.20),
                           M["crimson"], rot=(0, math.radians(-22), 0)))
 elif TIER == "epic":
@@ -202,19 +202,68 @@ else:
                                 (0.06, 0.06, 0.14), M["crimson"]))
 
 # ---------------------------------------------------------------------------
-# arms. The names here are a CONTRACT with attack_roster.py -- see the docstring.
-# ---------------------------------------------------------------------------
+# arms, and the SHOOTING STANCE the animation needs
+#
+# The names here are a CONTRACT with attack_roster.py -- see the docstring.
+#
+# **USER 2026-08-03: "he should probably be holding the bow in his other hand, so
+# that the string can be around the middle of his body with his other hand resting
+# on it."** The old pose put the bow low on his screen-LEFT with the string hand
+# at his belly, nowhere near the string, and no animation starting from it could
+# read as a draw: pulling the string hand back brought it TOWARD the bow instead
+# of away, because the bow was already behind it on screen.
+#
+# So the bow moved to the RIGHT hand, which is the screen-forward side, and the
+# string now runs down the body's centre line with the left hand on it. A draw is
+# then the left hand travelling screen-BACK while the right arm holds the bow out,
+# and the gap between the hands opens along the axis the camera can see.
+#
+# These are the two points everything else is built from.
+GRIP_T = (0.34, -0.66, 0.30)        # right fist, and the bow's own grip
+STRING_T = (0.04, -0.66, 0.30)      # left fist, on the string, at the body's middle
+
+
+def _from_torso(p):
+    """A torso-local point in FIGURE space.
+
+    `H.torso` leans the torso root about X, so the arms live in a rotated space
+    while `bow_root` is a figure-level root. Placing the bow at the fists' raw
+    torso coordinates leaves it off by the lean, which is 0.09 at this reach.
+    """
+    t = math.radians(-BUILD["lean"])
+    x, y, z = p
+    return (x,
+            y * math.cos(t) - z * math.sin(t),
+            HIP + 0.14 + y * math.sin(t) + z * math.cos(t))
+
+
 for s in (-1, 1):
     tors.append(P.add_sphere(scn, "shoulder", (s * 0.50, -0.08, 0.66), 0.21,
                              CLOTH, scale=(1, .95, .88)))
-tors.append(P.add_cyl(scn, "upperL", (-0.54, -0.20, 0.48), 0.145, 0.46, SLEEVE, verts=8))
-tors.append(P.add_cyl(scn, "foreL", (-0.60, -0.48, 0.30), 0.13, 0.46, SLEEVE, verts=8,
-                      rot=(math.radians(58), 0, 0)))
-tors.append(P.add_sphere(scn, "fistL", (-0.62, -0.66, 0.24), 0.15, M["skin"]))
-tors.append(P.add_cyl(scn, "upperR", (0.54, -0.22, 0.44), 0.145, 0.46, SLEEVE, verts=8))
-tors.append(P.add_cyl(scn, "foreR", (0.42, -0.50, 0.20), 0.13, 0.46, SLEEVE, verts=8,
-                      rot=(math.radians(46), 0, math.radians(16))))
-tors.append(P.add_sphere(scn, "fistR", (0.30, -0.64, 0.10), 0.15, M["skin"]))
+
+# Both arms are AIMED between their joints rather than placed and rotated by hand,
+# so the segments actually span shoulder to elbow to fist. The elbow spheres are
+# named after the FOREARM deliberately: `attack_roster` lists `foreL` among an
+# arm's parts, and `pixelrig.find` matches names before Blender's `.001`, so a
+# sphere called `elbowL` would be left behind by anything that moves the arm.
+ARM = {
+    "L": ((-0.50, -0.08, 0.66), (-0.46, -0.40, 0.30), STRING_T),
+    "R": ((0.50, -0.08, 0.66), (0.56, -0.36, 0.34), GRIP_T),
+}
+for side, (sh, elbow, fist) in ARM.items():
+    tors += [S.aimed_cyl(scn, "upper" + side, sh, elbow, 0.145, SLEEVE, verts=8),
+             P.add_sphere(scn, "fore" + side, elbow, 0.155, SLEEVE, segs=8, rings=5),
+             S.aimed_cyl(scn, "fore" + side, elbow, fist, 0.13, SLEEVE, verts=8),
+             P.add_sphere(scn, "fist" + side, fist, 0.15, M["skin"])]
+
+if TIER == "rare":
+    # On the STRING arm, which is the left one now: a glove takes the string, and
+    # a bracer would belong on the bow arm.
+    _e, _f = ARM["L"][1], ARM["L"][2]
+    tors.append(S.aimed_cyl(scn, "glove",
+                            tuple(_e[i] + (_f[i] - _e[i]) * 0.58 for i in range(3)),
+                            tuple(_e[i] + (_f[i] - _e[i]) * 0.98 for i in range(3)),
+                            0.17, M["leath"], verts=8))
 P.parent_all(tors_root, tors + hd_det)
 
 # ---------------------------------------------------------------------------
@@ -232,7 +281,12 @@ BOW = {
     "legendary": dict(bulge=0.82, reach=1.78, r=0.062, recurve=0.30, mat="brightgold"),
 }[TIER]
 
-bw_root = P.make_root(scn, "bow_root", rot=(0, 4, 0), loc=(-0.66, -0.82, 1.60))
+# **Turned to face the other way, and seated on the STRING.** The root sits where
+# the string runs, so the grip -- at bow-local x -0.30 -- lands 0.30 further along
+# the screen once the 180 about Z flips the bow's belly away from the body. That
+# is what puts the grip in the right fist and the string under the left one
+# without either coordinate being typed twice.
+bw_root = P.make_root(scn, "bow_root", rot=(0, -4, 180), loc=_from_torso(STRING_T))
 bow = []
 # **The common archer keeps 10 segments.** He is approved, shipped art, and
 # raising the count for the recurve tips reshaped his bow as a side effect. A
@@ -250,16 +304,42 @@ for i in range(N + 1):
 for i in range(N):
     bow.append(S.aimed_cyl(scn, "bowlimb", pts[i], pts[i + 1], BOW["r"],
                            M[BOW["mat"]], verts=5))
-bow.append(S.aimed_cyl(scn, "bowstring", pts[0], pts[-1], 0.020, M["cream"], verts=4))
+# **TWO HALVES MEETING AT THE NOCK**, not one cylinder tip to tip. A drawn bow's
+# string is a V, and a single straight segment stays straight while the hand pulls
+# away from it, which reads as the archer letting go of a taut string. Each half
+# is re-aimed at the arrow's nock every frame by `animkit`'s `links`. They meet at
+# the bow's own origin, which is where `arrow_root` sits.
+bow.append(S.aimed_cyl(scn, "bowstring", pts[0], (0, 0, 0), 0.020, M["cream"], verts=4))
+bow.append(S.aimed_cyl(scn, "bowstring", (0, 0, 0), pts[-1], 0.020, M["cream"], verts=4))
 bow.append(P.add_box(scn, "bowgrip", (-0.30, 0.0, 0.0), (0.10, 0.13, 0.30), M["leath"]))
-bow.append(P.add_cyl(scn, "arrow", (-0.16, -0.04, -0.34), 0.024, 1.20, M["wood"], verts=4,
-                     rot=(0, math.radians(14), 0)))
-bow.append(P.add_cone(scn, "arrowhead", (-0.30, -0.04, -0.94), 0.05, 0.0, 0.16,
-                      TRIM or M["steel"], rot=(math.radians(180), 0, 0), verts=5))
 if TRIM:
     for z in (-BOW["reach"] * 0.46, BOW["reach"] * 0.46):
         bow.append(P.add_cyl(scn, "bownock", (-0.10, 0.0, z), 0.07, 0.10, TRIM, verts=6))
 P.parent_all(bw_root, bow)
+
+# ---------------------------------------------------------------------------
+# the arrow, NOCKED AND LEVEL, on its own root so the draw can pull it back
+#
+# It used to hang parallel to the limbs, pointing at the ground -- a carry, not a
+# shot. A real nocked arrow lies IN the bow's plane, square across the limbs, and
+# that plane is the one the camera sees, so the whole shaft reads at full length.
+# Its own root exists so `attack_roster` can drag it back with the string hand and
+# let it go; `animkit`'s `follow` keeps it riding the bow meanwhile.
+# ---------------------------------------------------------------------------
+# The NOCK is its own empty, and the bowstring follows THIS rather than the shaft.
+# On the release frame the string has to snap straight while the arrow keeps
+# going, so the two cannot be the same object: pointing the string at the shaft
+# made it chase the loosed arrow out in front of the bow.
+nk_root = P.make_root(scn, "nock_root", loc=(0.0, 0.0, 0.0))
+nk_root.parent = bw_root
+
+ar_root = P.make_root(scn, "arrow_root", loc=(0.0, 0.0, 0.0))
+P.parent_all(ar_root, [
+    P.add_cyl(scn, "arrow", (-0.56, -0.03, 0.0), 0.024, 1.20, M["wood"], verts=4,
+              rot=(0, math.radians(-90), 0)),
+    P.add_cone(scn, "arrowhead", (-1.24, -0.03, 0.0), 0.05, 0.0, 0.16,
+               TRIM or M["steel"], rot=(0, math.radians(-90), 0), verts=5)])
+ar_root.parent = bw_root
 
 H.finish(scn, px, "hero_ranged", figure, detail, noline,
          roots=[tors_root, bw_root], skip_extra=tuple(o.name for o in hd_det),

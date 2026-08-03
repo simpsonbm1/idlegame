@@ -64,11 +64,15 @@ failed.** The three casters passed, because almost any movement reads as spellca
 the banneret passed as workable. **The fighter, the paladin, the assassin and the archer
 were all rejected for the same root cause: a rigid pivot cannot raise a grip or extend an
 arm.** All four are now REBUILT on inverse kinematics. The fighter and the paladin are
-approved; **the assassin and the archer are rendered, published and awaiting the
-developer's eye in `tools/attack-preview.html`.** Read the Animation section of
-`tools/blender/README.md` first -- it now carries nineteen rules, and the four newest are
-about MEASUREMENT rather than posing: a bone's length is its joint-to-joint distance
-measured in the arm's own parent space, and `top_joint` is a hint rather than a shoulder.
+approved; **the assassin and the archer are on a second pass after a 2026-08-03
+rejection, rendered, published and awaiting the developer's eye in
+`tools/attack-preview.html`.** The archer's IDLE SPRITE was rebuilt in that pass (user
+ruling 2026-08-03): he holds the bow in his screen-forward hand with the string down the
+middle of his body, because the old pose could not be animated into a draw at all. Read
+the Animation section of `tools/blender/README.md` first -- it now carries twenty-six
+rules. The newest cover measurement (a bone's length is its joint-to-joint distance in
+the arm's own parent space) and orientation (point a weapon at a DIRECTION, never by an
+angle, because a rarity line grips one weapon four ways).
 **Nothing outside the heroes has been judged in motion at all.**
 
 **None of it is wired into the game yet.**

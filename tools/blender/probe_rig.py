@@ -69,7 +69,8 @@ def main():
     # renderer's own posing code, called here so the numbers below describe the
     # attack that actually ships.
     poses = A.ik_poses(scn, root, spec.ik.weapon, spec.ik.arms, spec.frames,
-                       mid=spec.ik.mid, stretch=spec.ik.stretch) if spec.ik else None
+                       mid=spec.ik.mid, stretch=spec.ik.stretch,
+                       link_specs=spec.ik.links) if spec.ik else None
 
     made = [] if poses else [A.pivot_arm(scn, root, g.joint, g.parts, g.weapon,
                                          name="probe_pivot_%d" % i)

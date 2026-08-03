@@ -59,7 +59,7 @@ root = A.figure_root(scn, key)
 if spec.ik:
     A.twohand_sheet(scn, key, root, spec.ik.weapon, spec.ik.arms, spec.frames,
                     res=spec.cell, mid=spec.ik.mid, stretch=spec.ik.stretch,
-                    out_name="atk_" + key)
+                    out_name="atk_" + key, link_specs=spec.ik.links)
 else:
     # Each pivot gets a UNIQUE name: `P.find` matches on the name before Blender's
     # `.001` suffix, so two empties called "atk_pivot" read as one name to it.

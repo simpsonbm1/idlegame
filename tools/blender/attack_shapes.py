@@ -207,22 +207,32 @@ HAMMER_SWING = [(0, 0, 0), (-8, 12, -0.06), (-14, 20, -0.1), (-10, 2, 0.06), (-1
 # version moved a fist a tenth of that. The body's step stays small on purpose --
 # a body sliding forward as one rigid piece read as him thrusting his pelvis at
 # the enemy (user, 2026-08-02). The extension is the attack; the step underlines it.
-STAB_LEAD = [(0, 0, 0, 0, 0),
-             (0, -14, 0, -0.16, 0.06),
-             (0, -20, 0, -0.24, 0.10),
-             (0, 8, 0, 0.34, 0.04),
-             (0, 16, 0, 0.62, -0.02),
-             (0, 10, 0, 0.40, -0.02),
-             (0, 4, 0, 0.16, 0.00),
-             (0, 0, 0, 0, 0)]
-STAB_REAR = [(0, 0, 0, 0, 0),
-             (0, -8, 0, -0.10, 0.04),
-             (0, -14, 0, -0.18, 0.08),
-             (0, -18, 0, -0.24, 0.12),
-             (0, 8, 0, 0.30, 0.06),
-             (0, 16, 0, 0.58, 0.00),
-             (0, 8, 0, 0.26, -0.01),
-             (0, 0, 0, 0, 0)]
+# **The sixth column POINTS the blade**, blending from the idle grip at 0 to level
+# and straight at the enemy at 1. It exists because a stab that only travels is
+# still the idle silhouette sliding forward: "he's just pushing it forward in the
+# same orientation as the idle" (user, 2026-08-03). A knife has to turn to face
+# what it is going into.
+#
+# It is a DIRECTION rather than an angle for a reason. This line's four tiers grip
+# their knives at four different rotations by design, so one swing column leaves
+# four blades pointing four ways, and only naming the target direction is correct
+# on all of them.
+STAB_LEAD = [(0, 0, 0, 0, 0, 0.00),
+             (0, 0, 0, -0.16, 0.06, 0.30),
+             (0, 0, 0, -0.24, 0.10, 0.55),
+             (0, 0, 0, 0.34, 0.04, 0.90),
+             (0, 0, 0, 0.62, -0.02, 1.00),
+             (0, 0, 0, 0.40, -0.02, 0.85),
+             (0, 0, 0, 0.16, 0.00, 0.40),
+             (0, 0, 0, 0, 0, 0.00)]
+STAB_REAR = [(0, 0, 0, 0, 0, 0.00),
+             (0, 0, 0, -0.10, 0.04, 0.20),
+             (0, 0, 0, -0.18, 0.08, 0.40),
+             (0, 0, 0, -0.24, 0.12, 0.60),
+             (0, 0, 0, 0.30, 0.06, 0.90),
+             (0, 0, 0, 0.58, 0.00, 1.00),
+             (0, 0, 0, 0.26, -0.01, 0.55),
+             (0, 0, 0, 0, 0, 0.00)]
 # The body under those two: a small brace back and a small step in. Its lift and
 # swing columns drive nothing, because every weapon here carries its own table.
 STAB_BODY = [(0, 0, 0), (0, 0, -0.05), (0, 0, -0.09), (0, 0, 0.10),
@@ -242,13 +252,35 @@ STAB_BODY = [(0, 0, 0), (0, 0, -0.05), (0, 0, -0.09), (0, 0, 0.10),
 # owns, so a few degrees is already visible and thirty lay it across his face --
 # the same rule the staff heroes pay.
 BOW_PUSH = [(0, 0, 0, 0, 0),
-            (2, -3, 0, 0.09, 0.13),
-            (4, -5, 0, 0.19, 0.25),
-            (5, -6, 0, 0.24, 0.30),
-            (4, -4, 0, 0.30, 0.28),
-            (2, -2, 0, 0.17, 0.17),
-            (1, -1, 0, 0.06, 0.06),
+            (0, 0, 0, 0.06, 0.06),
+            (0, 0, 0, 0.12, 0.10),
+            (0, 0, 0, 0.15, 0.12),
+            (0, 0, 0, 0.19, 0.11),
+            (0, 0, 0, 0.10, 0.06),
+            (0, 0, 0, 0.04, 0.02),
             (0, 0, 0, 0, 0)]
+# The arrow's own draw, RELATIVE TO THE BOW, which it follows. Frame 4 is the
+# loose: the shaft leaves the string and is back on it by frame 5, because eight
+# frames have no room to fly one anywhere and still return to rest.
+ARROW_DRAW = [(0, 0, 0, 0, 0),
+              (0, 0, 0, -0.16, 0.06),
+              (0, 0, 0, -0.34, 0.12),
+              (0, 0, 0, -0.44, 0.15),
+              (0, 0, 0, 0.70, 0.10),
+              (0, 0, 0, 0, 0),
+              (0, 0, 0, 0, 0),
+              (0, 0, 0, 0, 0)]
+# The NOCK follows the drawing hand and then SNAPS STRAIGHT. Same table as the
+# shaft up to frame 3 and nothing like it on frame 4, which is the whole
+# difference between a string releasing and a string being towed away by an arrow.
+NOCK_DRAW = [(0, 0, 0, 0, 0),
+             (0, 0, 0, -0.16, 0.06),
+             (0, 0, 0, -0.34, 0.12),
+             (0, 0, 0, -0.44, 0.15),
+             (0, 0, 0, 0.06, 0.02),
+             (0, 0, 0, 0, 0),
+             (0, 0, 0, 0, 0),
+             (0, 0, 0, 0, 0)]
 # Back and UP: a draw ends at the cheek, not at the ribs. The release is the jump
 # from frame 3 to frame 4, where the hand comes forward and the height holds.
 #
@@ -257,12 +289,12 @@ BOW_PUSH = [(0, 0, 0, 0, 0),
 # his drawing fist at world z 2.72 with his shoulder at 2.13 -- above his own head,
 # which is a salute rather than a draw. Measured, not guessed.
 BOW_HAND = [(0, 0, 0),
-            (-0.10, 0, 0.09),
-            (-0.22, 0, 0.17),
-            (-0.28, 0, 0.21),
-            (-0.06, 0, 0.18),
-            (-0.02, 0, 0.11),
-            (-0.01, 0, 0.04),
+            (-0.16, 0, 0.06),
+            (-0.34, 0, 0.12),
+            (-0.44, 0, 0.15),
+            (-0.06, 0, 0.10),
+            (-0.02, 0, 0.05),
+            (-0.01, 0, 0.01),
             (0, 0, 0)]
 
 # SUPERSEDED by BOW_PUSH and BOW_HAND above, and kept only for what it records:

@@ -652,6 +652,53 @@ offset as well, or both arms punch out together and it reads as a shove rather
 than as two strikes. Only the ENTRY's table moves the figure, so a per-weapon
 lunge column is read by nothing.
 
+**A WEAPON THAT ONLY TRAVELS IS THE IDLE SILHOUETTE SLIDING FORWARD.** The
+assassin's stab moved his fists 0.80 units and was still rejected: "he's just
+pushing it forward in the same orientation as the idle" (user, 2026-08-03). A
+knife has to turn to face what it is going into. Travel answers "does the arm
+extend"; orientation answers "is this a stab", and both have to be yes.
+
+**POINT A WEAPON AT A DIRECTION, NOT BY AN ANGLE.** A swing column cannot be
+shared across a rarity line, because each tier grips its weapon differently by
+design and the same angle therefore leaves four blades pointing four ways. The
+assassin's four carry theirs at rotations 152, -14, -168 and 160 degrees apart.
+`ik.weapon[i]["aim"]` names the world direction the weapon's own +z should come
+to, and a sixth frame column blends from the idle grip to fully pointed. **Zero
+the swing column on an aimed table**: it composes on top of the aim, and 16
+degrees of leftover swing tipped the levelled blade 0.15 below the grip.
+
+**A BOW NEEDS ITS REST POSE TO BE A SHOOTING STANCE, AND THE ARCHER'S WAS NOT.**
+His approved idle held the bow low on the screen-LEFT with the string hand at his
+belly, so pulling that hand back brought it TOWARD the bow rather than away, and
+the gap that reads as a draw could never open. **USER RULING 2026-08-03: "he
+should probably be holding the bow in his other hand, so that the string can be
+around the middle of his body with his other hand resting on it."** With the bow
+in the screen-forward hand and the string down the body's centre line, a draw is
+the far hand travelling back along the one axis the camera sees. Seat the bow root
+ON THE STRING and let the grip's own local offset place it in the far fist, so
+neither hand's coordinate is typed twice.
+
+**A NOCKED ARROW LIES IN THE BOW'S PLANE, SQUARE ACROSS THE LIMBS.** The archer's
+ran parallel to them, pointing at the ground, which is a carry rather than a shot.
+The bow's plane is the one the camera sees, so an arrow in it reads at full
+length; an arrow perpendicular to it is invisible.
+
+**A WEAPON MAY RIDE ANOTHER: `"follow": <index>`.** A nocked arrow goes wherever
+the bow goes, and its own table then says only how far the string hand has dragged
+it. Without this each driven weapon is placed from its own rest matrix alone, so
+the bow moves out from under the arrow. A follower must be listed after what it
+follows.
+
+**A PART SPANNING TWO MOVING THINGS NEEDS `links`, AND ITS PARENT TRANSFORM READ
+PER FRAME.** A bowstring half runs from a limb tip, which rides the bow, to the
+nock, which the hand drags away -- no parenting expresses that, and a straight
+string while the hand pulls back reads as the archer having let go. Two traps
+here, both silent. Caching the part's parent inverse at rest applies the bow's own
+travel a second time, so the string climbed with the bow and never followed the
+nock at all. And **the nock must be a separate empty from the arrow shaft**: point
+the string at the shaft and it chases the loosed arrow out in front of the bow
+instead of snapping straight.
+
 **A HAND HAS TO BE ON THE HANDLE IN THE MODEL, AND STANDING STILL HIDES IT.** The
 fighter's lower fist sat at sword-local z +0.129, inside a crossguard spanning
 +0.066 to +0.174, with the grip entirely below both hands at -0.240 to +0.040. It

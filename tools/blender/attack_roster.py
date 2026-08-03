@@ -60,13 +60,19 @@ class IK:
     An arm may carry `"track"`, a per-frame `(dx, dy, dz)` added to its grip in
     world space. That is how a hand LEAVES its weapon -- an archer's string hand
     travels back and up while his bow hand holds the bow still.
+
+    A weapon may carry `"aim"`, a world direction its own +z should come to point
+    along, blended by a SIXTH frame column from 0 (the idle grip) to 1 (fully
+    pointed). Name a direction rather than an angle whenever a rarity line holds
+    the same weapon four different ways, which is every line here.
     """
 
-    def __init__(self, weapon, arms, mid=None, stretch=0.22):
+    def __init__(self, weapon, arms, mid=None, stretch=0.22, links=None):
         self.weapon = weapon
         self.arms = arms
         self.mid = mid
         self.stretch = stretch
+        self.links = links
 
 
 class Swing:
@@ -158,13 +164,19 @@ ATTACKS = [
     # holds the same bow but carries its own world-space `track`, so it leaves the
     # bow, goes back to the cheek and returns. The bowstring and the arrow stay on
     # the bow, because an arm that takes them carries them off the limbs.
-    Attack("hero_ranged", "build_hero_ranged", [], A.BOW_BODY, cell=128,
-           ik=IK([{"root": "bow_root", "frames": A.BOW_PUSH, "mid": "bowgrip"}],
-                 [{"shoulder": ("^upperL",), "upper": "upperL", "fore": "foreL",
-                   "hand": "fistL", "pole": "rest", "joint": "segment"},
-                  {"shoulder": ("^upperR",), "upper": "upperR", "fore": "foreR",
-                   "hand": "fistR", "pole": "rest", "joint": "segment",
-                   "track": A.BOW_HAND}])),
+    Attack("hero_ranged", "build_hero_ranged", [], A.BOW_BODY, cell=208,
+           ik=IK([{"root": "bow_root", "frames": A.BOW_PUSH, "mid": "bowgrip"},
+                  {"root": "arrow_root", "frames": A.ARROW_DRAW, "mid": "bowgrip",
+                   "follow": 0},
+                  {"root": "nock_root", "frames": A.NOCK_DRAW, "mid": "bowgrip",
+                   "follow": 0}],
+                 [{"shoulder": ("^upperR",), "upper": "upperR", "fore": "foreR",
+                   "hand": "fistR", "pole": "rest", "joint": "segment"},
+                  {"shoulder": ("^upperL",), "upper": "upperL", "fore": "foreL",
+                   "hand": "fistL", "pole": "rest", "joint": "segment",
+                   "track": A.BOW_HAND}],
+                 links=[{"part": "bowstring", "n": 0, "rides": 0, "to": 2},
+                        {"part": "bowstring", "n": 1, "rides": 0, "to": 2}])),
     # He BLESSES rather than casts. All three staff heroes ran `CAST` and played
     # the identical animation (user, 2026-08-02); his is the one that holds at the
     # top of the raise.
@@ -198,9 +210,11 @@ ATTACKS = [
     # hand that holds it, so the elbows straighten as the blades go out. The near
     # knife leads and the far one lands two frames later, which is what makes it
     # two strikes rather than one shove.
-    Attack("hero_assassin", "build_hero_assassin", [], A.STAB_BODY, cell=176,
-           ik=IK([{"root": "dagR_root", "frames": A.STAB_LEAD, "mid": "hands"},
-                  {"root": "dagL_root", "frames": A.STAB_REAR, "mid": "hands"}],
+    Attack("hero_assassin", "build_hero_assassin", [], A.STAB_BODY, cell=192,
+           ik=IK([{"root": "dagR_root", "frames": A.STAB_LEAD, "mid": "hands",
+                   "aim": (1.0, 0.0, 0.0)},
+                  {"root": "dagL_root", "frames": A.STAB_REAR, "mid": "hands",
+                   "aim": (1.0, 0.0, 0.0)}],
                  [{"shoulder": ("^upperR",), "upper": "upperR", "fore": "foreR",
                    "hand": "fistR", "pole": "rest", "joint": "segment", "weapon": 0},
                   {"shoulder": ("^upperL",), "upper": "upperL", "fore": "foreL",
