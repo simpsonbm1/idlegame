@@ -79,13 +79,23 @@ def main():
             A.chain_pivot(piv, made[g.parent])
     tracks = list(zip(made, [g.frames for g in spec.groups]))
 
+    # `name#2` picks the SECOND part of that name, in build order. A dual-wielder
+    # builds both blades in one loop, so both are called "dagblade" and probing
+    # the name alone silently measures only the first one -- which is how a knife
+    # attack could read forwards on one hand and backwards on the other and still
+    # look measured.
     parts = []
     for n in names:
-        found = P.find(scn, n)
+        base, _, idx = n.partition("#")
+        found = P.find(scn, base)
         if not found:
-            print("no part named %r on %s" % (n, key))
+            print("no part named %r on %s" % (base, key))
             continue
-        parts.append((n, found[0]))
+        i = int(idx) - 1 if idx else 0
+        if i >= len(found):
+            print("only %d part(s) named %r on %s" % (len(found), base, key))
+            continue
+        parts.append((n, found[i]))
     if not parts:
         return 2
 

@@ -592,6 +592,66 @@ LOCAL fist positions, two spaces about 0.8 units apart on the fighter. Nothing
 errors and the sheet renders; the arm simply reaches for the wrong point. Probe
 the rest pose against frame 0 and the mismatch is one column of numbers.
 
+**AN ARM SOLVES IN ITS PARENT'S SPACE, SO ITS BONE LENGTHS MUST BE MEASURED
+THERE.** That space is SCALED -- 1.162 on the assassin -- and a world-measured
+bone fed to `two_bone_ik` comes back multiplied by it: his solver placed an elbow
+0.70 from a shoulder it had been told was 0.60 away, on frame 0, where the idle
+sprite has to match. This is the same class of error as the world-shoulder and
+local-target mix above, one layer down, and it is equally silent.
+
+**A BONE'S LENGTH IS ITS JOINT-TO-JOINT DISTANCE, NOT HOW LONG ITS MESH
+MEASURES.** The two differ here: the rare assassin's forearm mesh reports 0.577
+against a 0.496 elbow-to-fist gap. Both mesh measures over-report, because a
+bounding box is not exact under this parent chain -- `max(dimensions)` reads a
+decomposed `matrix_world`, and projecting bbox corners onto the world axis lets
+the segment's own radius leak in. A mesh length breaks frame 0 twice: the solver
+believes the arm reaches further than it does, and `aim_segment` then scales the
+mesh by gap-over-mesh-length and visibly shrinks it. **The fighter and the
+paladin are still solved from `max(dimensions)` on purpose**, because their
+sheets are approved art; `animkit.arm_joints` and the exact path are opt-in per
+arm with `"joint": "segment"`.
+
+**`top_joint("^upperR")` IS NOT THE SHOULDER ON A TILTED ARM.** It reports a
+bounding-box TOP, which is the joint only while the upper arm hangs near-vertical
+-- true of the fighter and the paladin, false of the rare assassin holding a parry
+dagger with his elbow high, where it lands 0.36 from the real joint and the solver
+bends an elbow the model built straight. Read the upper arm's own two ends
+instead. **Which end is which cannot be settled by distance to the hand**: that
+test reads backwards on a folded arm, and the same figure's other arm keeps its
+knife up beside his shoulder, so his fist is nearer his shoulder than his elbow
+is. Use `top_joint` as a HINT to choose between the two ends, which is all it is
+good for and all that is needed.
+
+**A LIMB NAME CAN BE TWO OBJECTS.** The assassin's elbow sphere is called `foreL`
+deliberately, so a rigid pivot listing `foreL` carries it along. Under inverse
+kinematics the same name has to resolve the other way: `find()[0]` picks the
+SPHERE, measures its diameter as the forearm and leaves the real forearm unposed.
+Take the longest part as the segment and drop the others on the solved elbow.
+
+**A POLE VECTOR CANNOT BE BORROWED ACROSS A RARITY LINE.** Four tiers are four
+different people with four different arm poses, and the fighter's
+`(1.1, 0.30, -0.8)` on the epic assassin put his solved elbow at world x 1.12 with
+his own fist at 0.97 -- the elbow in front of the hand. Write `"pole": "rest"` and
+`animkit.rest_pole` derives it from where the model's own elbow sits. A rest pose
+with no bend left to read falls back to hanging the elbow down and back, because
+`two_bone_ik`'s own fallback is straight UP.
+
+**A HAND CAN LEAVE ITS WEAPON, AND SOMETIMES MUST.** An archer's bow hand holds
+the bow while his string hand travels to his cheek, so the two cannot both follow
+one weapon matrix. An arm may carry `"track"`, a per-frame world-space offset
+added to its grip. **Budget it against the weapon's own travel**, which the hand
+already inherits: a 0.54 track on top of the bow's 0.37 rise put the archer's
+drawing fist at world z 2.72 with his shoulder at 2.13, above his own head, which
+is a salute. 0.21 lands it at his cheek.
+
+**A DUAL-WIELDER IS TWO DRIVEN WEAPONS.** `ik.weapon` takes a list, each entry
+with its own frame table, and an arm names its own with `"weapon": <index>`.
+Driving both knives off one matrix would weld the hands into a single block --
+the rigid-pivot failure again under another name. Give the two tables a two-frame
+offset as well, or both arms punch out together and it reads as a shove rather
+than as two strikes. Only the ENTRY's table moves the figure, so a per-weapon
+lunge column is read by nothing.
+
 **A HAND HAS TO BE ON THE HANDLE IN THE MODEL, AND STANDING STILL HIDES IT.** The
 fighter's lower fist sat at sword-local z +0.129, inside a crossguard spanning
 +0.066 to +0.174, with the grip entirely below both hands at -0.240 to +0.040. It
@@ -669,12 +729,14 @@ haft as a lever: the head then travels from x -0.77 behind him to x +0.41 in fro
 and drops 0.36. The banneret's five-unit polearm is the same case. **List the
 weapon's pivot BEFORE the arm's**, or the arm pivot collects the weapon first.
 
-**PER-PIVOT TABLES ARE WHAT A BOW NEEDS.** A draw is the string hand traveling
-back while the bow hand holds still, and one shared table can only rock the whole
-assembly, which swings a two-unit bow across the archer's face. Give each pivot its
-own frames, and hand the arrow and the bowstring to the string hand so the nock
-visibly loads and then empties. The body's step follows the entry's default table,
-so an override moves a limb without teleporting the man.
+**PER-PIVOT TABLES ARE WHAT A BOW NEEDS**, and they are still not enough. A draw
+is the string hand traveling back while the bow hand holds still, and one shared
+table can only rock the whole assembly, which swings a two-unit bow across the
+archer's face. Per-pivot frames fix that much. What they cannot fix is that the
+string hand rests at his BELLY, so any rotation about his shoulder carries it
+around his belly: "just punching himself in the stomach" (user, 2026-08-02). The
+hand has to TRAVEL, which is the `track` column above. Leave the bowstring and the
+arrow on the bow; an arm that takes them carries them off the limbs.
 
 **THREE FIGURES HOLDING THE SAME PROP MUST NOT RUN THE SAME TABLE.** The mender,
 the battlemage and the frost adept all carry a staff in the left hand and all ran

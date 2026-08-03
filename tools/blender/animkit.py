@@ -117,17 +117,42 @@ def top_joint(scn, names):
     return centre_of(max(parts, key=lambda o: centre_of(o).z))
 
 
+def limb_parts(scn, name):
+    """The SEGMENT of that name, and any other parts sharing it.
+
+    **A limb name is not always one object.** The assassin's elbow sphere is
+    called `foreL` on purpose, because `attack_roster` lists `foreL` among the
+    parts a rigid pivot carries and a sphere called `elbowL` would be left behind
+    by the swing. Under inverse kinematics the same name has to resolve the other
+    way: the thing to AIM is the long cone, and taking `find()[0]` picks the
+    sphere, measures its diameter as the forearm's length and then leaves the
+    real forearm sitting unposed. Nothing errors; the arm simply comes apart.
+
+    The segment is the longest part of the name, which is true of any limb whose
+    other same-named pieces are joint covers. Those covers are returned so the
+    solver can drop them on the elbow it computed.
+    """
+    parts = P.find(scn, name)
+    if not parts:
+        raise KeyError("no part named %s" % name)
+    seg = max(parts, key=lambda o: max(o.dimensions))
+    return seg, [o for o in parts if o is not seg]
+
+
 def segment_length(scn, name):
     """A limb segment's real length, after the figure's role scaling.
 
     `dimensions` is the world-space bounding box, so this already includes
     whatever `spritekit.finish()` scaled the figure by. Reading the depth out of
     the builder source instead is what went stale.
+
+    **It over-reports on a figure whose parent chain is not a pure rotation** --
+    by 16 percent on the assassin -- so an arm solved from it believes it reaches
+    further than it does. `segment_ends` is the exact measure and is what an arm
+    marked `"joint": "segment"` uses. This one stays for the fighter and the
+    paladin, whose sheets are approved art solved against these numbers.
     """
-    parts = P.find(scn, name)
-    if not parts:
-        raise KeyError("no part named %s" % name)
-    return max(parts[0].dimensions)
+    return max(limb_parts(scn, name)[0].dimensions)
 
 
 def figure_root(scn, key):
@@ -300,6 +325,118 @@ def _parent_world(ob):
     return P.world_matrix(ob.parent) @ ob.matrix_parent_inverse
 
 
+def segment_ends(ob):
+    """A limb segment's two ends, in world, from its own Z axis.
+
+    Every limb part here is a Z-axis cylinder or cone built by `aimed_cyl` /
+    `aimed_cone`, so the centres of its two end faces are where its joints are.
+    """
+    from mathutils import Vector
+    m = P.world_matrix(ob)
+    zs = [v[2] for v in ob.bound_box]
+    return m @ Vector((0.0, 0.0, min(zs))), m @ Vector((0.0, 0.0, max(zs)))
+
+
+def bone_lengths(elbow_w, shoulder_w, hand_w):
+    """Upper and forearm lengths as the REST POSE'S OWN JOINT DISTANCES.
+
+    **A bone's length is shoulder-to-elbow, not how long its mesh measures.** The
+    two are not the same number here: the assassin's rare forearm mesh reports
+    0.577 against a 0.496 elbow-to-fist gap, because a mesh length comes out of a
+    bounding box and a bounding box is not exact under this parent chain. Both
+    obvious mesh measures over-report -- `max(dimensions)` reads a decomposed
+    `matrix_world`, and projecting bbox corners onto the world axis lets the
+    segment's own radius leak in once the chain is not a pure rotation.
+
+    Feeding a mesh length to the solver breaks frame 0 twice over: it believes
+    the arm reaches further than it does and plants the elbow off the model's, and
+    `aim_segment` then scales the mesh by gap-over-mesh-length and visibly shrinks
+    it. Joint distances make frame 0 exact by construction, which is the one
+    property an idle sprite has to keep.
+    """
+    from mathutils import Vector
+    S, H, E = Vector(shoulder_w), Vector(hand_w), Vector(elbow_w)
+    return (S - E).length, (E - H).length
+
+
+def arm_joints(scn, shoulder_names, up):
+    """This arm's real (shoulder, elbow), in world, off the upper arm's own ends.
+
+    `top_joint("^upperR")` reports a limb's bounding-box TOP, which is the
+    shoulder only while the upper arm hangs near-vertical. The fighter's and the
+    paladin's do; the assassin's rare tier holds a parry dagger with the elbow
+    high, and there the bbox top sits 0.36 from his real shoulder joint. The
+    solver then bends an elbow the model built straight -- 0.38 units of it, on
+    frame 0, where the idle sprite has to match.
+
+    **Which end is which cannot be settled by distance to the hand.** That test
+    reads correctly on any hanging arm and backwards on a folded one: the same
+    rare assassin's other arm keeps its parry dagger up beside his shoulder, so
+    his FIST is nearer his shoulder than his elbow is, and the two ends came back
+    swapped. `top_joint` is a poor joint and a perfectly good hint, because it
+    only has to choose between two points 0.6 apart.
+    """
+    from mathutils import Vector
+    hint = Vector(top_joint(scn, shoulder_names))
+    e0, e1 = segment_ends(up)
+    return ((e0, e1) if (e0 - hint).length <= (e1 - hint).length else (e1, e0))
+
+
+def rest_pole(elbow_w, shoulder_w, hand_w):
+    """Which way an elbow breaks, READ OFF THE MODEL instead of typed.
+
+    A hand-written pole is one guess covering every pose that name ever holds,
+    and a hero's four rarity tiers are four different people: the assassin's
+    Rogue crouches with both elbows in, his Nightblade holds a knife-fighter's
+    guard, his Phantom spreads his arms low. The fighter's `(1.1, 0.30, -0.8)`
+    borrowed onto that line put the epic assassin's solved elbow at world x 1.12
+    with his own fist at 0.97 -- the elbow in FRONT of the hand, which is a
+    chicken-wing, and it was there on FRAME 0 where the idle sprite has to match.
+
+    The model already answers the question: the upper arm's own axis points at
+    the elbow the sculptor posed. This returns the vector from the
+    shoulder-to-hand midpoint out to that elbow, which is exactly what
+    `two_bone_ik` wants a pole to be.
+    """
+    from mathutils import Vector
+    HANG = Vector((0.0, 0.6, -1.0))     # how an unsteerable elbow should hang
+    S, H, elbow = Vector(shoulder_w), Vector(hand_w), Vector(elbow_w)
+    pole = elbow - (S + H) * 0.5
+    u = (H - S)
+    if u.length > 1e-6:
+        u.normalize()
+        if (pole - u * pole.dot(u)).length < 0.02:
+            return HANG                 # a rest pose with no bend left to read
+    return pole if pole.length > 1e-4 else HANG
+
+
+def _resolve_mid(scn, m, mine):
+    """Where a weapon turns, in world space.
+
+    `None` is the default chest point below the shoulder line, `"hands"` the
+    midpoint of the fists holding THIS weapon, `"^part"` the top of a named part
+    and `"part"` its centre, and a 3-tuple a literal world point.
+
+    The two derived forms exist so nothing here types a coordinate: every figure
+    is scaled to its role height by `spritekit.finish()`, so a literal read off a
+    builder is wrong by whatever that scale happens to be.
+    """
+    from mathutils import Vector
+    if m is None:
+        mids = sum((Vector(top_joint(scn, a["shoulder"])) for a in mine),
+                   Vector((0, 0, 0))) / len(mine)
+        return Vector((0.0, mids.y - 0.16, mids.z - 0.38))
+    if m == "hands":
+        return sum((P.world_matrix(a["fi"]).translation for a in mine),
+                   Vector((0, 0, 0))) / len(mine)
+    if isinstance(m, str):
+        found = P.find(scn, m[1:] if m.startswith("^") else m)
+        if not found:
+            raise KeyError("no part named %s for a rotation centre" % m)
+        return top_of(found[0]) if m.startswith("^") else centre_of(found[0])
+    return Vector(m)
+
+
 def ik_poses(scn, root, weapon_name, arms, frames, mid=None, stretch=0.22):
     """One callable per frame, each posing the whole figure. No rendering.
 
@@ -311,9 +448,30 @@ def ik_poses(scn, root, weapon_name, arms, frames, mid=None, stretch=0.22):
     simply describe an attack nobody ships.
 
     See `twohand_sheet` for what the frame columns mean.
+
+    ## ONE WEAPON PER HAND, AND A HAND THAT LEAVES ITS WEAPON
+
+    `weapon_name` may be a list of `{"root", "frames", "mid"}` dicts instead of a
+    single name, and an arm then names which one it holds with `"weapon": <index>`.
+    **A dual-wielder is two independent weapons, not one weapon with two grips.**
+    The assassin's knives never move together, so driving them off one matrix
+    would weld his hands into a single block, which is the rigid-pivot failure
+    again wearing a different name.
+
+    Each weapon's own `frames` table is optional and falls back to the entry's;
+    **only the entry's table moves the FIGURE**, so a per-weapon lunge column is
+    read by nothing. Give the body its step in the default table.
+
+    An arm may also carry `"track"`, a per-frame `(dx, dy, dz)` added to its grip
+    in WORLD space with dx signed by facing, exactly as the weapon's own travel
+    is. **That is what a bow draw is**: the string hand travels back and up while
+    the bow hand holds the bow, so the two hands cannot both be following one
+    weapon's matrix. Without it the archer's draw was whatever his shoulder
+    rotation could reach, which was his own stomach (user, 2026-08-02).
     """
     from mathutils import Matrix, Euler, Vector
-    weapon = P.find(scn, weapon_name)[0]
+    specs = ([{"root": weapon_name, "mid": mid}] if isinstance(weapon_name, str)
+             else [dict(w) for w in weapon_name])
 
     # ---- ONE SPACE, AND EVERY QUANTITY CONVERTED INTO IT --------------------
     # **A part's `location` is NOT where it is.** It is an offset inside its
@@ -333,75 +491,109 @@ def ik_poses(scn, root, weapon_name, arms, frames, mid=None, stretch=0.22):
     # Everything is therefore solved in the ARM'S OWN PARENT SPACE. That is the
     # space the bone lengths and the write-back already speak, so it is the one
     # conversion that leaves `aim_segment` alone.
-    rest_w = P.world_matrix(weapon)
-    w_par = _parent_world(weapon)
-
     solved = []
     for a in arms:
-        up = P.find(scn, a["upper"])[0]
+        up, up_extra = limb_parts(scn, a["upper"])
+        fo, fo_extra = limb_parts(scn, a["fore"])
+        fi = P.find(scn, a["hand"])[0]
         par = _parent_world(up)
         par_inv = par.inverted()
+        # `"joint": "segment"` reads the shoulder off the upper arm's own far end
+        # instead of its bounding-box top. It is opt-in only because the fighter
+        # and the paladin are approved, published art solved the other way, and
+        # their near-vertical upper arms are the case where the two agree.
+        hand_w = P.world_matrix(fi).translation
+        exact = a.get("joint") == "segment"
+        shoulder_w, elbow_w = (arm_joints(scn, a["shoulder"], up) if exact
+                               else (Vector(top_joint(scn, a["shoulder"])), None))
+        pole = a["pole"]
+        if exact:
+            # **Bone lengths belong to the space the solve runs in.** Everything
+            # `two_bone_ik` touches is in the arm's own parent space, and that
+            # space is scaled: the assassin's is 1.162, so world-measured bones
+            # placed his elbow 0.70 from a shoulder they said was 0.60 away, and
+            # frame 0 missed the idle sprite by a quarter of a unit.
+            len_a, len_b = bone_lengths(par_inv @ elbow_w, par_inv @ shoulder_w,
+                                        par_inv @ Vector(hand_w))
+        else:
+            len_a, len_b = max(up.dimensions), max(fo.dimensions)
+        if pole == "rest":
+            # A direction, so world is fine: the parent scale is uniform here.
+            pole = rest_pole(elbow_w, shoulder_w, hand_w)
         solved.append({
             "par_inv": par_inv,
-            "S": par_inv @ Vector(top_joint(scn, a["shoulder"])),
-            "a": segment_length(scn, a["upper"]),
-            "b": segment_length(scn, a["fore"]),
+            "S": par_inv @ shoulder_w,
+            "a": len_a,
+            "b": len_b,
             # The pole only steers which way the elbow breaks, but it is a
             # DIRECTION and the parent carries a rotation, so it converts too.
-            "pole": (par_inv.to_3x3() @ Vector(a["pole"])).normalized(),
+            "pole": (par_inv.to_3x3() @ Vector(pole)).normalized(),
             "up": up,
-            "fo": P.find(scn, a["fore"])[0],
-            "fi": P.find(scn, a["hand"])[0],
+            "fo": fo,
+            # Joint covers: same name, same parent, dropped on the solved elbow so
+            # they keep burying the segment ends they were modelled to bury.
+            "cover": [o for o in up_extra + fo_extra if o.parent is up.parent],
+            "fi": fi,
+            "shoulder": a["shoulder"],
+            "w": a.get("weapon", 0),
+            "track": a.get("track"),
+        })
+
+    weapons = []
+    for wi, ws in enumerate(specs):
+        ob = P.find(scn, ws["root"])[0]
+        mine = [a for a in solved if a["w"] == wi] or solved
+        weapons.append({
+            "ob": ob,
+            "rest": P.world_matrix(ob),
+            "par": _parent_world(ob),
+            "mid": _resolve_mid(scn, ws.get("mid"), mine),
+            "frames": ws.get("frames"),
         })
 
     # Grips are captured in the WEAPON's own space off world positions, so the
     # hands stay exactly where the sprite models them at frame 0.
     for a in solved:
-        a["grip"] = rest_w.inverted() @ P.world_matrix(a["fi"]).translation
-
-    if mid is None:
-        # below the shoulder line, midway between the two shoulders, in world
-        mids = sum((Vector(top_joint(scn, x["shoulder"])) for x in arms),
-                   Vector((0, 0, 0))) / len(arms)
-        mid = Vector((0.0, mids.y - 0.16, mids.z - 0.38))
-    elif mid == "hands":
-        # the point between the fists: what a two-handed weapon turns about once
-        # the grip is free to travel as well as rotate
-        mid = sum((P.world_matrix(a["fi"]).translation for a in solved),
-                  Vector((0, 0, 0))) / len(solved)
-    else:
-        mid = Vector(mid)
+        a["grip"] = (weapons[a["w"]]["rest"].inverted()
+                     @ P.world_matrix(a["fi"]).translation)
 
     base = tuple(root.location)
     sign = facing_sign(root)
 
-    def make(f):
-        lift, swing, lunge = f[0], f[1], f[2]
-        # The optional travel columns. A weapon that only rotates leaves the
-        # hands where they started, which is a flick rather than a chop.
-        dx, dz = (f[3], f[4]) if len(f) > 4 else (0.0, 0.0)
-
+    def make(i):
         def pose():
-            R = Euler((math.radians(lift), math.radians(swing * sign), 0),
-                      'XYZ').to_matrix().to_4x4()
-            # Travel is applied in WORLD space, after the rotation, so `dz` means
-            # "this far up the screen" whatever angle the weapon is at.
-            T = Matrix.Translation(Vector((dx * sign, 0.0, dz)))
-            world = (T @ Matrix.Translation(mid) @ R
-                     @ Matrix.Translation(-mid) @ rest_w)
-            weapon.matrix_basis = w_par.inverted() @ world
+            for w in weapons:
+                f = (w["frames"] or frames)[i]
+                lift, swing = f[0], f[1]
+                # The optional travel columns. A weapon that only rotates leaves
+                # the hands where they started, which is a flick, not a chop.
+                dx, dz = (f[3], f[4]) if len(f) > 4 else (0.0, 0.0)
+                R = Euler((math.radians(lift), math.radians(swing * sign), 0),
+                          'XYZ').to_matrix().to_4x4()
+                # Travel is applied in WORLD space, after the rotation, so `dz`
+                # means "this far up the screen" whatever angle the weapon is at.
+                T = Matrix.Translation(Vector((dx * sign, 0.0, dz)))
+                w["world"] = (T @ Matrix.Translation(w["mid"]) @ R
+                              @ Matrix.Translation(-w["mid"]) @ w["rest"])
+                w["ob"].matrix_basis = w["par"].inverted() @ w["world"]
             for a in solved:
                 # The grip in world, then into this arm's own space to solve.
-                target = a["par_inv"] @ (world @ a["grip"])
+                point = weapons[a["w"]]["world"] @ a["grip"]
+                if a["track"]:
+                    tx, ty, tz = a["track"][i]
+                    point = point + Vector((tx * sign, ty, tz))
+                target = a["par_inv"] @ point
                 elbow, hand, la, lb = P.two_bone_ik(a["S"], target, a["a"], a["b"],
                                                     a["pole"], stretch=stretch)
                 P.aim_segment(a["up"], a["S"], elbow, a["a"])
                 P.aim_segment(a["fo"], elbow, hand, a["b"])
                 a["fi"].location = hand
-            root.location = (base[0] + lunge * sign, base[1], base[2])
+                for ob in a["cover"]:
+                    ob.location = elbow
+            root.location = (base[0] + frames[i][2] * sign, base[1], base[2])
         return pose
 
-    return [make(f) for f in frames]
+    return [make(i) for i in range(len(frames))]
 
 
 def twohand_sheet(scn, key, root, weapon_name, arms, frames, res=128,
@@ -457,5 +649,7 @@ def twohand_sheet(scn, key, root, weapon_name, arms, frames, res=128,
 from attack_shapes import (OVERHAND, SMASH, SLASH, SWEEP, CAST,  # noqa: E402,F401
                            CHOP, LOOSE, CHOP_ARMS, CHOP_BLADE,
                            HAMMER_SWING, HAMMER_WRIST, POLE_ARM, POLE_HEAD,
-                           BOW_DRAW, BOW_BODY, DAGGER_ARM, DAGGER_WRIST,
+                           BOW_DRAW, BOW_BODY, BOW_PUSH, BOW_HAND,
+                           DAGGER_ARM, DAGGER_WRIST,
+                           STAB_LEAD, STAB_REAR, STAB_BODY,
                            BLESS, BLESS_HAND, JAB, JAB_HAND, FROST, FROST_HAND)

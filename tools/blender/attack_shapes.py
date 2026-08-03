@@ -193,6 +193,81 @@ HAMMER_BLOW = [(0, 0, 0, 0, 0),
 HAMMER_WRIST = [(0, 0, 0), (0, 18, 0), (0, 30, 0), (0, -8, 0), (0, -52, 0), (0, -36, 0), (0, -14, 0), (0, 0, 0)]
 HAMMER_SWING = [(0, 0, 0), (-8, 12, -0.06), (-14, 20, -0.1), (-10, 2, 0.06), (-16, -34, 0.3), (-10, -24, 0.2), (-4, -9, 0.07), (0, 0, 0)]
 
+# A TWIN-DAGGER STAB, weapon-driven, ONE TABLE PER KNIFE. The pivot version was
+# rejected as "still not extending his arms to make a stabbing motion" (user,
+# 2026-08-02), and a pivot cannot do anything else: it swings each fist along a
+# short arc at whatever radius the arm happens to be, so the hands orbit his hips.
+#
+# **The two knives must not move together.** Both arms running one table is a man
+# shoving both fists out at once, which reads as a push rather than a knife
+# attack. The near hand leads and the far hand lands two frames behind it, so
+# there are two separate strikes inside eight frames.
+#
+# The drive is the `dx` column: about 0.6 units of travel, where the pivot
+# version moved a fist a tenth of that. The body's step stays small on purpose --
+# a body sliding forward as one rigid piece read as him thrusting his pelvis at
+# the enemy (user, 2026-08-02). The extension is the attack; the step underlines it.
+STAB_LEAD = [(0, 0, 0, 0, 0),
+             (0, -14, 0, -0.16, 0.06),
+             (0, -20, 0, -0.24, 0.10),
+             (0, 8, 0, 0.34, 0.04),
+             (0, 16, 0, 0.62, -0.02),
+             (0, 10, 0, 0.40, -0.02),
+             (0, 4, 0, 0.16, 0.00),
+             (0, 0, 0, 0, 0)]
+STAB_REAR = [(0, 0, 0, 0, 0),
+             (0, -8, 0, -0.10, 0.04),
+             (0, -14, 0, -0.18, 0.08),
+             (0, -18, 0, -0.24, 0.12),
+             (0, 8, 0, 0.30, 0.06),
+             (0, 16, 0, 0.58, 0.00),
+             (0, 8, 0, 0.26, -0.01),
+             (0, 0, 0, 0, 0)]
+# The body under those two: a small brace back and a small step in. Its lift and
+# swing columns drive nothing, because every weapon here carries its own table.
+STAB_BODY = [(0, 0, 0), (0, 0, -0.05), (0, 0, -0.09), (0, 0, 0.10),
+             (0, 0, 0.18), (0, 0, 0.13), (0, 0, 0.05), (0, 0, 0)]
+
+# A BOW DRAW, weapon-driven: the BOW ARM pushes the bow up and out while the
+# STRING HAND travels back and up to the face. The pivot version was rejected as
+# "just punching himself in the stomach" (user, 2026-08-02) and could not have
+# been anything else -- his string hand rests at his belly and a shoulder rotation
+# moves it around his belly.
+#
+# `BOW_PUSH` drives the bow itself, so the bow hand rides it. `BOW_HAND` is the
+# string hand's own world-space track, which is the column no pivot has: it is
+# the hand LEAVING the bow rather than following it.
+#
+# **Keep the bow's own rotation tiny.** It is the tallest thin object the hero
+# owns, so a few degrees is already visible and thirty lay it across his face --
+# the same rule the staff heroes pay.
+BOW_PUSH = [(0, 0, 0, 0, 0),
+            (2, -3, 0, 0.09, 0.13),
+            (4, -5, 0, 0.19, 0.25),
+            (5, -6, 0, 0.24, 0.30),
+            (4, -4, 0, 0.30, 0.28),
+            (2, -2, 0, 0.17, 0.17),
+            (1, -1, 0, 0.06, 0.06),
+            (0, 0, 0, 0, 0)]
+# Back and UP: a draw ends at the cheek, not at the ribs. The release is the jump
+# from frame 3 to frame 4, where the hand comes forward and the height holds.
+#
+# **These are small because the bow's own rise carries the string hand too.** The
+# track is added on TOP of the grip's travel with the bow, so a 0.54 lift here put
+# his drawing fist at world z 2.72 with his shoulder at 2.13 -- above his own head,
+# which is a salute rather than a draw. Measured, not guessed.
+BOW_HAND = [(0, 0, 0),
+            (-0.10, 0, 0.09),
+            (-0.22, 0, 0.17),
+            (-0.28, 0, 0.21),
+            (-0.06, 0, 0.18),
+            (-0.02, 0, 0.11),
+            (-0.01, 0, 0.04),
+            (0, 0, 0)]
+
+# SUPERSEDED by BOW_PUSH and BOW_HAND above, and kept only for what it records:
+# a bow draw expressed as a shoulder rotation. It is not on the roster.
+#
 # A BOW DRAW: the STRING HAND ONLY, about its own shoulder. Nothing else moves.
 #
 # **Do not hand the bowstring or the arrow to the drawing arm.** They belong to the
@@ -214,6 +289,9 @@ BOW_BODY = [(0, 0, 0), (0, 0, -0.04), (0, 0, -0.07), (0, 0, -0.08),
 LOOSE = [(0, 0, 0), (5, -12, -0.06), (9, -22, -0.11), (10, -26, -0.13),
          (2, 12, 0.24), (-4, 8, 0.15), (-2, 3, 0.05), (0, 0, 0)]
 
+# SUPERSEDED by STAB_LEAD and STAB_REAR above, and kept only for what it records:
+# a stab expressed as two shoulder rotations. It is not on the roster.
+#
 # TWIN DAGGERS: each arm about its own shoulder, each blade about its own fist.
 #
 # **The step stays small.** At 0.54 the assassin slid forward as one rigid piece

@@ -52,6 +52,14 @@ class IK:
     shoulder balls on a hero share the single name "shoulder", and a name is all
     the lookup has to choose by, so naming the ball puts both arms on whichever
     one sits highest.
+
+    `weapon` is one root name, or a LIST of `{"root", "frames", "mid"}` dicts for
+    a figure holding one weapon per hand. An arm then picks its own with
+    `"weapon": <index>`, and only the entry's own table moves the figure.
+
+    An arm may carry `"track"`, a per-frame `(dx, dy, dz)` added to its grip in
+    world space. That is how a hand LEAVES its weapon -- an archer's string hand
+    travels back and up while his bow hand holds the bow still.
     """
 
     def __init__(self, weapon, arms, mid=None, stretch=0.22):
@@ -140,12 +148,23 @@ ATTACKS = [
                   {"shoulder": ("^upperR",), "upper": "upperR", "fore": "foreR",
                    "hand": "fistR", "pole": (1.1, 0.30, -0.8)}],
                  mid="hands")),
-    # THE DRAWING ARM AND NOTHING ELSE. The bow, the string and the arrow all stay
-    # put: handing the string to the arm carried it off the bow limbs, and it read
-    # as him waving a loose bowstring at the enemy (user, 2026-08-02).
-    Attack("hero_ranged", "build_hero_ranged",
-           [Swing([("^upperR",)], HERO_ARM_R, frames=A.BOW_DRAW)],
-           A.BOW_BODY),
+    # A DRAW AND A LOOSE, on INVERSE KINEMATICS. The pivot version turned his
+    # string arm about its shoulder and was rejected as "just punching himself in
+    # the stomach" (user, 2026-08-02). His string hand rests at his belly, so a
+    # rotation about the shoulder can only carry it around his belly; a draw is
+    # the hand TRAVELLING to the face, which is the one thing a pivot cannot do.
+    #
+    # The bow is driven and the bow arm follows it up and out. The string hand
+    # holds the same bow but carries its own world-space `track`, so it leaves the
+    # bow, goes back to the cheek and returns. The bowstring and the arrow stay on
+    # the bow, because an arm that takes them carries them off the limbs.
+    Attack("hero_ranged", "build_hero_ranged", [], A.BOW_BODY, cell=128,
+           ik=IK([{"root": "bow_root", "frames": A.BOW_PUSH, "mid": "bowgrip"}],
+                 [{"shoulder": ("^upperL",), "upper": "upperL", "fore": "foreL",
+                   "hand": "fistL", "pole": "rest", "joint": "segment"},
+                  {"shoulder": ("^upperR",), "upper": "upperR", "fore": "foreR",
+                   "hand": "fistR", "pole": "rest", "joint": "segment",
+                   "track": A.BOW_HAND}])),
     # He BLESSES rather than casts. All three staff heroes ran `CAST` and played
     # the identical animation (user, 2026-08-02); his is the one that holds at the
     # top of the raise.
@@ -169,17 +188,23 @@ ATTACKS = [
                  [{"shoulder": ("^upperL",), "upper": "upperL", "fore": "foreL",
                    "hand": "fistL", "pole": (-1.1, 0.30, -0.8)}],
                  mid="hands")),
-    # TWIN DAGGERS on real joints: each arm about the TOP OF ITS OWN UPPER ARM,
-    # which is its shoulder and the one point a rotation leaves in place, and each
-    # blade about its own fist. The drive comes from the arms extending; the step
-    # stays small, because a body sliding forward with nothing else changing read
-    # as him thrusting his pelvis at the enemy (user, 2026-08-02).
-    Attack("hero_assassin", "build_hero_assassin",
-           [Swing([("fistL",)], (), "dagL_root", frames=A.DAGGER_WRIST, parent=2),
-            Swing([("fistR",)], (), "dagR_root", frames=A.DAGGER_WRIST, parent=3),
-            Swing([("^upperL",)], HERO_ARM_L, frames=A.DAGGER_ARM),
-            Swing([("^upperR",)], HERO_ARM_R, frames=A.DAGGER_ARM)],
-           A.DAGGER_ARM, cell=144),
+    # TWIN STABS, on INVERSE KINEMATICS and TWO WEAPONS. The pivot version turned
+    # each arm about its own shoulder and was rejected as "still not extending his
+    # arms to make a stabbing motion" (user, 2026-08-02). It could not extend one:
+    # a pivot swings a fist along an arc of fixed radius, so both hands orbited his
+    # hips and only the blades turned.
+    #
+    # Each knife is driven along its own path and each arm is solved to reach the
+    # hand that holds it, so the elbows straighten as the blades go out. The near
+    # knife leads and the far one lands two frames later, which is what makes it
+    # two strikes rather than one shove.
+    Attack("hero_assassin", "build_hero_assassin", [], A.STAB_BODY, cell=176,
+           ik=IK([{"root": "dagR_root", "frames": A.STAB_LEAD, "mid": "hands"},
+                  {"root": "dagL_root", "frames": A.STAB_REAR, "mid": "hands"}],
+                 [{"shoulder": ("^upperR",), "upper": "upperR", "fore": "foreR",
+                   "hand": "fistR", "pole": "rest", "joint": "segment", "weapon": 0},
+                  {"shoulder": ("^upperL",), "upper": "upperL", "fore": "foreL",
+                   "hand": "fistL", "pole": "rest", "joint": "segment", "weapon": 1}])),
     # He JABS: the staff goes straight out off the longest step any hero takes.
     Attack("hero_battlemage", "build_hero_battlemage",
            [Swing([("armL_hand",)], (), "staff_root", frames=A.JAB_HAND, parent=1),

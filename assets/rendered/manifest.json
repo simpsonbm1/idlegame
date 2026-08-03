@@ -84,31 +84,31 @@
   ]
  },
  "attack/hero_assassin.png": {
-  "px": "18ad9f1d66a9134b724faf3dacfdb6a031a6cdfc2440cd472ba51abb49f4f8a6|1152x144",
+  "px": "d7648f4922386bcbe383d0a83577cd98d2027d963596790c8d7a6c961a3be5f8|1408x176",
   "wh": [
-   1152,
-   144
+   1408,
+   176
   ]
  },
  "attack/hero_assassin_epic.png": {
-  "px": "2445033c44821aed6f20df6d1583eb1f244318275ac2a134d1a4e216414db618|1152x144",
+  "px": "8459c86b9c473833737a7c94e5ccee6df323788d782a6555b315c8ee81a61222|1408x176",
   "wh": [
-   1152,
-   144
+   1408,
+   176
   ]
  },
  "attack/hero_assassin_legendary.png": {
-  "px": "811117cdce9857170cf281574fa0f8463710afe31cae4eda324d70d4feb60440|1152x144",
+  "px": "44ba8b6e2c7accc49b7142d0fcd42cbd3dab5f8fadcc6d4bcd30ded6930a93fb|1408x176",
   "wh": [
-   1152,
-   144
+   1408,
+   176
   ]
  },
  "attack/hero_assassin_rare.png": {
-  "px": "e0cf2f0f829e7090d3d11e749889665f351b6aef6b7f9e4c3c4334f26ceafcee|1152x144",
+  "px": "be7a1171cde2fc8d4047e807dd232bed5757fec202324166d3a4d5096e7a1691|1408x176",
   "wh": [
-   1152,
-   144
+   1408,
+   176
   ]
  },
  "attack/hero_banneret.png": {
@@ -280,28 +280,28 @@
   ]
  },
  "attack/hero_ranged.png": {
-  "px": "b06c8516f03c7ecefdef3e2b4af384c093f44560c8c535006ff976f2eb4c2bcc|1024x128",
+  "px": "bd8213c9b8996db55296b99648bc8109a8dbbf13a66bac127d32a8fa553deed0|1024x128",
   "wh": [
    1024,
    128
   ]
  },
  "attack/hero_ranged_epic.png": {
-  "px": "0fb7f7c63bcbc103c422ccafec3448d2da47f6f138892f4f360bcd2fcd91a3d1|1024x128",
+  "px": "303b54fe6607d8712c7fab6b1186e52b9b10de93233cf1cfe7b0b7c78000aae7|1024x128",
   "wh": [
    1024,
    128
   ]
  },
  "attack/hero_ranged_legendary.png": {
-  "px": "57ee100f011f0c73671860fdbe11c9636322e8e60805810e9ba3abf080f18e16|1024x128",
+  "px": "be544d6eb4e7f8f506548a512465a8c45ac23cf0e0e49e4c78f1b76a644f29df|1024x128",
   "wh": [
    1024,
    128
   ]
  },
  "attack/hero_ranged_rare.png": {
-  "px": "27f84ba6bd5c0f06b4a1dee79cb22a7ed322f4adf891252d1adc77f232d01d1b|1024x128",
+  "px": "8f9aaa3d82fcbc53d5452e845ee8b60a7cebc108c1ecd3875d31dd72431b00e7|1024x128",
   "wh": [
    1024,
    128
@@ -554,19 +554,19 @@
  },
  "sheets/attacks_heroes.png": {
   "inputs": {
-   "attack/hero_assassin.png": "18ad9f1d66a9134b724faf3dacfdb6a031a6cdfc2440cd472ba51abb49f4f8a6|1152x144",
+   "attack/hero_assassin.png": "d7648f4922386bcbe383d0a83577cd98d2027d963596790c8d7a6c961a3be5f8|1408x176",
    "attack/hero_banneret.png": "48cb05b62ccd50e4c2620b3c889ebfe78d0d533964a5713b75b35c80916f0f1e|1792x224",
    "attack/hero_battlemage.png": "21db4c3efed0fa394a1ed995a0da81c4617e95009408b60fe2c3115e22e05ac6|1024x128",
    "attack/hero_fighter.png": "1cb1306e22492aa60b6068c9ed62e93df55de6ae50312285a27f6d5ad7e1c097|1408x176",
    "attack/hero_frostadept.png": "116e78dce46abc3261ef04c49055775496341b1594bee47919879c5748aa929f|1152x144",
    "attack/hero_mender.png": "1e8e0ca2cd68e9c1e8b7901c113b8f6bd0a69efe262c3aed938c38ec33238015|1024x128",
    "attack/hero_paladin.png": "33088968ac5998dbe6a25e3067aa983e6a405071a700d0147e3ec3a192fcfaea|1408x176",
-   "attack/hero_ranged.png": "b06c8516f03c7ecefdef3e2b4af384c093f44560c8c535006ff976f2eb4c2bcc|1024x128"
+   "attack/hero_ranged.png": "bd8213c9b8996db55296b99648bc8109a8dbbf13a66bac127d32a8fa553deed0|1024x128"
   },
-  "px": "9ea81b1fca7c05c83368430d88dfed121382ec891aa65787048c71c594bf47ed|5376x4008",
+  "px": "4fe3df0fc519aa90b543ec024ed54b39af934b89dfb3da457c219b3a8bb7be1d|5376x4104",
   "wh": [
    5376,
-   4008
+   4104
   ]
  },
  "sheets/attacks_infernal.png": {
@@ -616,10 +616,10 @@
  },
  "sheets/attacks_variants.png": {
   "inputs": {
-   "attack/hero_assassin.png": "18ad9f1d66a9134b724faf3dacfdb6a031a6cdfc2440cd472ba51abb49f4f8a6|1152x144",
-   "attack/hero_assassin_epic.png": "2445033c44821aed6f20df6d1583eb1f244318275ac2a134d1a4e216414db618|1152x144",
-   "attack/hero_assassin_legendary.png": "811117cdce9857170cf281574fa0f8463710afe31cae4eda324d70d4feb60440|1152x144",
-   "attack/hero_assassin_rare.png": "e0cf2f0f829e7090d3d11e749889665f351b6aef6b7f9e4c3c4334f26ceafcee|1152x144",
+   "attack/hero_assassin.png": "d7648f4922386bcbe383d0a83577cd98d2027d963596790c8d7a6c961a3be5f8|1408x176",
+   "attack/hero_assassin_epic.png": "8459c86b9c473833737a7c94e5ccee6df323788d782a6555b315c8ee81a61222|1408x176",
+   "attack/hero_assassin_legendary.png": "44ba8b6e2c7accc49b7142d0fcd42cbd3dab5f8fadcc6d4bcd30ded6930a93fb|1408x176",
+   "attack/hero_assassin_rare.png": "be7a1171cde2fc8d4047e807dd232bed5757fec202324166d3a4d5096e7a1691|1408x176",
    "attack/hero_banneret.png": "48cb05b62ccd50e4c2620b3c889ebfe78d0d533964a5713b75b35c80916f0f1e|1792x224",
    "attack/hero_banneret_epic.png": "f0f6c7ca0d304b03f574cc195f357abe7cd8af696a15ee7c7fa72466ae76f86e|1792x224",
    "attack/hero_banneret_legendary.png": "449bca5778c64e5202810e53b91b61e7df8a1063203fe9d05e28ef0edb561d8f|1792x224",
@@ -644,15 +644,15 @@
    "attack/hero_paladin_common.png": "73aa26d0c15a62d8c860a6ec6b398fbe588c88e87159ca1db2ba90a29932b77a|1408x176",
    "attack/hero_paladin_legendary.png": "890278948a65bd0b127b42ff75488106bd0b409bfa8799b0659808c838ac0818|1408x176",
    "attack/hero_paladin_rare.png": "4233a3cc5af8aac4533784d1945069e1f5b6f8ad0a71e60f34f5f5ed8d2690d8|1408x176",
-   "attack/hero_ranged.png": "b06c8516f03c7ecefdef3e2b4af384c093f44560c8c535006ff976f2eb4c2bcc|1024x128",
-   "attack/hero_ranged_epic.png": "0fb7f7c63bcbc103c422ccafec3448d2da47f6f138892f4f360bcd2fcd91a3d1|1024x128",
-   "attack/hero_ranged_legendary.png": "57ee100f011f0c73671860fdbe11c9636322e8e60805810e9ba3abf080f18e16|1024x128",
-   "attack/hero_ranged_rare.png": "27f84ba6bd5c0f06b4a1dee79cb22a7ed322f4adf891252d1adc77f232d01d1b|1024x128"
+   "attack/hero_ranged.png": "bd8213c9b8996db55296b99648bc8109a8dbbf13a66bac127d32a8fa553deed0|1024x128",
+   "attack/hero_ranged_epic.png": "303b54fe6607d8712c7fab6b1186e52b9b10de93233cf1cfe7b0b7c78000aae7|1024x128",
+   "attack/hero_ranged_legendary.png": "be544d6eb4e7f8f506548a512465a8c45ac23cf0e0e49e4c78f1b76a644f29df|1024x128",
+   "attack/hero_ranged_rare.png": "8f9aaa3d82fcbc53d5452e845ee8b60a7cebc108c1ecd3875d31dd72431b00e7|1024x128"
   },
-  "px": "6bb19516d865b51f7f462133b434d5c900bb33645dff34e79c7be610cfd500a5|5376x16032",
+  "px": "630ca8711f0947eb197d64d22f647246e604618a29b5b60d8f691c539d657f81|5376x16416",
   "wh": [
    5376,
-   16032
+   16416
   ]
  },
  "sheets/bandit.png": {

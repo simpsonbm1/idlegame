@@ -63,10 +63,12 @@ shoulder.
 failed.** The three casters passed, because almost any movement reads as spellcasting;
 the banneret passed as workable. **The fighter, the paladin, the assassin and the archer
 were all rejected for the same root cause: a rigid pivot cannot raise a grip or extend an
-arm.** The fighter is REBUILT on inverse kinematics and approved, which is the worked
-example the other three follow; his hilt was lengthened in the same pass, because his
-hands were gripping the crossguard. The paladin, the assassin and the archer are still on
-pivots and still wrong. Read the Animation section of `tools/blender/README.md` first.
+arm.** All four are now REBUILT on inverse kinematics. The fighter and the paladin are
+approved; **the assassin and the archer are rendered, published and awaiting the
+developer's eye in `tools/attack-preview.html`.** Read the Animation section of
+`tools/blender/README.md` first -- it now carries nineteen rules, and the four newest are
+about MEASUREMENT rather than posing: a bone's length is its joint-to-joint distance
+measured in the arm's own parent space, and `top_joint` is a hint rather than a shoulder.
 **Nothing outside the heroes has been judged in motion at all.**
 
 **None of it is wired into the game yet.**
