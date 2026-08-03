@@ -1,34 +1,46 @@
-"""Pre-commit guard: a published sprite must bring its contact sheet with it.
+"""Pre-commit guard: published art must be bookkept, and its sheets current.
 
-Reads staged repo paths on stdin (one per line) and exits non-zero if a commit
-publishes art without the review sheets that show it. Called by
-`.githooks/pre-commit`; run it by hand the same way:
+Reads staged repo paths on stdin (one per line) and exits non-zero on a
+violation. Called by `.githooks/pre-commit`; run it by hand the same way:
 
     git diff --cached --name-only | python tools/blender/audit_artifacts.py
 
 **Why this is mechanised.** The standing invariant is that every change must
 survive the trip between machines, and the art pipeline kept breaking it in one
-specific way: a sprite got published while the contact sheet showing that sprite
-did not, so the other machine reviewed art that no longer existed. It happened
-twice in one day. The paladin's and banneret's grips were rebuilt and published
-while `sheets/heroes.png`, `sheets/variants.png` and `sheets/all_characters.png`
-still showed the old ones; separately, 61 attack sheets were published with no
-`attacks_*` sheet in the repository at all, so reviewing an animation on a second
-machine began with installing Blender and rendering the whole roster (user ruling
-2026-08-02: "if it requires re-rendering then it isn't a durable artifact and I do
-not consider it an asset").
+specific way: what a contact sheet SHOWED and what the repository CARRIED came
+apart, so the other machine reviewed art that did not exist. Prose told sessions
+to keep them together; prose does not execute. It happened with unpublished
+sheets twice in one day, and then a third way on 2026-08-02: sheets composed
+from a stale scratch directory were committed showing four banneret sprites and
+twenty hero attack sheets the repository did not have.
 
-**It tests the STAGED SET, not file contents.** Blender's PNG encoding varies
-between runs, so neither bytes nor timestamps distinguish a genuinely stale sheet
-from re-render noise -- every sprite reads as "changed" after any render pass, and
-a content check would fire on all 83 every time. Whether a path is in this commit
-is exact and has no noise in it.
+Two layers of defence, both cheap text checks with zero image decoding:
 
-The rule has close to no false positives, because there is no reason to publish a
-sprite and deliberately leave the sheet that displays it out of date.
+1. **Staged-set completeness** (the original guard): publishing a sprite obliges
+   the sheets that display it, in the same commit.
+2. **Manifest consistency**: `assets/rendered/manifest.json` records the pixel
+   hash of every published file and, for each sheet, the hashes of the files it
+   was composed FROM (written by `publish.py` and the composers -- the only
+   sanctioned path). The guard requires the manifest to travel with any art
+   change, requires every staged PNG to be bookkept in it, and requires every
+   sheet's recorded inputs to match the manifest's own current entries. A sheet
+   whose inputs disagree is stale BY THE PIPELINE'S OWN RECORDS, whatever its
+   bytes look like.
+
+**Why not compare file contents.** Blender's PNG encoding varies between runs,
+so bytes cannot distinguish re-render noise from real change, and decoding
+pixels at commit time needs Blender. The manifest is written at the moment the
+pixels are in hand; the guard only has to check it against itself.
+
+Residual gap, named: a PNG hand-copied over a published file without touching
+the manifest leaves a stale hash the guard cannot see past. The manifest-staged
+requirement narrows it, and `publish.py` existing is the fix -- there is no
+reason left to hand-copy.
 """
 
+import json
 import os
+import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -39,6 +51,7 @@ import attack_roster     # noqa: E402
 SPRITES = "assets/rendered/sprites/"
 ATTACK = "assets/rendered/attack/"
 SHEETS = "assets/rendered/sheets/"
+MANIFEST = "assets/rendered/manifest.json"
 
 
 def sheets_for(staged):
@@ -76,30 +89,85 @@ def sheets_for(staged):
     return need
 
 
+def staged_manifest():
+    """The manifest as STAGED, which is what the commit will actually carry.
+
+    `AUDIT_MANIFEST_FILE` overrides the source for tests, so the guard's failure
+    paths can be exercised against synthesized manifests without touching git.
+    """
+    override = os.environ.get("AUDIT_MANIFEST_FILE")
+    if override:
+        with open(override, encoding="utf-8") as fh:
+            return json.load(fh)
+    proc = subprocess.run(["git", "show", ":" + MANIFEST],
+                          capture_output=True, text=True)
+    if proc.returncode != 0:
+        return None
+    return json.loads(proc.stdout)
+
+
+def check_manifest(staged_set, fail):
+    art = [p for p in staged_set
+           if p.startswith("assets/rendered/") and p.endswith(".png")]
+    if not art:
+        return
+
+    if MANIFEST not in staged_set:
+        fail("art is staged but %s is not." % MANIFEST)
+        fail("  Publish through the pipeline, which maintains it:")
+        fail("    python tools/blender/publish.py")
+        return
+
+    man = staged_manifest()
+    if man is None:
+        fail("cannot read the staged %s." % MANIFEST)
+        return
+
+    for p in art:
+        rel = p[len("assets/rendered/"):]
+        if rel not in man:
+            fail("%s is staged with no manifest entry." % p)
+            fail("  Only publish.py writes art here; hand copies are the drift.")
+
+    # Every sheet's recorded inputs must match the manifest's current entries.
+    # Checked globally, not only for staged sheets: a staged sprite with an
+    # unstaged-but-stale sheet is exactly the ordering hazard this exists for.
+    for sheet, entry in sorted(man.items()):
+        for src, px in sorted((entry.get("inputs") or {}).items()):
+            cur = (man.get(src) or {}).get("px")
+            if cur != px:
+                fail("%s%s was composed from a different %s than the manifest"
+                     " now records." % ("assets/rendered/", sheet, src))
+                fail("  The sheet is stale by the pipeline's own bookkeeping."
+                     " Re-run: python tools/blender/publish.py")
+
+
 def main():
     staged = [l.strip().replace("\\", "/") for l in sys.stdin if l.strip()]
     staged_set = set(staged)
+
+    failures = []
+
+    def fail(msg):
+        failures.append(msg)
+
     need = sheets_for(staged)
-
     missing = {s: v for s, v in need.items() if s not in staged_set}
-    if not missing:
-        return 0
-
-    print("pre-commit: published art without its contact sheet.", file=sys.stderr)
-    print("  A sheet that still shows the old art is what the other machine"
-          " reviews.", file=sys.stderr)
     for sheet in sorted(missing):
         why = sorted(missing[sheet])
-        print("    %s  (needed by %s%s)"
-              % (sheet, os.path.basename(why[0]),
-                 " and %d more" % (len(why) - 1) if len(why) > 1 else ""),
-              file=sys.stderr)
-    print("  Rebuild and copy them in, then stage them in THIS commit:",
-          file=sys.stderr)
-    print("    python tools/blender/render_all.py     # writes the sprite sheets",
-          file=sys.stderr)
-    print("    python tools/blender/render_attacks.py # writes the attack sheets",
-          file=sys.stderr)
+        fail("published art without its contact sheet: %s (needed by %s%s)"
+             % (sheet, os.path.basename(why[0]),
+                " and %d more" % (len(why) - 1) if len(why) > 1 else ""))
+        fail("  A sheet that still shows the old art is what the other machine"
+             " reviews. Re-run: python tools/blender/publish.py")
+
+    check_manifest(staged_set, fail)
+
+    if not failures:
+        return 0
+    print("pre-commit: art-consistency guard failed.", file=sys.stderr)
+    for msg in failures:
+        print("    " + msg, file=sys.stderr)
     return 1
 
 

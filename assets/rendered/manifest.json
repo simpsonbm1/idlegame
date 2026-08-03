@@ -1,0 +1,1412 @@
+{
+ "attack/bandit_boss.png": {
+  "px": "51204b51ad5d26af32fa69b71bd2795af090ab6c9c8ad0e6794396a29c00a5d1|1152x144",
+  "wh": [
+   1152,
+   144
+  ]
+ },
+ "attack/bandit_brute.png": {
+  "px": "602d8a77357e9df66194c614bcc54186c4fe5cdcb47acb1ed44f5aaf904a77f9|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/bandit_caster.png": {
+  "px": "ed5828fc59b673db323a4fbdf5dcb3d2a3c8ca7139e409a17af656fa905f262f|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/bandit_sapper.png": {
+  "px": "5292baa25455fdb01c5c2b77b832c0a33c3c2ab6236c06cbbfc17bb06223e8ed|1152x144",
+  "wh": [
+   1152,
+   144
+  ]
+ },
+ "attack/bandit_shaman.png": {
+  "px": "7eae542cc6f0a2e826dd587704b36e2b0f6d30e9e36fc2985b46a1ddb7742958|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/bandit_skirmisher.png": {
+  "px": "1699d1a211d8b5efef80f65d27585c90c3a2d4a62f2062bfd9410ded3d0527b0|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/goblin.png": {
+  "px": "fbee00a438f82b625ec6dcffb44327850a01e3a571a620e7ca42c5486b85d2ee|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/goblin_boss.png": {
+  "px": "95e64cadf911281b8337162c29eefadfe8ec7cdb5ff4e2a4b78663324327eb67|1664x208",
+  "wh": [
+   1664,
+   208
+  ]
+ },
+ "attack/goblin_caster.png": {
+  "px": "c1e8f252e8945c74186210df0f8307ce946dab7771af7fc7e62d90fac715bcaf|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/goblin_sapper.png": {
+  "px": "410903b793a812c90c85f3b217419a33aab6f1d685d12cbf22d1ad2945fa4ca5|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/goblin_shaman.png": {
+  "px": "66dc48aa7ee991ab23318b94896930ac9245d3b368e5a3e8bc963315640ea0fe|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/goblin_skirmisher.png": {
+  "px": "e034c8aec97ef7e69a4ebf956b42e66afd3385f2e7ea13f24de6efa1984e9e66|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/hero_assassin.png": {
+  "px": "2b04ab296b47030cfef7b4834c5a8e4bdeaf33177414623545c1cf864d5e8bad|1152x144",
+  "wh": [
+   1152,
+   144
+  ]
+ },
+ "attack/hero_assassin_epic.png": {
+  "px": "6998f5cde9e859f22afa8ea0e38034b658a502a5585d6ffc07259fc94e8ca3ad|1152x144",
+  "wh": [
+   1152,
+   144
+  ]
+ },
+ "attack/hero_assassin_legendary.png": {
+  "px": "ea936d802592f59b861934f1c4e1ebde548239ccd4fa306f4ea6f3323d0698f4|1152x144",
+  "wh": [
+   1152,
+   144
+  ]
+ },
+ "attack/hero_assassin_rare.png": {
+  "px": "3c4a1ef8bf63516e7b1752282804fbdb90842cde43941005b53522caa8689731|1152x144",
+  "wh": [
+   1152,
+   144
+  ]
+ },
+ "attack/hero_banneret.png": {
+  "px": "5d8078d5aef85c980507894a2393979ef3db88fda558f9d4ffac7ec7ccf91211|1792x224",
+  "wh": [
+   1792,
+   224
+  ]
+ },
+ "attack/hero_banneret_epic.png": {
+  "px": "8cfa1d19a99ea7a8e866673051f562744cb01ea20fc3e5bf841d5e76a385b842|1792x224",
+  "wh": [
+   1792,
+   224
+  ]
+ },
+ "attack/hero_banneret_legendary.png": {
+  "px": "2e68fdeaf8c92dfd34fa4822796a1e02d78d9ecc4d6e8b2a28625d1731782d8a|1792x224",
+  "wh": [
+   1792,
+   224
+  ]
+ },
+ "attack/hero_banneret_rare.png": {
+  "px": "08dbf9bb715d849ac65a5ec56fcb9fbca8e59b9c7f1aefd0c0f8f976df2a06e8|1792x224",
+  "wh": [
+   1792,
+   224
+  ]
+ },
+ "attack/hero_battlemage.png": {
+  "px": "7b9e023d9cf0435138991aa11a91ef575a12d5ee3f630eb127db9a6c43f6df72|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/hero_battlemage_epic.png": {
+  "px": "4742f8813c7db826dce5be9e9875dff7c93991f0bdd73fa15f1c3855f0c58d53|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/hero_battlemage_legendary.png": {
+  "px": "bbe8248c7923222163a4ba94582f6b609986ce7785d310aec01954ba41be6b4d|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/hero_battlemage_rare.png": {
+  "px": "c83fdf3370e69b5345f2dd9b51779d5bc6b940da2722246e796ab1a2c1511f4f|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/hero_fighter.png": {
+  "px": "c5961fafc558905846a161099e9a627d853f743fd768a49e567e52af08e7f4b7|1408x176",
+  "wh": [
+   1408,
+   176
+  ]
+ },
+ "attack/hero_fighter_epic.png": {
+  "px": "8ae4f112d8fb2005899c1595b33ae59d65f91d4e4943fa4a26272be9ee8c430d|1408x176",
+  "wh": [
+   1408,
+   176
+  ]
+ },
+ "attack/hero_fighter_legendary.png": {
+  "px": "1e6b936a3443c4d2acba7d000704b712b1b81004fb4d19465810f2ae9af1de31|1408x176",
+  "wh": [
+   1408,
+   176
+  ]
+ },
+ "attack/hero_fighter_rare.png": {
+  "px": "35a790511d36ac0cfc7248f91daab66f678937f54d938f4d7d374e3fb9666067|1408x176",
+  "wh": [
+   1408,
+   176
+  ]
+ },
+ "attack/hero_frostadept.png": {
+  "px": "e28fc41a97e9995a1c503dcc8d6d9992708e4d0a48d3eb28b589cc93f3e9974c|1152x144",
+  "wh": [
+   1152,
+   144
+  ]
+ },
+ "attack/hero_frostadept_epic.png": {
+  "px": "891a9f02edb0c31d87117d5f44f14a11c3403af3ee802e5d696ca5b74469d826|1152x144",
+  "wh": [
+   1152,
+   144
+  ]
+ },
+ "attack/hero_frostadept_legendary.png": {
+  "px": "5f750cc948823d059dbc4d1914f4b852b592d3e8d75d459300bab024256b1bce|1152x144",
+  "wh": [
+   1152,
+   144
+  ]
+ },
+ "attack/hero_frostadept_rare.png": {
+  "px": "c44b8c82f8a12916fc3d0187744162ff6652914564288a6fd1cc2cea393e97fc|1152x144",
+  "wh": [
+   1152,
+   144
+  ]
+ },
+ "attack/hero_mender.png": {
+  "px": "5c563d76dc180cbe7eb6dddf3dcb9dfe22619a44939d1f8a2d3ae3d57622e3ec|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/hero_mender_common.png": {
+  "px": "f845ef1452923dd1c8cfebdb1f2c6dd4a376eb629a6aba28bff44e09475396c9|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/hero_mender_epic.png": {
+  "px": "71cf27bd09bfe603fecb55cb6173d78978547a193ca9075c606f42de3535c8e3|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/hero_mender_legendary.png": {
+  "px": "b940fcf478fa8c5811279eec33ac49f6a729a1b4d6624465d49bf0f39f07e473|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/hero_paladin.png": {
+  "px": "6ca3c995af1371ccadc7248b1e20d6f1e7599e81a151f638d0f59590c0c0398a|1408x176",
+  "wh": [
+   1408,
+   176
+  ]
+ },
+ "attack/hero_paladin_common.png": {
+  "px": "baf2f137d6b277f65615776038bd627fed2e9a071751e3c41b75263926fabe57|1408x176",
+  "wh": [
+   1408,
+   176
+  ]
+ },
+ "attack/hero_paladin_legendary.png": {
+  "px": "5015b167758dcc5b03db261c2867c7456e41cae58f1a0c280fb93ea8cc3f7273|1408x176",
+  "wh": [
+   1408,
+   176
+  ]
+ },
+ "attack/hero_paladin_rare.png": {
+  "px": "abd4ae1139fb8f91b29fad7dcc3461665a0e0a53565b73cbd3876243238b5b69|1408x176",
+  "wh": [
+   1408,
+   176
+  ]
+ },
+ "attack/hero_ranged.png": {
+  "px": "37747d103c60046e1ba5ef825eeb31b31e7daa926c582d7c149c81f6750a1dad|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/hero_ranged_epic.png": {
+  "px": "a12cbd2fd540cf3bbf92017c1e51de39823a0ee772f88569674ec5fe7167b0f2|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/hero_ranged_legendary.png": {
+  "px": "2090885aa8558562c6ab82a22ce9c7dc233c0de5a4934616484df2179933a8f6|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/hero_ranged_rare.png": {
+  "px": "349e65d6a34bd5cb5925ab1b5057743043ebb526d057a122a8aa1086777e3ded|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/infernal_boss.png": {
+  "px": "f115ec8a8b937a56c3e6e4a83737261950a0f7424ee396c4806df5d3d963f047|1408x176",
+  "wh": [
+   1408,
+   176
+  ]
+ },
+ "attack/infernal_brute.png": {
+  "px": "e387c0896c80c8291f051c53db30ea387829334049d3ecad3a746bb9b084d4c6|1280x160",
+  "wh": [
+   1280,
+   160
+  ]
+ },
+ "attack/infernal_caster.png": {
+  "px": "90686168170ff9ae33e6a7053ee441f626ac3061233426ccf47b23dddfa269f1|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/infernal_sapper.png": {
+  "px": "d6569f374bbc8910fe10a85047b51bef246d7af043eeddddd55491dcf998eee0|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/infernal_shaman.png": {
+  "px": "e4ab2750e45420a33319dadc9bb0b817dee6de69db54948abf396120c5c6ac7b|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/infernal_skirmisher.png": {
+  "px": "9354383cf0da2ac12f931ea03c1a34132db14237360aac109f595f5274e5ebe9|1152x144",
+  "wh": [
+   1152,
+   144
+  ]
+ },
+ "attack/knight.png": {
+  "px": "289d23ffe1723ce675ef544082eb63d27d91a7fc32ff715baa60dd96c3666ddc|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/orc_boss.png": {
+  "px": "7ea42b6347e6d9e9f967aac9c345c4458ab3babebf472bf22f6e571055e457c1|1664x208",
+  "wh": [
+   1664,
+   208
+  ]
+ },
+ "attack/orc_brute.png": {
+  "px": "d1323593c8f0970b834c7887ae4021b0af32bef335055e3731c58f60518856bd|1152x144",
+  "wh": [
+   1152,
+   144
+  ]
+ },
+ "attack/orc_caster.png": {
+  "px": "7d9f3c36cd77de253c0532a101324b4d6d750caf115f0f5e0bd94108af1dceba|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/orc_sapper.png": {
+  "px": "4d53e8103d5626a924b3e366241603b6103eb4a662ec0190e93642d340c46e66|1152x144",
+  "wh": [
+   1152,
+   144
+  ]
+ },
+ "attack/orc_shaman.png": {
+  "px": "5e60cd567cc0ec9853e27b969b7b4e0d4b88c70ebf41546513f265364fbe80a7|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/orc_skirmisher.png": {
+  "px": "2daf43eee8fe01c2b274a38a08fc9fcdfbcb7fb6d0451da10c59f90ce9f2239a|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/undead_boss.png": {
+  "px": "34f70e90a79173d3cf857afffca6a2f19bb9d6524ec55291db6d866e478c5400|1408x176",
+  "wh": [
+   1408,
+   176
+  ]
+ },
+ "attack/undead_brute.png": {
+  "px": "3ee2a9ca29552020016159d8f712ea12edc9ca4d276fddd4dd5e66962b4d249a|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/undead_caster.png": {
+  "px": "dae3a3bda843a07bdae682301b001eebd3a01817815ea9479cd5efe773a22a26|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/undead_sapper.png": {
+  "px": "6bde067b46df60d2a0d62f34a86826d557ea0b8a2993f66f596ab126cd94455a|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/undead_shaman.png": {
+  "px": "bdee8579140f5bf98ec1a67e5f4a1304d458beb019422ab28c57770f9a7724a7|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "attack/undead_skirmisher.png": {
+  "px": "3456018b9356ac6423d0925b8b09a7821535844804329f912a1950d26a86e5c2|1024x128",
+  "wh": [
+   1024,
+   128
+  ]
+ },
+ "sheets/all_characters.png": {
+  "inputs": {
+   "sprites/bandit_boss.png": "9e6ca4b87c22fa3ae6c02148f04e2ad9282ea63ce88ed2cb914dbded9b3de66c|144x144",
+   "sprites/bandit_brute.png": "1354810c79de1a4a8ec2fabaedca38c9a6965ff485a54de411e419458043154c|112x112",
+   "sprites/bandit_caster.png": "b36bfe86d27c5b68c727c86fe5bc44be59852481966b5cd361f2e5dc5e43df5c|112x112",
+   "sprites/bandit_sapper.png": "22486a91e2ec8f8c4bb30a3eb9557871ffbb0ef4957fe9ef27b42cf0c7badf47|112x112",
+   "sprites/bandit_shaman.png": "3f10645bfd2822744ed8b8268adfe29163d62fdf9fa03e60624469dc74df846a|112x112",
+   "sprites/bandit_skirmisher.png": "99cc23666a71e3950224035efc449f075b04fe27d61280d7a7a4f6b2c4f9adb4|112x112",
+   "sprites/goblin.png": "b6efb6c15ec219f95c3eb57d511aa91f1ef1e9938352f6038a20b356493df7b7|112x112",
+   "sprites/goblin_boss.png": "406ae24384d41f1478476a7a00abbb3f208f242691befc067401cfa28ba74b69|144x144",
+   "sprites/goblin_caster.png": "d9d89c5259e552439eabd1ece30ced7f7fd2fbe7aedd001da90358cbd73f76ac|112x112",
+   "sprites/goblin_sapper.png": "a7fe890a0fd756662cfc5fd7844e0cba6c76ac9d614501cbaf02d12de51e754b|112x112",
+   "sprites/goblin_shaman.png": "52c0bd00044862041ce65f7033833bef41311f6f097af6a9faf3ec746fbef2fe|112x112",
+   "sprites/goblin_skirmisher.png": "5471a81fbcb83df163e95a252a5d73deec3fa32a3177c9ace1abbd97047a5ef0|112x112",
+   "sprites/hero_assassin.png": "4f0d597ed1f2a49c694f97371747e275ae95b7a1c812e3c41383895f21e4b2e3|112x112",
+   "sprites/hero_assassin_epic.png": "bd6758812081652eacd2e471e4d1f908296b66534d9937928255634ab7e8cf64|112x112",
+   "sprites/hero_assassin_legendary.png": "4b4df74c76e2c9bf56e341b2d7820e75b6004378e6c95fd477fc4a4ee13657fd|112x112",
+   "sprites/hero_assassin_rare.png": "c8fd0507b80a2fba4798bcf701cba56a1eb4e5dabb21253f9918b077b9933f5a|112x112",
+   "sprites/hero_banneret.png": "8fdd62f11b7218806387a810aabd751f024bee3a5ef803b571f8f523dc66203c|160x160",
+   "sprites/hero_banneret_epic.png": "82b803942e3236c701a74e6cc2cc57599d73c6d59218ef6492b5500cd51c2649|160x160",
+   "sprites/hero_banneret_legendary.png": "85d8d90805c0d6acadef0f1046f61d6b347fadaec3ac6aa9f9756cad88ab68d3|160x160",
+   "sprites/hero_banneret_rare.png": "8964295f2e53a33d330379dc10fbdc18e73743a76fd125d24818b00f15422775|160x160",
+   "sprites/hero_battlemage.png": "b800e8e088ac034526bda783a513c0ce0032743b9a9897a45a412c3bd3f48883|112x112",
+   "sprites/hero_battlemage_epic.png": "a2c45153b96994fff92be9cde3cf2f377d752e8d3a73cd4c531789b252cc6e83|112x112",
+   "sprites/hero_battlemage_legendary.png": "f19c6a7212077aee8fbcdf8bdc3a67d09fd275ae0fb2b3878e88837c7cd9fafe|112x112",
+   "sprites/hero_battlemage_rare.png": "f6474cc3889bd10588f1de4e08428a5817d0b13dcc052be81a602cbf9b75e6ca|112x112",
+   "sprites/hero_fighter.png": "3f30294d0870063cc0799aee2fb954361e3dd3e7adc0a976d33cb43b584e9b8d|112x112",
+   "sprites/hero_fighter_epic.png": "d9cf4a80ab7342449b20edefa2c38c5f0098370d358a4927fc34cf7f1ab807fe|112x112",
+   "sprites/hero_fighter_legendary.png": "5c6aad2574138032a2fecd11e7031156221b5792a5cec12565e7b9d653fc0c26|112x112",
+   "sprites/hero_fighter_rare.png": "26fd8292e2a8d3bfd044693a7e5d16ae665b5ee5fa02ef011a7b736c94f2fbf4|112x112",
+   "sprites/hero_frostadept.png": "c54c4b7ca380a2f20b3ec2630dc16358e69186ebadc43bf44fe72f1d179c45d2|112x112",
+   "sprites/hero_frostadept_epic.png": "baa06ee8853d40b12e778dfe465a19bfa72f31a6d995b06eb355ab9034afff3c|112x112",
+   "sprites/hero_frostadept_legendary.png": "3f6c53c7360254fe8b4245e6ed6b4abccc5811c47f7474b03a0513853b2e2557|112x112",
+   "sprites/hero_frostadept_rare.png": "00465ad5aa7dfd9e15f2359ea8177b36fc4daec18479e2b8140cfb8f83c07106|112x112",
+   "sprites/hero_mender.png": "e0e9fb72ed1439212804b4e716efc2863b2764cf32c72c30dc86bf6b804e47fd|112x112",
+   "sprites/hero_mender_common.png": "3973157a952f8e0621b68b84c18ba7044da12d1053b264578afbae041826cb98|112x112",
+   "sprites/hero_mender_epic.png": "b29768dd2887d3a9ba1ed7769f80075d4bef0ed45e0231fd8f28d86daa05bfa5|112x112",
+   "sprites/hero_mender_legendary.png": "de77e3fc8f3b0292b8d7991aa45a6dcc05bd91062ce3abb31528f3512d61defe|112x112",
+   "sprites/hero_paladin.png": "7278f6c63e5d00617ed2d1da766e94eca8cac0bf685d9fe23e024458dd4fa055|112x112",
+   "sprites/hero_paladin_common.png": "8061bbef8a9c84e95475f20e604fe7abd2db03ecd42ffc4ecaadb30e5a67d9ac|112x112",
+   "sprites/hero_paladin_legendary.png": "2eee47f80645a482a54852672d8bff05b2955cb26b23149f491f2b2c167311a2|112x112",
+   "sprites/hero_paladin_rare.png": "b418f09a08b5d694d70f95ace67293aeff1793d501f31d5c0c3bdc892fcecc46|112x112",
+   "sprites/hero_ranged.png": "3d17eac7efa69312e476ed401f207fbd398d17c1d0955beaf6d4312a8933a5fc|112x112",
+   "sprites/hero_ranged_epic.png": "959120efa92c36b58f3677c0c59051ca0cab33a987ea93ee47ef306dfac98427|112x112",
+   "sprites/hero_ranged_legendary.png": "4e0418131f63a58a7964d6e4ced0a496ef69bdb5851f6196026810ecdcd117bf|112x112",
+   "sprites/hero_ranged_rare.png": "8e6112bb10020aa3771e4f611a818e2542e441ed1aa358fea699138a73a24982|112x112",
+   "sprites/infernal_boss.png": "c8ef3335a632dddf08468aac77d920983fd8015f0dec1aa3538b2a896e583673|144x144",
+   "sprites/infernal_brute.png": "62ba71e35d7b94fe07b781ae825010197b4db461804be8fe11515f98f3853541|112x112",
+   "sprites/infernal_caster.png": "78b30d4f51cb33f1efd138e65dc11b2552631fd20737bb1af02ef44701d75fe3|112x112",
+   "sprites/infernal_sapper.png": "88d0cd978e1c7eb86084c3e253273a50a7752d998d37dc20a91cf1fa4c45b6b9|112x112",
+   "sprites/infernal_shaman.png": "8e83ec9f4b1976c05e5337e56d1b77353fddb7d4681395fdd67caf48b3d29b19|112x112",
+   "sprites/infernal_skirmisher.png": "3fecd776dbdd2d30bbfa8c542cf2e8f079e91e08fff56d059b544a1a5d663bb5|112x112",
+   "sprites/knight.png": "67a387522fcb4cc6e1c7cab1f6e2457db6cae12b89a0e8c5f3715f2103c844c3|96x96",
+   "sprites/knight_epic.png": "f97f628bc38541f620113e77dc43f4bf245d24b13609392e6270410ccd81ca17|96x96",
+   "sprites/knight_legendary.png": "4fc1ddbf69d9fb70a021b1e7ca8f6867bff26a9e5de5bc4481ce470ff82ef2e9|96x96",
+   "sprites/knight_rare.png": "da7471e757d460eb1cfbddbada633e623b238579fbeb16066ea8e7cf99885d75|96x96",
+   "sprites/orc_boss.png": "ac89cd8c382d0088fc1f426b89c6a9426d584650c2352606930cda235ba8f08e|144x144",
+   "sprites/orc_brute.png": "fc8cd5a730a99f3d9337da32a7f14f1bbd17056c2553e45f4d68483c83012661|112x112",
+   "sprites/orc_caster.png": "e041c5e8cf4bd06ba35158c529c40ab6a564040eef9356a215c84dc550fe4b51|112x112",
+   "sprites/orc_sapper.png": "b6c59506f336bd3409575a98b2d35e810709845f367ae2b9463d95774d6acc2e|112x112",
+   "sprites/orc_shaman.png": "e298791ccc70a65c584978a823aff3322db6b0b70d88845ace86f5f585a13648|112x112",
+   "sprites/orc_skirmisher.png": "310d991833d2b838c9795c5677dc587593646f8e30c79936b7b4fd1e4ece188e|112x112",
+   "sprites/town_alchemist.png": "1cd50ceaac1a02140bd708012078da7b6229a66687d745ef50bba2601ca7bd76|112x112",
+   "sprites/town_blacksmith.png": "0109e358b623ee7ed65c2fd122adb382a3e4abda0ed71b74d1c983e948bfa37c|112x112",
+   "sprites/town_builder.png": "59f045cdc388f7ce06c799dabd7c2b4d94874faeaac872f48601c57e9564e0e5|112x112",
+   "sprites/town_highpriest.png": "f29ef78fa80157c9f3d112d109236a4f772aae90072b687b3eab88bbaf252950|112x112",
+   "sprites/town_mage.png": "4f5b476a88c4adfcffbee3d9b2c55ec3c806c0c770220e5452a9c311e07f92d1|112x112",
+   "sprites/town_scholar.png": "b7a8ca214a3c95e60250aaa28e0779bb62f93dd64c08b75fd6dd8f59f33cbb5f|112x112",
+   "sprites/town_tavernkeeper.png": "4e774a5d659a096bd11b24837200528f9068b416d57921c6bf9b64eb464fecac|112x112",
+   "sprites/town_villager.png": "22616ccf6fb0b46bafb1535e267deb2bf62095d732e1326e78c566bc7596199c|112x112",
+   "sprites/undead_boss.png": "298483d2402a623e9f1a19c0887a1180487da85e0332d407c735b01d66072e5b|144x144",
+   "sprites/undead_brute.png": "645a83e8f36ccb4c84556806591176c697b399913bac6496c455bd4f32d94362|112x112",
+   "sprites/undead_caster.png": "77f9475b3dbd1e8ee2fea109168520dad269592369cefa143c7054ecf5934b86|112x112",
+   "sprites/undead_sapper.png": "92f02f0c988a2b35ac03949a53aaa81eb788f4aa7d53da46d8b149005e63fe72|112x112",
+   "sprites/undead_shaman.png": "e6e65ee28783a5c74b10e0cf23980de3ed434a8892eecedec7ab4ed36990f57c|112x112",
+   "sprites/undead_skirmisher.png": "1ed193c8cd17bb53100a9fb3824f900f0df180286e4ec588b43b1fbf222286c7|112x112"
+  },
+  "px": "fd2b4033950bc95ea35c38339637f3e47afe448024d6bed7a342347f7b78dbec|1316x1744",
+  "wh": [
+   1316,
+   1744
+  ]
+ },
+ "sheets/attacks_bandit.png": {
+  "inputs": {
+   "attack/bandit_boss.png": "51204b51ad5d26af32fa69b71bd2795af090ab6c9c8ad0e6794396a29c00a5d1|1152x144",
+   "attack/bandit_brute.png": "602d8a77357e9df66194c614bcc54186c4fe5cdcb47acb1ed44f5aaf904a77f9|1024x128",
+   "attack/bandit_caster.png": "ed5828fc59b673db323a4fbdf5dcb3d2a3c8ca7139e409a17af656fa905f262f|1024x128",
+   "attack/bandit_sapper.png": "5292baa25455fdb01c5c2b77b832c0a33c3c2ab6236c06cbbfc17bb06223e8ed|1152x144",
+   "attack/bandit_shaman.png": "7eae542cc6f0a2e826dd587704b36e2b0f6d30e9e36fc2985b46a1ddb7742958|1024x128",
+   "attack/bandit_skirmisher.png": "1699d1a211d8b5efef80f65d27585c90c3a2d4a62f2062bfd9410ded3d0527b0|1024x128"
+  },
+  "px": "7ccb97b830798fa3e6da056ada4dfa3bd8720bc8182822a16d77759d31241562|3456x2598",
+  "wh": [
+   3456,
+   2598
+  ]
+ },
+ "sheets/attacks_goblin.png": {
+  "inputs": {
+   "attack/goblin_boss.png": "95e64cadf911281b8337162c29eefadfe8ec7cdb5ff4e2a4b78663324327eb67|1664x208",
+   "attack/goblin_caster.png": "c1e8f252e8945c74186210df0f8307ce946dab7771af7fc7e62d90fac715bcaf|1024x128",
+   "attack/goblin_sapper.png": "410903b793a812c90c85f3b217419a33aab6f1d685d12cbf22d1ad2945fa4ca5|1024x128",
+   "attack/goblin_shaman.png": "66dc48aa7ee991ab23318b94896930ac9245d3b368e5a3e8bc963315640ea0fe|1024x128",
+   "attack/goblin_skirmisher.png": "e034c8aec97ef7e69a4ebf956b42e66afd3385f2e7ea13f24de6efa1984e9e66|1024x128"
+  },
+  "px": "7bb1c877d9db4f547e5e837a3129439dabdec4a2733df0a0d0b3205fdc4f51e0|4992x2325",
+  "wh": [
+   4992,
+   2325
+  ]
+ },
+ "sheets/attacks_heroes.png": {
+  "inputs": {
+   "attack/hero_assassin.png": "2b04ab296b47030cfef7b4834c5a8e4bdeaf33177414623545c1cf864d5e8bad|1152x144",
+   "attack/hero_banneret.png": "5d8078d5aef85c980507894a2393979ef3db88fda558f9d4ffac7ec7ccf91211|1792x224",
+   "attack/hero_battlemage.png": "7b9e023d9cf0435138991aa11a91ef575a12d5ee3f630eb127db9a6c43f6df72|1024x128",
+   "attack/hero_fighter.png": "c5961fafc558905846a161099e9a627d853f743fd768a49e567e52af08e7f4b7|1408x176",
+   "attack/hero_frostadept.png": "e28fc41a97e9995a1c503dcc8d6d9992708e4d0a48d3eb28b589cc93f3e9974c|1152x144",
+   "attack/hero_mender.png": "5c563d76dc180cbe7eb6dddf3dcb9dfe22619a44939d1f8a2d3ae3d57622e3ec|1024x128",
+   "attack/hero_paladin.png": "6ca3c995af1371ccadc7248b1e20d6f1e7599e81a151f638d0f59590c0c0398a|1408x176",
+   "attack/hero_ranged.png": "37747d103c60046e1ba5ef825eeb31b31e7daa926c582d7c149c81f6750a1dad|1024x128"
+  },
+  "px": "f1f860d1a91b8b4c5dacf007af71abe4ccd9f7bfb56f66b04a05e2e2a7b723d8|5376x4008",
+  "wh": [
+   5376,
+   4008
+  ]
+ },
+ "sheets/attacks_infernal.png": {
+  "inputs": {
+   "attack/infernal_boss.png": "f115ec8a8b937a56c3e6e4a83737261950a0f7424ee396c4806df5d3d963f047|1408x176",
+   "attack/infernal_brute.png": "e387c0896c80c8291f051c53db30ea387829334049d3ecad3a746bb9b084d4c6|1280x160",
+   "attack/infernal_caster.png": "90686168170ff9ae33e6a7053ee441f626ac3061233426ccf47b23dddfa269f1|1024x128",
+   "attack/infernal_sapper.png": "d6569f374bbc8910fe10a85047b51bef246d7af043eeddddd55491dcf998eee0|1024x128",
+   "attack/infernal_shaman.png": "e4ab2750e45420a33319dadc9bb0b817dee6de69db54948abf396120c5c6ac7b|1024x128",
+   "attack/infernal_skirmisher.png": "9354383cf0da2ac12f931ea03c1a34132db14237360aac109f595f5274e5ebe9|1152x144"
+  },
+  "px": "46a1f2c95d83ceb774d0e11e01de7b6246c22823c9823787caa2278b9b574b55|4224x2790",
+  "wh": [
+   4224,
+   2790
+  ]
+ },
+ "sheets/attacks_orc.png": {
+  "inputs": {
+   "attack/orc_boss.png": "7ea42b6347e6d9e9f967aac9c345c4458ab3babebf472bf22f6e571055e457c1|1664x208",
+   "attack/orc_brute.png": "d1323593c8f0970b834c7887ae4021b0af32bef335055e3731c58f60518856bd|1152x144",
+   "attack/orc_caster.png": "7d9f3c36cd77de253c0532a101324b4d6d750caf115f0f5e0bd94108af1dceba|1024x128",
+   "attack/orc_sapper.png": "4d53e8103d5626a924b3e366241603b6103eb4a662ec0190e93642d340c46e66|1152x144",
+   "attack/orc_shaman.png": "5e60cd567cc0ec9853e27b969b7b4e0d4b88c70ebf41546513f265364fbe80a7|1024x128",
+   "attack/orc_skirmisher.png": "2daf43eee8fe01c2b274a38a08fc9fcdfbcb7fb6d0451da10c59f90ce9f2239a|1024x128"
+  },
+  "px": "431c6ebb4999fbc98080c611ae21010a477ad977b93e4f3a7df03b39ef91c22e|4992x2838",
+  "wh": [
+   4992,
+   2838
+  ]
+ },
+ "sheets/attacks_undead.png": {
+  "inputs": {
+   "attack/undead_boss.png": "34f70e90a79173d3cf857afffca6a2f19bb9d6524ec55291db6d866e478c5400|1408x176",
+   "attack/undead_brute.png": "3ee2a9ca29552020016159d8f712ea12edc9ca4d276fddd4dd5e66962b4d249a|1024x128",
+   "attack/undead_caster.png": "dae3a3bda843a07bdae682301b001eebd3a01817815ea9479cd5efe773a22a26|1024x128",
+   "attack/undead_sapper.png": "6bde067b46df60d2a0d62f34a86826d557ea0b8a2993f66f596ab126cd94455a|1024x128",
+   "attack/undead_shaman.png": "bdee8579140f5bf98ec1a67e5f4a1304d458beb019422ab28c57770f9a7724a7|1024x128",
+   "attack/undead_skirmisher.png": "3456018b9356ac6423d0925b8b09a7821535844804329f912a1950d26a86e5c2|1024x128"
+  },
+  "px": "50f93aa4516930a72a39434b752bca3157d243c902b40d390214d2d28b4ce8ea|4224x2646",
+  "wh": [
+   4224,
+   2646
+  ]
+ },
+ "sheets/attacks_variants.png": {
+  "inputs": {
+   "attack/hero_assassin.png": "2b04ab296b47030cfef7b4834c5a8e4bdeaf33177414623545c1cf864d5e8bad|1152x144",
+   "attack/hero_assassin_epic.png": "6998f5cde9e859f22afa8ea0e38034b658a502a5585d6ffc07259fc94e8ca3ad|1152x144",
+   "attack/hero_assassin_legendary.png": "ea936d802592f59b861934f1c4e1ebde548239ccd4fa306f4ea6f3323d0698f4|1152x144",
+   "attack/hero_assassin_rare.png": "3c4a1ef8bf63516e7b1752282804fbdb90842cde43941005b53522caa8689731|1152x144",
+   "attack/hero_banneret.png": "5d8078d5aef85c980507894a2393979ef3db88fda558f9d4ffac7ec7ccf91211|1792x224",
+   "attack/hero_banneret_epic.png": "8cfa1d19a99ea7a8e866673051f562744cb01ea20fc3e5bf841d5e76a385b842|1792x224",
+   "attack/hero_banneret_legendary.png": "2e68fdeaf8c92dfd34fa4822796a1e02d78d9ecc4d6e8b2a28625d1731782d8a|1792x224",
+   "attack/hero_banneret_rare.png": "08dbf9bb715d849ac65a5ec56fcb9fbca8e59b9c7f1aefd0c0f8f976df2a06e8|1792x224",
+   "attack/hero_battlemage.png": "7b9e023d9cf0435138991aa11a91ef575a12d5ee3f630eb127db9a6c43f6df72|1024x128",
+   "attack/hero_battlemage_epic.png": "4742f8813c7db826dce5be9e9875dff7c93991f0bdd73fa15f1c3855f0c58d53|1024x128",
+   "attack/hero_battlemage_legendary.png": "bbe8248c7923222163a4ba94582f6b609986ce7785d310aec01954ba41be6b4d|1024x128",
+   "attack/hero_battlemage_rare.png": "c83fdf3370e69b5345f2dd9b51779d5bc6b940da2722246e796ab1a2c1511f4f|1024x128",
+   "attack/hero_fighter.png": "c5961fafc558905846a161099e9a627d853f743fd768a49e567e52af08e7f4b7|1408x176",
+   "attack/hero_fighter_epic.png": "8ae4f112d8fb2005899c1595b33ae59d65f91d4e4943fa4a26272be9ee8c430d|1408x176",
+   "attack/hero_fighter_legendary.png": "1e6b936a3443c4d2acba7d000704b712b1b81004fb4d19465810f2ae9af1de31|1408x176",
+   "attack/hero_fighter_rare.png": "35a790511d36ac0cfc7248f91daab66f678937f54d938f4d7d374e3fb9666067|1408x176",
+   "attack/hero_frostadept.png": "e28fc41a97e9995a1c503dcc8d6d9992708e4d0a48d3eb28b589cc93f3e9974c|1152x144",
+   "attack/hero_frostadept_epic.png": "891a9f02edb0c31d87117d5f44f14a11c3403af3ee802e5d696ca5b74469d826|1152x144",
+   "attack/hero_frostadept_legendary.png": "5f750cc948823d059dbc4d1914f4b852b592d3e8d75d459300bab024256b1bce|1152x144",
+   "attack/hero_frostadept_rare.png": "c44b8c82f8a12916fc3d0187744162ff6652914564288a6fd1cc2cea393e97fc|1152x144",
+   "attack/hero_mender.png": "5c563d76dc180cbe7eb6dddf3dcb9dfe22619a44939d1f8a2d3ae3d57622e3ec|1024x128",
+   "attack/hero_mender_common.png": "f845ef1452923dd1c8cfebdb1f2c6dd4a376eb629a6aba28bff44e09475396c9|1024x128",
+   "attack/hero_mender_epic.png": "71cf27bd09bfe603fecb55cb6173d78978547a193ca9075c606f42de3535c8e3|1024x128",
+   "attack/hero_mender_legendary.png": "b940fcf478fa8c5811279eec33ac49f6a729a1b4d6624465d49bf0f39f07e473|1024x128",
+   "attack/hero_paladin.png": "6ca3c995af1371ccadc7248b1e20d6f1e7599e81a151f638d0f59590c0c0398a|1408x176",
+   "attack/hero_paladin_common.png": "baf2f137d6b277f65615776038bd627fed2e9a071751e3c41b75263926fabe57|1408x176",
+   "attack/hero_paladin_legendary.png": "5015b167758dcc5b03db261c2867c7456e41cae58f1a0c280fb93ea8cc3f7273|1408x176",
+   "attack/hero_paladin_rare.png": "abd4ae1139fb8f91b29fad7dcc3461665a0e0a53565b73cbd3876243238b5b69|1408x176",
+   "attack/hero_ranged.png": "37747d103c60046e1ba5ef825eeb31b31e7daa926c582d7c149c81f6750a1dad|1024x128",
+   "attack/hero_ranged_epic.png": "a12cbd2fd540cf3bbf92017c1e51de39823a0ee772f88569674ec5fe7167b0f2|1024x128",
+   "attack/hero_ranged_legendary.png": "2090885aa8558562c6ab82a22ce9c7dc233c0de5a4934616484df2179933a8f6|1024x128",
+   "attack/hero_ranged_rare.png": "349e65d6a34bd5cb5925ab1b5057743043ebb526d057a122a8aa1086777e3ded|1024x128"
+  },
+  "px": "40d6fd6b7eccfde6be8c9f599d590f9bf805eb4a47af4db6a8bfb06493b5e7c1|5376x16032",
+  "wh": [
+   5376,
+   16032
+  ]
+ },
+ "sheets/bandit.png": {
+  "inputs": {
+   "sprites/bandit_boss.png": "9e6ca4b87c22fa3ae6c02148f04e2ad9282ea63ce88ed2cb914dbded9b3de66c|144x144",
+   "sprites/bandit_brute.png": "1354810c79de1a4a8ec2fabaedca38c9a6965ff485a54de411e419458043154c|112x112",
+   "sprites/bandit_caster.png": "b36bfe86d27c5b68c727c86fe5bc44be59852481966b5cd361f2e5dc5e43df5c|112x112",
+   "sprites/bandit_sapper.png": "22486a91e2ec8f8c4bb30a3eb9557871ffbb0ef4957fe9ef27b42cf0c7badf47|112x112",
+   "sprites/bandit_shaman.png": "3f10645bfd2822744ed8b8268adfe29163d62fdf9fa03e60624469dc74df846a|112x112",
+   "sprites/bandit_skirmisher.png": "99cc23666a71e3950224035efc449f075b04fe27d61280d7a7a4f6b2c4f9adb4|112x112"
+  },
+  "px": "5af0b90c7c372c3a99a6f4828912b1ee2e4e4ecd361840ff6a52d07676d25820|892x162",
+  "wh": [
+   892,
+   162
+  ]
+ },
+ "sheets/buildings.png": {
+  "inputs": {
+   "sprites/apothecary.png": "f81919b7e1fd9823e37f6572ad3f4e4027fc6bc9852fd18bb6af84ea0aa80723|192x192",
+   "sprites/cathedral.png": "43886ce2a4ead00e2158b85e7033f1d977319c0b4f57b0b50c2b52b98efebc2f|256x256",
+   "sprites/cottage.png": "da0be9ed6113cf78ce0129804648b829f5d84d577d4bf788af1383a0fde761cb|192x192",
+   "sprites/keep.png": "5571ffba0883d89fea145102ac29e3754be677f11c34129e7aed83b7b38ea9ed|224x224",
+   "sprites/library.png": "f4065383e9b9623cdd64e5c90b50ceee19cbe9d2c73b83af0c2be7fd3c569e0f|224x224",
+   "sprites/smithy.png": "896f813ba9293f94d4f15db2f41b33e40021f44ec0916b5c4f6166a649086519|192x192",
+   "sprites/tavern.png": "37e44ef418ff3b526a78228db81fc4475d1d35f8dab2cc60d3f7e69ba2f74c49|224x224",
+   "sprites/tower.png": "66d3863b1a69c429dc2672b07d6b64bd209c397140fb8f20801d5cf4d396e026|256x256",
+   "sprites/workshop.png": "12cd05d980ecdffe2f120119b838c3e59c07bc5ade6b7cbf9e811417e0a0d4ef|192x192"
+  },
+  "px": "98cfddd8994493cb6305c4e14c6420886628a45a1a2dea39589d2b1304a197e3|1564x544",
+  "wh": [
+   1564,
+   544
+  ]
+ },
+ "sheets/goblin.png": {
+  "inputs": {
+   "sprites/goblin.png": "b6efb6c15ec219f95c3eb57d511aa91f1ef1e9938352f6038a20b356493df7b7|112x112",
+   "sprites/goblin_boss.png": "406ae24384d41f1478476a7a00abbb3f208f242691befc067401cfa28ba74b69|144x144",
+   "sprites/goblin_caster.png": "d9d89c5259e552439eabd1ece30ced7f7fd2fbe7aedd001da90358cbd73f76ac|112x112",
+   "sprites/goblin_sapper.png": "a7fe890a0fd756662cfc5fd7844e0cba6c76ac9d614501cbaf02d12de51e754b|112x112",
+   "sprites/goblin_shaman.png": "52c0bd00044862041ce65f7033833bef41311f6f097af6a9faf3ec746fbef2fe|112x112",
+   "sprites/goblin_skirmisher.png": "5471a81fbcb83df163e95a252a5d73deec3fa32a3177c9ace1abbd97047a5ef0|112x112"
+  },
+  "px": "52e07834c7b9f4d60656216b2e501a961372c5e5270ee5a9e6a5cd9ccfc4e8b9|892x162",
+  "wh": [
+   892,
+   162
+  ]
+ },
+ "sheets/heroes.png": {
+  "inputs": {
+   "sprites/hero_assassin.png": "4f0d597ed1f2a49c694f97371747e275ae95b7a1c812e3c41383895f21e4b2e3|112x112",
+   "sprites/hero_banneret.png": "8fdd62f11b7218806387a810aabd751f024bee3a5ef803b571f8f523dc66203c|160x160",
+   "sprites/hero_battlemage.png": "b800e8e088ac034526bda783a513c0ce0032743b9a9897a45a412c3bd3f48883|112x112",
+   "sprites/hero_fighter.png": "3f30294d0870063cc0799aee2fb954361e3dd3e7adc0a976d33cb43b584e9b8d|112x112",
+   "sprites/hero_frostadept.png": "c54c4b7ca380a2f20b3ec2630dc16358e69186ebadc43bf44fe72f1d179c45d2|112x112",
+   "sprites/hero_mender.png": "e0e9fb72ed1439212804b4e716efc2863b2764cf32c72c30dc86bf6b804e47fd|112x112",
+   "sprites/hero_paladin.png": "7278f6c63e5d00617ed2d1da766e94eca8cac0bf685d9fe23e024458dd4fa055|112x112",
+   "sprites/hero_ranged.png": "3d17eac7efa69312e476ed401f207fbd398d17c1d0955beaf6d4312a8933a5fc|112x112",
+   "sprites/knight.png": "67a387522fcb4cc6e1c7cab1f6e2457db6cae12b89a0e8c5f3715f2103c844c3|96x96"
+  },
+  "px": "fdb823c6c3b6a244cc3ffde18c1ca3d3e4e19f9f37808158c9fc3a2d26325902|988x352",
+  "wh": [
+   988,
+   352
+  ]
+ },
+ "sheets/infernal.png": {
+  "inputs": {
+   "sprites/infernal_boss.png": "c8ef3335a632dddf08468aac77d920983fd8015f0dec1aa3538b2a896e583673|144x144",
+   "sprites/infernal_brute.png": "62ba71e35d7b94fe07b781ae825010197b4db461804be8fe11515f98f3853541|112x112",
+   "sprites/infernal_caster.png": "78b30d4f51cb33f1efd138e65dc11b2552631fd20737bb1af02ef44701d75fe3|112x112",
+   "sprites/infernal_sapper.png": "88d0cd978e1c7eb86084c3e253273a50a7752d998d37dc20a91cf1fa4c45b6b9|112x112",
+   "sprites/infernal_shaman.png": "8e83ec9f4b1976c05e5337e56d1b77353fddb7d4681395fdd67caf48b3d29b19|112x112",
+   "sprites/infernal_skirmisher.png": "3fecd776dbdd2d30bbfa8c542cf2e8f079e91e08fff56d059b544a1a5d663bb5|112x112"
+  },
+  "px": "b47170152cf128306b8579200c0daa44bd883f5da0970a8a693ccae56c29ba52|892x162",
+  "wh": [
+   892,
+   162
+  ]
+ },
+ "sheets/orc.png": {
+  "inputs": {
+   "sprites/orc_boss.png": "ac89cd8c382d0088fc1f426b89c6a9426d584650c2352606930cda235ba8f08e|144x144",
+   "sprites/orc_brute.png": "fc8cd5a730a99f3d9337da32a7f14f1bbd17056c2553e45f4d68483c83012661|112x112",
+   "sprites/orc_caster.png": "e041c5e8cf4bd06ba35158c529c40ab6a564040eef9356a215c84dc550fe4b51|112x112",
+   "sprites/orc_sapper.png": "b6c59506f336bd3409575a98b2d35e810709845f367ae2b9463d95774d6acc2e|112x112",
+   "sprites/orc_shaman.png": "e298791ccc70a65c584978a823aff3322db6b0b70d88845ace86f5f585a13648|112x112",
+   "sprites/orc_skirmisher.png": "310d991833d2b838c9795c5677dc587593646f8e30c79936b7b4fd1e4ece188e|112x112"
+  },
+  "px": "7ef589848587804d2261b6cbf4277cd0f75170aab8a226b8fe5d6c8766ede61f|892x162",
+  "wh": [
+   892,
+   162
+  ]
+ },
+ "sheets/townsfolk.png": {
+  "inputs": {
+   "sprites/town_alchemist.png": "1cd50ceaac1a02140bd708012078da7b6229a66687d745ef50bba2601ca7bd76|112x112",
+   "sprites/town_blacksmith.png": "0109e358b623ee7ed65c2fd122adb382a3e4abda0ed71b74d1c983e948bfa37c|112x112",
+   "sprites/town_builder.png": "59f045cdc388f7ce06c799dabd7c2b4d94874faeaac872f48601c57e9564e0e5|112x112",
+   "sprites/town_highpriest.png": "f29ef78fa80157c9f3d112d109236a4f772aae90072b687b3eab88bbaf252950|112x112",
+   "sprites/town_mage.png": "4f5b476a88c4adfcffbee3d9b2c55ec3c806c0c770220e5452a9c311e07f92d1|112x112",
+   "sprites/town_scholar.png": "b7a8ca214a3c95e60250aaa28e0779bb62f93dd64c08b75fd6dd8f59f33cbb5f|112x112",
+   "sprites/town_tavernkeeper.png": "4e774a5d659a096bd11b24837200528f9068b416d57921c6bf9b64eb464fecac|112x112",
+   "sprites/town_villager.png": "22616ccf6fb0b46bafb1535e267deb2bf62095d732e1326e78c566bc7596199c|112x112"
+  },
+  "px": "a3d6ecdaba636baeea015243c11402e8853b5b2a69656a93df17cc9b375626b7|700x256",
+  "wh": [
+   700,
+   256
+  ]
+ },
+ "sheets/undead.png": {
+  "inputs": {
+   "sprites/undead_boss.png": "298483d2402a623e9f1a19c0887a1180487da85e0332d407c735b01d66072e5b|144x144",
+   "sprites/undead_brute.png": "645a83e8f36ccb4c84556806591176c697b399913bac6496c455bd4f32d94362|112x112",
+   "sprites/undead_caster.png": "77f9475b3dbd1e8ee2fea109168520dad269592369cefa143c7054ecf5934b86|112x112",
+   "sprites/undead_sapper.png": "92f02f0c988a2b35ac03949a53aaa81eb788f4aa7d53da46d8b149005e63fe72|112x112",
+   "sprites/undead_shaman.png": "e6e65ee28783a5c74b10e0cf23980de3ed434a8892eecedec7ab4ed36990f57c|112x112",
+   "sprites/undead_skirmisher.png": "1ed193c8cd17bb53100a9fb3824f900f0df180286e4ec588b43b1fbf222286c7|112x112"
+  },
+  "px": "633a66b2d0508457f0fbb66f5e1792c11ed224ce652999c8402ae62228c46b98|892x162",
+  "wh": [
+   892,
+   162
+  ]
+ },
+ "sheets/variants.png": {
+  "inputs": {
+   "sprites/hero_assassin.png": "4f0d597ed1f2a49c694f97371747e275ae95b7a1c812e3c41383895f21e4b2e3|112x112",
+   "sprites/hero_assassin_epic.png": "bd6758812081652eacd2e471e4d1f908296b66534d9937928255634ab7e8cf64|112x112",
+   "sprites/hero_assassin_legendary.png": "4b4df74c76e2c9bf56e341b2d7820e75b6004378e6c95fd477fc4a4ee13657fd|112x112",
+   "sprites/hero_assassin_rare.png": "c8fd0507b80a2fba4798bcf701cba56a1eb4e5dabb21253f9918b077b9933f5a|112x112",
+   "sprites/hero_banneret.png": "8fdd62f11b7218806387a810aabd751f024bee3a5ef803b571f8f523dc66203c|160x160",
+   "sprites/hero_banneret_epic.png": "82b803942e3236c701a74e6cc2cc57599d73c6d59218ef6492b5500cd51c2649|160x160",
+   "sprites/hero_banneret_legendary.png": "85d8d90805c0d6acadef0f1046f61d6b347fadaec3ac6aa9f9756cad88ab68d3|160x160",
+   "sprites/hero_banneret_rare.png": "8964295f2e53a33d330379dc10fbdc18e73743a76fd125d24818b00f15422775|160x160",
+   "sprites/hero_battlemage.png": "b800e8e088ac034526bda783a513c0ce0032743b9a9897a45a412c3bd3f48883|112x112",
+   "sprites/hero_battlemage_epic.png": "a2c45153b96994fff92be9cde3cf2f377d752e8d3a73cd4c531789b252cc6e83|112x112",
+   "sprites/hero_battlemage_legendary.png": "f19c6a7212077aee8fbcdf8bdc3a67d09fd275ae0fb2b3878e88837c7cd9fafe|112x112",
+   "sprites/hero_battlemage_rare.png": "f6474cc3889bd10588f1de4e08428a5817d0b13dcc052be81a602cbf9b75e6ca|112x112",
+   "sprites/hero_fighter.png": "3f30294d0870063cc0799aee2fb954361e3dd3e7adc0a976d33cb43b584e9b8d|112x112",
+   "sprites/hero_fighter_epic.png": "d9cf4a80ab7342449b20edefa2c38c5f0098370d358a4927fc34cf7f1ab807fe|112x112",
+   "sprites/hero_fighter_legendary.png": "5c6aad2574138032a2fecd11e7031156221b5792a5cec12565e7b9d653fc0c26|112x112",
+   "sprites/hero_fighter_rare.png": "26fd8292e2a8d3bfd044693a7e5d16ae665b5ee5fa02ef011a7b736c94f2fbf4|112x112",
+   "sprites/hero_frostadept.png": "c54c4b7ca380a2f20b3ec2630dc16358e69186ebadc43bf44fe72f1d179c45d2|112x112",
+   "sprites/hero_frostadept_epic.png": "baa06ee8853d40b12e778dfe465a19bfa72f31a6d995b06eb355ab9034afff3c|112x112",
+   "sprites/hero_frostadept_legendary.png": "3f6c53c7360254fe8b4245e6ed6b4abccc5811c47f7474b03a0513853b2e2557|112x112",
+   "sprites/hero_frostadept_rare.png": "00465ad5aa7dfd9e15f2359ea8177b36fc4daec18479e2b8140cfb8f83c07106|112x112",
+   "sprites/hero_mender.png": "e0e9fb72ed1439212804b4e716efc2863b2764cf32c72c30dc86bf6b804e47fd|112x112",
+   "sprites/hero_mender_common.png": "3973157a952f8e0621b68b84c18ba7044da12d1053b264578afbae041826cb98|112x112",
+   "sprites/hero_mender_epic.png": "b29768dd2887d3a9ba1ed7769f80075d4bef0ed45e0231fd8f28d86daa05bfa5|112x112",
+   "sprites/hero_mender_legendary.png": "de77e3fc8f3b0292b8d7991aa45a6dcc05bd91062ce3abb31528f3512d61defe|112x112",
+   "sprites/hero_paladin.png": "7278f6c63e5d00617ed2d1da766e94eca8cac0bf685d9fe23e024458dd4fa055|112x112",
+   "sprites/hero_paladin_common.png": "8061bbef8a9c84e95475f20e604fe7abd2db03ecd42ffc4ecaadb30e5a67d9ac|112x112",
+   "sprites/hero_paladin_legendary.png": "2eee47f80645a482a54852672d8bff05b2955cb26b23149f491f2b2c167311a2|112x112",
+   "sprites/hero_paladin_rare.png": "b418f09a08b5d694d70f95ace67293aeff1793d501f31d5c0c3bdc892fcecc46|112x112",
+   "sprites/hero_ranged.png": "3d17eac7efa69312e476ed401f207fbd398d17c1d0955beaf6d4312a8933a5fc|112x112",
+   "sprites/hero_ranged_epic.png": "959120efa92c36b58f3677c0c59051ca0cab33a987ea93ee47ef306dfac98427|112x112",
+   "sprites/hero_ranged_legendary.png": "4e0418131f63a58a7964d6e4ced0a496ef69bdb5851f6196026810ecdcd117bf|112x112",
+   "sprites/hero_ranged_rare.png": "8e6112bb10020aa3771e4f611a818e2542e441ed1aa358fea699138a73a24982|112x112",
+   "sprites/knight.png": "67a387522fcb4cc6e1c7cab1f6e2457db6cae12b89a0e8c5f3715f2103c844c3|96x96",
+   "sprites/knight_epic.png": "f97f628bc38541f620113e77dc43f4bf245d24b13609392e6270410ccd81ca17|96x96",
+   "sprites/knight_legendary.png": "4fc1ddbf69d9fb70a021b1e7ca8f6867bff26a9e5de5bc4481ce470ff82ef2e9|96x96",
+   "sprites/knight_rare.png": "da7471e757d460eb1cfbddbada633e623b238579fbeb16066ea8e7cf99885d75|96x96"
+  },
+  "px": "f7bfdb3a8cb0715c8ec381f0dd4bd658af6c7690a5ae8790bb224443eb0b78e7|660x1651",
+  "wh": [
+   660,
+   1651
+  ]
+ },
+ "sprites/apothecary.png": {
+  "px": "f81919b7e1fd9823e37f6572ad3f4e4027fc6bc9852fd18bb6af84ea0aa80723|192x192",
+  "wh": [
+   192,
+   192
+  ]
+ },
+ "sprites/bandit_boss.png": {
+  "px": "9e6ca4b87c22fa3ae6c02148f04e2ad9282ea63ce88ed2cb914dbded9b3de66c|144x144",
+  "wh": [
+   144,
+   144
+  ]
+ },
+ "sprites/bandit_brute.png": {
+  "px": "1354810c79de1a4a8ec2fabaedca38c9a6965ff485a54de411e419458043154c|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/bandit_caster.png": {
+  "px": "b36bfe86d27c5b68c727c86fe5bc44be59852481966b5cd361f2e5dc5e43df5c|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/bandit_sapper.png": {
+  "px": "22486a91e2ec8f8c4bb30a3eb9557871ffbb0ef4957fe9ef27b42cf0c7badf47|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/bandit_shaman.png": {
+  "px": "3f10645bfd2822744ed8b8268adfe29163d62fdf9fa03e60624469dc74df846a|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/bandit_skirmisher.png": {
+  "px": "99cc23666a71e3950224035efc449f075b04fe27d61280d7a7a4f6b2c4f9adb4|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/cathedral.png": {
+  "px": "43886ce2a4ead00e2158b85e7033f1d977319c0b4f57b0b50c2b52b98efebc2f|256x256",
+  "wh": [
+   256,
+   256
+  ]
+ },
+ "sprites/cottage.png": {
+  "px": "da0be9ed6113cf78ce0129804648b829f5d84d577d4bf788af1383a0fde761cb|192x192",
+  "wh": [
+   192,
+   192
+  ]
+ },
+ "sprites/goblin.png": {
+  "px": "b6efb6c15ec219f95c3eb57d511aa91f1ef1e9938352f6038a20b356493df7b7|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/goblin_boss.png": {
+  "px": "406ae24384d41f1478476a7a00abbb3f208f242691befc067401cfa28ba74b69|144x144",
+  "wh": [
+   144,
+   144
+  ]
+ },
+ "sprites/goblin_caster.png": {
+  "px": "d9d89c5259e552439eabd1ece30ced7f7fd2fbe7aedd001da90358cbd73f76ac|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/goblin_sapper.png": {
+  "px": "a7fe890a0fd756662cfc5fd7844e0cba6c76ac9d614501cbaf02d12de51e754b|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/goblin_shaman.png": {
+  "px": "52c0bd00044862041ce65f7033833bef41311f6f097af6a9faf3ec746fbef2fe|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/goblin_skirmisher.png": {
+  "px": "5471a81fbcb83df163e95a252a5d73deec3fa32a3177c9ace1abbd97047a5ef0|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_assassin.png": {
+  "px": "4f0d597ed1f2a49c694f97371747e275ae95b7a1c812e3c41383895f21e4b2e3|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_assassin_epic.png": {
+  "px": "bd6758812081652eacd2e471e4d1f908296b66534d9937928255634ab7e8cf64|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_assassin_legendary.png": {
+  "px": "4b4df74c76e2c9bf56e341b2d7820e75b6004378e6c95fd477fc4a4ee13657fd|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_assassin_rare.png": {
+  "px": "c8fd0507b80a2fba4798bcf701cba56a1eb4e5dabb21253f9918b077b9933f5a|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_banneret.png": {
+  "px": "8fdd62f11b7218806387a810aabd751f024bee3a5ef803b571f8f523dc66203c|160x160",
+  "wh": [
+   160,
+   160
+  ]
+ },
+ "sprites/hero_banneret_epic.png": {
+  "px": "82b803942e3236c701a74e6cc2cc57599d73c6d59218ef6492b5500cd51c2649|160x160",
+  "wh": [
+   160,
+   160
+  ]
+ },
+ "sprites/hero_banneret_legendary.png": {
+  "px": "85d8d90805c0d6acadef0f1046f61d6b347fadaec3ac6aa9f9756cad88ab68d3|160x160",
+  "wh": [
+   160,
+   160
+  ]
+ },
+ "sprites/hero_banneret_rare.png": {
+  "px": "8964295f2e53a33d330379dc10fbdc18e73743a76fd125d24818b00f15422775|160x160",
+  "wh": [
+   160,
+   160
+  ]
+ },
+ "sprites/hero_battlemage.png": {
+  "px": "b800e8e088ac034526bda783a513c0ce0032743b9a9897a45a412c3bd3f48883|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_battlemage_epic.png": {
+  "px": "a2c45153b96994fff92be9cde3cf2f377d752e8d3a73cd4c531789b252cc6e83|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_battlemage_legendary.png": {
+  "px": "f19c6a7212077aee8fbcdf8bdc3a67d09fd275ae0fb2b3878e88837c7cd9fafe|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_battlemage_rare.png": {
+  "px": "f6474cc3889bd10588f1de4e08428a5817d0b13dcc052be81a602cbf9b75e6ca|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_fighter.png": {
+  "px": "3f30294d0870063cc0799aee2fb954361e3dd3e7adc0a976d33cb43b584e9b8d|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_fighter_epic.png": {
+  "px": "d9cf4a80ab7342449b20edefa2c38c5f0098370d358a4927fc34cf7f1ab807fe|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_fighter_legendary.png": {
+  "px": "5c6aad2574138032a2fecd11e7031156221b5792a5cec12565e7b9d653fc0c26|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_fighter_rare.png": {
+  "px": "26fd8292e2a8d3bfd044693a7e5d16ae665b5ee5fa02ef011a7b736c94f2fbf4|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_frostadept.png": {
+  "px": "c54c4b7ca380a2f20b3ec2630dc16358e69186ebadc43bf44fe72f1d179c45d2|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_frostadept_epic.png": {
+  "px": "baa06ee8853d40b12e778dfe465a19bfa72f31a6d995b06eb355ab9034afff3c|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_frostadept_legendary.png": {
+  "px": "3f6c53c7360254fe8b4245e6ed6b4abccc5811c47f7474b03a0513853b2e2557|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_frostadept_rare.png": {
+  "px": "00465ad5aa7dfd9e15f2359ea8177b36fc4daec18479e2b8140cfb8f83c07106|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_mender.png": {
+  "px": "e0e9fb72ed1439212804b4e716efc2863b2764cf32c72c30dc86bf6b804e47fd|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_mender_common.png": {
+  "px": "3973157a952f8e0621b68b84c18ba7044da12d1053b264578afbae041826cb98|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_mender_epic.png": {
+  "px": "b29768dd2887d3a9ba1ed7769f80075d4bef0ed45e0231fd8f28d86daa05bfa5|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_mender_legendary.png": {
+  "px": "de77e3fc8f3b0292b8d7991aa45a6dcc05bd91062ce3abb31528f3512d61defe|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_paladin.png": {
+  "px": "7278f6c63e5d00617ed2d1da766e94eca8cac0bf685d9fe23e024458dd4fa055|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_paladin_common.png": {
+  "px": "8061bbef8a9c84e95475f20e604fe7abd2db03ecd42ffc4ecaadb30e5a67d9ac|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_paladin_legendary.png": {
+  "px": "2eee47f80645a482a54852672d8bff05b2955cb26b23149f491f2b2c167311a2|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_paladin_rare.png": {
+  "px": "b418f09a08b5d694d70f95ace67293aeff1793d501f31d5c0c3bdc892fcecc46|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_ranged.png": {
+  "px": "3d17eac7efa69312e476ed401f207fbd398d17c1d0955beaf6d4312a8933a5fc|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_ranged_epic.png": {
+  "px": "959120efa92c36b58f3677c0c59051ca0cab33a987ea93ee47ef306dfac98427|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_ranged_legendary.png": {
+  "px": "4e0418131f63a58a7964d6e4ced0a496ef69bdb5851f6196026810ecdcd117bf|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/hero_ranged_rare.png": {
+  "px": "8e6112bb10020aa3771e4f611a818e2542e441ed1aa358fea699138a73a24982|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/infernal_boss.png": {
+  "px": "c8ef3335a632dddf08468aac77d920983fd8015f0dec1aa3538b2a896e583673|144x144",
+  "wh": [
+   144,
+   144
+  ]
+ },
+ "sprites/infernal_brute.png": {
+  "px": "62ba71e35d7b94fe07b781ae825010197b4db461804be8fe11515f98f3853541|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/infernal_caster.png": {
+  "px": "78b30d4f51cb33f1efd138e65dc11b2552631fd20737bb1af02ef44701d75fe3|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/infernal_sapper.png": {
+  "px": "88d0cd978e1c7eb86084c3e253273a50a7752d998d37dc20a91cf1fa4c45b6b9|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/infernal_shaman.png": {
+  "px": "8e83ec9f4b1976c05e5337e56d1b77353fddb7d4681395fdd67caf48b3d29b19|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/infernal_skirmisher.png": {
+  "px": "3fecd776dbdd2d30bbfa8c542cf2e8f079e91e08fff56d059b544a1a5d663bb5|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/keep.png": {
+  "px": "5571ffba0883d89fea145102ac29e3754be677f11c34129e7aed83b7b38ea9ed|224x224",
+  "wh": [
+   224,
+   224
+  ]
+ },
+ "sprites/knight.png": {
+  "px": "67a387522fcb4cc6e1c7cab1f6e2457db6cae12b89a0e8c5f3715f2103c844c3|96x96",
+  "wh": [
+   96,
+   96
+  ]
+ },
+ "sprites/knight_epic.png": {
+  "px": "f97f628bc38541f620113e77dc43f4bf245d24b13609392e6270410ccd81ca17|96x96",
+  "wh": [
+   96,
+   96
+  ]
+ },
+ "sprites/knight_legendary.png": {
+  "px": "4fc1ddbf69d9fb70a021b1e7ca8f6867bff26a9e5de5bc4481ce470ff82ef2e9|96x96",
+  "wh": [
+   96,
+   96
+  ]
+ },
+ "sprites/knight_rare.png": {
+  "px": "da7471e757d460eb1cfbddbada633e623b238579fbeb16066ea8e7cf99885d75|96x96",
+  "wh": [
+   96,
+   96
+  ]
+ },
+ "sprites/library.png": {
+  "px": "f4065383e9b9623cdd64e5c90b50ceee19cbe9d2c73b83af0c2be7fd3c569e0f|224x224",
+  "wh": [
+   224,
+   224
+  ]
+ },
+ "sprites/orc_boss.png": {
+  "px": "ac89cd8c382d0088fc1f426b89c6a9426d584650c2352606930cda235ba8f08e|144x144",
+  "wh": [
+   144,
+   144
+  ]
+ },
+ "sprites/orc_brute.png": {
+  "px": "fc8cd5a730a99f3d9337da32a7f14f1bbd17056c2553e45f4d68483c83012661|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/orc_caster.png": {
+  "px": "e041c5e8cf4bd06ba35158c529c40ab6a564040eef9356a215c84dc550fe4b51|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/orc_sapper.png": {
+  "px": "b6c59506f336bd3409575a98b2d35e810709845f367ae2b9463d95774d6acc2e|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/orc_shaman.png": {
+  "px": "e298791ccc70a65c584978a823aff3322db6b0b70d88845ace86f5f585a13648|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/orc_skirmisher.png": {
+  "px": "310d991833d2b838c9795c5677dc587593646f8e30c79936b7b4fd1e4ece188e|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/smithy.png": {
+  "px": "896f813ba9293f94d4f15db2f41b33e40021f44ec0916b5c4f6166a649086519|192x192",
+  "wh": [
+   192,
+   192
+  ]
+ },
+ "sprites/tavern.png": {
+  "px": "37e44ef418ff3b526a78228db81fc4475d1d35f8dab2cc60d3f7e69ba2f74c49|224x224",
+  "wh": [
+   224,
+   224
+  ]
+ },
+ "sprites/tower.png": {
+  "px": "66d3863b1a69c429dc2672b07d6b64bd209c397140fb8f20801d5cf4d396e026|256x256",
+  "wh": [
+   256,
+   256
+  ]
+ },
+ "sprites/town_alchemist.png": {
+  "px": "1cd50ceaac1a02140bd708012078da7b6229a66687d745ef50bba2601ca7bd76|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/town_blacksmith.png": {
+  "px": "0109e358b623ee7ed65c2fd122adb382a3e4abda0ed71b74d1c983e948bfa37c|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/town_builder.png": {
+  "px": "59f045cdc388f7ce06c799dabd7c2b4d94874faeaac872f48601c57e9564e0e5|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/town_highpriest.png": {
+  "px": "f29ef78fa80157c9f3d112d109236a4f772aae90072b687b3eab88bbaf252950|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/town_mage.png": {
+  "px": "4f5b476a88c4adfcffbee3d9b2c55ec3c806c0c770220e5452a9c311e07f92d1|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/town_scholar.png": {
+  "px": "b7a8ca214a3c95e60250aaa28e0779bb62f93dd64c08b75fd6dd8f59f33cbb5f|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/town_tavernkeeper.png": {
+  "px": "4e774a5d659a096bd11b24837200528f9068b416d57921c6bf9b64eb464fecac|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/town_villager.png": {
+  "px": "22616ccf6fb0b46bafb1535e267deb2bf62095d732e1326e78c566bc7596199c|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/undead_boss.png": {
+  "px": "298483d2402a623e9f1a19c0887a1180487da85e0332d407c735b01d66072e5b|144x144",
+  "wh": [
+   144,
+   144
+  ]
+ },
+ "sprites/undead_brute.png": {
+  "px": "645a83e8f36ccb4c84556806591176c697b399913bac6496c455bd4f32d94362|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/undead_caster.png": {
+  "px": "77f9475b3dbd1e8ee2fea109168520dad269592369cefa143c7054ecf5934b86|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/undead_sapper.png": {
+  "px": "92f02f0c988a2b35ac03949a53aaa81eb788f4aa7d53da46d8b149005e63fe72|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/undead_shaman.png": {
+  "px": "e6e65ee28783a5c74b10e0cf23980de3ed434a8892eecedec7ab4ed36990f57c|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/undead_skirmisher.png": {
+  "px": "1ed193c8cd17bb53100a9fb3824f900f0df180286e4ec588b43b1fbf222286c7|112x112",
+  "wh": [
+   112,
+   112
+  ]
+ },
+ "sprites/workshop.png": {
+  "px": "12cd05d980ecdffe2f120119b838c3e59c07bc5ade6b7cbf9e811417e0a0d4ef|192x192",
+  "wh": [
+   192,
+   192
+  ]
+ }
+}

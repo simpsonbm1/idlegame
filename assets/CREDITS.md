@@ -161,6 +161,8 @@ rarity variants.
 `rendered/sheets/*` — contact sheets for reviewing the set on a machine without Blender
 installed: one per sprite group, plus `attacks_*` laying each combatant's eight animation
 frames out in a captioned row.
+`rendered/manifest.json` — pixel-hash bookkeeping for everything above, written by
+`tools/blender/publish.py` and cross-checked by the pre-commit art-consistency guard.
 
 Source and method: modelled and rendered entirely in-house from Python in
 `tools/blender/`, no image generator involved and no third-party art. Rebuildable from

@@ -125,18 +125,13 @@ def main():
     for a, log_path in failed:
         print("  FAILED %s -- %s" % (a.key, log_path))
 
-    # Contact sheets last, so an unattended run ends with the one image a human
-    # actually has to look at. A failure here must not mask a successful batch.
-    contact = os.path.join(HERE, "compose_contact.py")
-    sheets = subprocess.run([blender, "--background", "--factory-startup",
-                             "--python", contact],
-                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                            cwd=HERE, text=True, errors="replace")
-    if sheets.returncode == 0 and "contact sheets written" in sheets.stdout:
-        print("\ncontact sheets: %s" % os.path.join(HERE, "out", "sheet_*_big.png"))
-    else:
-        print("\ncontact sheets FAILED (renders above are unaffected)")
-        print(sheets.stdout[-1500:])
+    # No canonical contact sheets here, deliberately. They are composed from
+    # `assets/rendered/` by `publish.py`, never from `out/` -- composing them
+    # from scratch renders is what put sheets showing unpublished art into a
+    # commit on 2026-08-02. Judge a fresh render with an ad-hoc scratch sheet
+    # (`compose_contact.py -- --line <hero>`), then publish.
+    if not failed:
+        print("\nnext: python tools/blender/publish.py --dry-run")
 
     return len(failed)
 

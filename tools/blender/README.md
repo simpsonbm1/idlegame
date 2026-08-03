@@ -225,45 +225,57 @@ rewrites all 350 files in it.
 
 **IF LOOKING AT IT REQUIRES A RE-RENDER, IT IS NOT AN ASSET** (user ruling
 2026-08-02: "if it requires re-rendering then it isn't a durable artifact and I do
-not consider it an asset"). That covers contact sheets, not just sprites. The
-attack contact sheets lived only in `out/` for a day, which meant reviewing an
-animation on a second machine began with installing Blender and rendering the
-roster; they are published now, and `render_attacks.py` writes them at the end of
-every run the way `render_all.py` always has. Anything a human is asked to judge
-belongs in `assets/rendered/`.
+not consider it an asset"). That covers contact sheets, not just sprites. Anything
+a human is asked to judge belongs in `assets/rendered/`.
 
-Promote finished work with:
+**`publish.py` is the ONLY path from `out/` to `assets/rendered/`, and the
+pre-commit guard enforces it.** The full cycle for changing any art:
 
 ```bash
-python tools/blender/publish.py --dry-run   # what would change
-python tools/blender/publish.py             # copy it
+python tools/blender/render_all.py <group>       # or render_attacks.py <key>
+python tools/blender/publish.py --dry-run        # truthful: what actually changed
+python tools/blender/publish.py <key filters>    # copy + sheets + manifest
+git add -A && git commit                         # guard cross-checks the manifest
 ```
 
-That copies each finished image to `assets/rendered/sprites/<key>.png`,
-`assets/rendered/attack/<key>.png` or `assets/rendered/sheets/<group>.png`, named
-by roster key. It is driven by the rosters rather than by globbing `out/`, so an
-abandoned experiment cannot reach the repository by accident.
+Publishing copies each pixel-changed image to `assets/rendered/` named by roster
+key, recomposes every canonical contact sheet FROM the published files, and
+records every pixel hash in `assets/rendered/manifest.json`. Three properties
+carry the whole cross-machine story:
 
-Publishing is deliberate rather than automatic, and that is what keeps the
-repository small: PNGs do not delta-compress, so committing the scratch directory
-would store every version of every file whole. Four full render passes in one
-evening would have added about 76 MB of permanent history.
+- **Change detection is by PIXEL HASH** (`hash_pngs.py`), because Blender's PNG
+  bytes vary per run. `--dry-run` reporting "0 changed" after a re-render of
+  untouched builders is the expected result, and 115 files were verified to
+  report exactly that. The old byte-compare called all 83 sprites changed every
+  time, which is why publishing degenerated into the hand copies that caused
+  every drift.
+- **Canonical sheets are composed from `assets/rendered/`, never from `out/`.**
+  `out/` is gitignored and never travels, so on 2026-08-02 sheets composed from
+  it were committed showing four banneret sprites and twenty hero attack sheets
+  the repository did not have. A sheet is a claim about the repository, so it is
+  built from the repository; a stale `out/` can no longer poison one. The
+  renderers no longer auto-compose canonical sheets at all. For judging
+  UNPUBLISHED renders, the scratch modes remain: `compose_contact.py -- --line
+  <hero>` and `compose_attack_contact.py -- <filter>`, both reading and writing
+  `out/` only.
+- **The manifest records provenance, and the guard checks it as text.** Each
+  sheet entry carries the hash of every file it was composed from; the
+  pre-commit guard requires the manifest to travel with any art change, every
+  staged PNG to be bookkept, and every sheet's recorded inputs to match the
+  manifest's current entries -- no image decoding at commit time. All four
+  refusal paths are exercised in tests, and the block was fire-verified through
+  a real `git commit`.
 
-**`out/` GOES STALE ACROSS MACHINES, AND THE CONTACT SHEETS ARE COMPOSED FROM IT.**
-`out/` is gitignored, so it never travels; a builder edited on the other machine
-leaves this one holding an older render of that character under the right filename.
-Compose a sheet in that state and it shows art the repository does not have, which
-is the exact failure the pre-commit sheet guard exists to prevent and the one shape
-of it that guard cannot see. It happened on 2026-08-02: four banneret sprites were
-about 1,900 pixels stale and twenty hero attack sheets differed, four of those in
-frame SIZE, and a set of sheets was committed showing all of them.
+Judging happens from `assets/rendered/` (the attack preview and the committed
+sheets both read it), so publish BEFORE asking for a verdict and `git checkout`
+to reject. Publishing stays deliberate to keep history small: PNGs do not
+delta-compress, and four full render passes in one evening would have added
+about 76 MB if `out/` were committed.
 
-**Before composing any sheet on a machine you have not rendered on, audit `out/`
-against `assets/rendered/`.** Compare pixels, never bytes: Blender's PNG encoding
-varies per run, so a byte check calls all 83 sprites changed and tells you nothing.
-Anything that differs needs re-rendering BEFORE the compose, not after. Re-rendering
-a character you did not touch is the test as well as the fix, because a correct
-scratch render reproduces the published art exactly.
+Residual gap, named: a hand copy that overwrites a published PNG without
+touching the manifest leaves a hash the guard cannot see past. There is no
+remaining reason to hand-copy; if `publish.py`'s report is ever wrong, fix the
+tool.
 
 **One Blender process per asset, deliberately.** A shared session lets state leak
 between builds, and that already happened: the necromancer on disk was rendered

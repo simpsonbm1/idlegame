@@ -141,7 +141,7 @@ Shipping the game to players who can't run a server is **M17: distribution & pac
   once per machine)
 
 ## What the pre-commit hook enforces
-Three guards in `.githooks/pre-commit`, each mechanising a rule that prose failed to keep.
+Four guards in `.githooks/pre-commit`, each mechanising a rule that prose failed to keep.
 They run at the moment work leaves the machine, and they travel with the repo.
 
 1. **Credits.** Every file added under `assets/` needs a covering `CREDITS.md` line in the
@@ -151,14 +151,28 @@ They run at the moment work leaves the machine, and they travel with the repo.
    unusable after a machine switch.
 3. **Art brings its contact sheets.** Publishing a sprite or attack sheet without the
    review sheets that display it is blocked, because the other machine then reviews art
-   that has been replaced. Logic in `tools/blender/audit_artifacts.py`; it tests the
-   STAGED SET rather than file contents, since Blender's PNG output is never
-   byte-identical and a content check would fire on all 83 sprites after any render.
+   that has been replaced. Logic in `tools/blender/audit_artifacts.py`.
+4. **Sheets must be CURRENT, by the pipeline's own bookkeeping.**
+   `assets/rendered/manifest.json` records the pixel hash of every published file and,
+   per contact sheet, the hashes of the files it was composed from; `publish.py` and the
+   composers are its only writers. The guard requires the manifest to travel with any
+   art change, every staged PNG to have an entry, and every sheet's recorded inputs to
+   match the manifest's current entries — pure text checks, no image decoding. This
+   exists because sheets composed from a stale gitignored scratch folder were once
+   committed showing art the repository did not have (2026-08-02); guards 1–3 passed,
+   since they test the staged SET, and byte content can't be tested at all (Blender's
+   PNG encoding varies per run — pixel hashes are what compare equal).
+
+**Publish art ONLY through `python tools/blender/publish.py`** — it diffs by pixel hash,
+copies real changes, recomposes canonical sheets from published art, and maintains the
+manifest. Hand-copying from `tools/blender/out/` is what caused every cross-machine art
+drift and is now exactly what guard 4 refuses.
 
 **They do not catch everything.** A tool written only into the session scratch directory
-is invisible to all three unless a doc names its path, and nothing fires on work that is
-never committed. Both gaps are covered by asking, at the end of a session, whether the
-repo alone is enough to continue on the other machine.
+is invisible to all four unless a doc names its path, nothing fires on work that is never
+committed, and a hand copy over a published PNG that touches nothing else leaves a stale
+manifest hash the guard cannot see past. The gaps are covered by asking, at the end of a
+session, whether the repo alone is enough to continue on the other machine.
 
 ## Engine gotchas (violations caused real, expensive bugs)
 - `tick()` is pure simulation — never touch the DOM from the tick path; painting lives in the

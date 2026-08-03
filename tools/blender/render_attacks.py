@@ -194,15 +194,13 @@ def main():
         if not ok:
             failed.append((a, log_path))
 
-    # Contact sheets at the end of every run, exactly as `render_all.py` does.
-    # They are ARTIFACTS, not scratch (user ruling 2026-08-02), so leaving them to
-    # a separate manual step is what let them go stale and out of the repository.
+    # No canonical contact sheets here, deliberately. They are composed from
+    # `assets/rendered/` by `publish.py`, never from `out/` -- composing them
+    # from scratch renders is what put sheets showing unpublished art into a
+    # commit on 2026-08-02. Judge a fresh render with an ad-hoc scratch sheet
+    # (`compose_attack_contact.py -- <key>`), then publish.
     if not failed:
-        sheet_script = os.path.join(HERE, "compose_attack_contact.py")
-        subprocess.run([blender, "--background", "--factory-startup",
-                        "--python", sheet_script],
-                       cwd=HERE, capture_output=True, text=True)
-        print("contact sheets: %s" % os.path.join(HERE, "out", "sheet_attacks_*.png"))
+        print("next: python tools/blender/publish.py --dry-run")
 
     print("\n%d ok, %d failed, %.1fs total"
           % (len(wanted) - len(failed), len(failed), time.time() - t0))

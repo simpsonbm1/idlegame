@@ -1,14 +1,18 @@
 """Contact sheets for the ATTACK sheets: one row per combatant, captioned.
 
-`compose_contact.py` does this for static sprites and `render_all.py` calls it at
-the end of every run. Attacks had no equivalent, so the only way to review one
-was to open its strip alone, and the only way to compare two was to remember the
-first. Cross-character drift is exactly what a contact sheet is for: a swing that
-looks fine by itself is obviously shallower than its neighbour's when the two sit
-one above the other.
+    blender -b --factory-startup --python compose_attack_contact.py            # canonical
+    blender -b --factory-startup --python compose_attack_contact.py -- hero_   # ad-hoc, scratch
 
-    python tools/blender/compose_attack_contact.py          # every group
-    python tools/blender/compose_attack_contact.py hero_    # keys containing this
+**The canonical groups are composed FROM `assets/rendered/attack/` and written to
+`assets/rendered/sheets/`**, recording what they consumed in `manifest.json` --
+same reasoning as `compose_contact.py`: a sheet is a claim about the repository,
+so it is built from the repository, and a stale scratch directory cannot poison
+it. A canonical sheet is only rewritten when its pixels actually change.
+
+A FILTERED run is the ad-hoc review tool for judging renders BEFORE they are
+published: it reads `out/` and writes to `out/`, and never touches the manifest.
+A filter matches as a substring, so `hero_mender` pulls in all four rarity tiers;
+prefix `=` for an exact key, which is one row per hero LINE.
 
 **One row per character, all eight frames, in order.** A row is the animation,
 so the eye reads the arc along it, and the rows stack so arcs compare down the
@@ -34,15 +38,19 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.append(HERE)
 import pixelfont as F  # noqa: E402
+import manifest as M   # noqa: E402
+import hash_pngs as HP  # noqa: E402
 
 LABEL_RGBA = (0.72, 0.68, 0.60, 1.0)
 GAP = 4          # blank rows between characters, in 1x pixels
 UPSCALE = 3
+ATTACK = os.path.join(M.RENDERED, "attack")
+SHEETS = os.path.join(M.RENDERED, "sheets")
+OUT = os.path.join(HERE, "out")
 
 
 # Deliberately NOT imported from `compose_contact`, which does all its work at
-# module level: importing it for two helpers re-renders every sprite contact
-# sheet as a side effect.
+# module level: importing it re-composes every canonical sheet as a side effect.
 def load_rgba(path):
     img = bpy.data.images.load(path, check_existing=False)
     w, h = img.size
@@ -62,13 +70,8 @@ def save_rgba(arr, path):
     return path
 
 
-def rows(keys_filter=None):
-    """(key, strip path) for every attack sheet that has been rendered.
-
-    A filter matches as a substring, so `hero_mender` pulls in all four of his
-    rarity tiers. Prefix it with `=` for an exact key instead, which is how you
-    get one row per hero LINE rather than four.
-    """
+def rows(src_dir, keys_filter=None):
+    """(key, strip path) for every attack sheet present in `src_dir`."""
     import attack_roster as R
 
     def wanted(key):
@@ -81,23 +84,31 @@ def rows(keys_filter=None):
     for a in R.ATTACKS:
         if not wanted(a.key):
             continue
-        p = os.path.join(HERE, "out", "atk_%s.png" % a.key)
+        name = ("atk_%s.png" if src_dir == OUT else "%s.png") % a.key
+        p = os.path.join(src_dir, name)
         if os.path.exists(p):
             out.append((a.key, p))
     return out
 
 
-def sheet(entries, path, upscale=UPSCALE):
+def compose(entries):
     """Stack one strip per entry, captioned underneath, and upscale the result.
+
+    Returns (canvas, inputs): the baked-background upscaled image, and the pixel
+    hash of every strip actually consumed.
 
     Everything here is in Blender's BOTTOM-UP pixel convention, which is what
     `load_rgba` hands back and what `save_rgba` and `pixelfont.draw_block` both
     expect. Building the canvas from y=0 upward therefore lays entries out from
     the bottom, so the list is walked in reverse to put the first entry on top.
     """
-    strips = [(k, load_rgba(p)) for k, p in entries]
+    strips, inputs = [], {}
+    for k, p in entries:
+        s = load_rgba(p)
+        inputs[p] = HP.hash_pixels(s, s.shape[1], s.shape[0])
+        strips.append((k, s))
     if not strips:
-        raise SystemExit("no rendered attack sheets to compose")
+        return None, {}
     width = max(s.shape[1] for _, s in strips)
     cap = F.block_height(1)
     height = sum(s.shape[0] + cap + GAP for _, s in strips)
@@ -114,21 +125,33 @@ def sheet(entries, path, upscale=UPSCALE):
         canvas[y:y + s.shape[0], 0:s.shape[1]] = s
         y += s.shape[0] + GAP
 
-    big = np.repeat(np.repeat(canvas, upscale, axis=0), upscale, axis=1)
+    big = np.repeat(np.repeat(canvas, UPSCALE, axis=0), UPSCALE, axis=1)
     bg = np.array([0.10, 0.09, 0.08, 1.0], dtype=np.float32)
     al = big[:, :, 3:4]
     big = big * al + bg * (1.0 - al)
     big[:, :, 3] = 1.0
-    return save_rgba(big, path)
+    return big, inputs
 
 
-def write_group(name, filters):
-    entries = rows(filters)
-    if not entries:
+def publish_group(man, name, filters):
+    """Compose one canonical group from published strips; write only on change."""
+    canvas, inputs = compose(rows(ATTACK, filters))
+    if canvas is None:
         return None
-    path = sheet(entries, os.path.join(HERE, "out", "sheet_attacks_%s.png" % name))
-    print("%s -> %d attack(s)" % (path, len(entries)))
-    return path
+    dest = os.path.join(SHEETS, "attacks_%s.png" % name)
+    tmp = os.path.join(OUT, "_tmp_attacks_%s.png" % name)
+    os.makedirs(OUT, exist_ok=True)
+    save_rgba(canvas, tmp)
+    px = HP.hash_image(tmp)
+    key = M.rel(dest)
+    changed = (man.get(key) or {}).get("px") != px
+    if changed:
+        os.replace(tmp, dest)
+    else:
+        os.remove(tmp)
+    man[key] = {"px": px, "wh": [canvas.shape[1], canvas.shape[0]],
+                "inputs": {M.rel(p): h for p, h in inputs.items()}}
+    return (name, len(inputs)) if changed else None
 
 
 def main():
@@ -137,21 +160,29 @@ def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     filters = [a for a in argv if not a.startswith("-")]
 
-    # No filter means write every reviewable group, which is what `render_attacks`
-    # calls and what `publish.py` expects to find. A filter writes one ad-hoc sheet
-    # for looking at a specific thing.
     import attack_roster as R
     if not filters:
+        man = M.load()
+        made, unchanged = [], []
         for name, f in R.SHEET_GROUPS:
-            write_group(name, f)
+            r = publish_group(man, name, f)
+            (made if r else unchanged).append(r or name)
+        M.save(man)
+        print("canonical attack sheets -> %s" % SHEETS)
+        for name, n in made:
+            print("  rewrote attacks_%s (%d strips)" % (name, n))
+        print("  unchanged: %s" % (", ".join(unchanged) or "none"))
         return 0
 
+    # ad-hoc scratch sheet, for judging renders before they are published
     tag = "_".join(f.lstrip("=") for f in filters)
     if len(tag) > 40:
         tag = tag[:40].rstrip("_") + "_etc"
-    entries = rows(filters)
-    path = sheet(entries, os.path.join(HERE, "out", "sheet_attacks_%s.png" % tag))
-    print("%s -> %d attack(s)" % (path, len(entries)))
+    canvas, inputs = compose(rows(OUT, filters))
+    if canvas is None:
+        raise SystemExit("no scratch attack renders match %s" % filters)
+    path = save_rgba(canvas, os.path.join(OUT, "sheet_attacks_%s.png" % tag))
+    print("%s -> %d attack(s), scratch" % (path, len(inputs)))
     return 0
 
 
