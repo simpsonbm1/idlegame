@@ -153,15 +153,22 @@ ATTACKS = [
            [Swing([("armL_hand",)], (), "staff_root", frames=A.BLESS_HAND, parent=1),
             Swing([("^armL_upper",)], ARM_L, frames=A.BLESS)],
            A.BLESS),
-    # SHOULDER, then WRIST. His hammer head sits at his own shoulder height, so a
-    # shoulder rotation alone spins the hammer about its own head and a wrist
-    # rotation alone is a flick; both were rejected (user, 2026-08-02). Chained,
-    # the shoulder throws the fist across and the wrist carries the head through
-    # another haft-length the same way.
-    Attack("hero_paladin", "build_hero_paladin",
-           [Swing([("fistL",)], (), "hammer_root", frames=A.HAMMER_WRIST, parent=1),
-            Swing([("^upperL",)], HERO_ARM_L, frames=A.HAMMER_SWING)],
-           A.HAMMER_SWING),
+    # AN OVERHAND HAMMER BLOW, on INVERSE KINEMATICS. Three pivot versions of this
+    # were rejected in one day, ending with "holding his hammer upside down and
+    # reverse-flicking it at the enemy, completely unhinged" (user, 2026-08-02).
+    # Every one of them failed the same way: a pivot can only spin the hammer about
+    # a point on the arm, and his head sits at his own shoulder height, so the
+    # shoulder spun it about its own head and the wrist made it a flick.
+    #
+    # Driving the weapon removes the constraint that forced the upside-down carry,
+    # so his hammer went back to head-UP and the head now leads the arc down. Only
+    # the LEFT arm is solved: his right hand holds a shield or a holy symbol and
+    # must not move.
+    Attack("hero_paladin", "build_hero_paladin", [], A.HAMMER_BLOW, cell=176,
+           ik=IK("hammer_root",
+                 [{"shoulder": ("^upperL",), "upper": "upperL", "fore": "foreL",
+                   "hand": "fistL", "pole": (-1.1, 0.30, -0.8)}],
+                 mid="hands")),
     # TWIN DAGGERS on real joints: each arm about the TOP OF ITS OWN UPPER ARM,
     # which is its shoulder and the one point a rotation leaves in place, and each
     # blade about its own fist. The drive comes from the arms extending; the step

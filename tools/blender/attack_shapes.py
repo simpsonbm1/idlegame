@@ -155,6 +155,24 @@ CHOP_SWORD = [(0, 0, 0, 0, 0),
               (-3, 26, 0.10, 0.10, -0.01),
               (0, 0, 0, 0, 0)]
 
+# A ONE-HANDED OVERHAND HAMMER BLOW, weapon-driven. Heavier than the sword chop:
+# a longer wind-up, a beat held at the top, and a harder shorter strike. The head
+# is ABOVE the grip at rest, so it leads the arc down onto the target, which is
+# what makes it read as hammering rather than as swiping.
+#
+# **The strike angle is set by where the HEAD ends, not by how far it turns.** At
+# 86 degrees the head finished at world z 1.65 with the grip at 1.29, so it was
+# still above the hand and pointing forward: a swipe. It has to pass horizontal
+# and come down, which on a hammer resting near-vertical means about 125.
+HAMMER_BLOW = [(0, 0, 0, 0, 0),
+               (-5, -34, -0.08, -0.12, 0.30),
+               (-9, -66, -0.16, -0.22, 0.68),
+               (-7, -60, -0.12, -0.20, 0.78),
+               (-11, 124, 0.44, 0.36, -0.10),
+               (-7, 100, 0.30, 0.26, -0.18),
+               (-3, 42, 0.11, 0.11, -0.06),
+               (0, 0, 0, 0, 0)]
+
 # A ONE-HANDED HAMMER: shoulder, then wrist. The arm turns about the top of its
 # own upper arm, which is the shoulder joint and the one point a rotation leaves
 # in place, so the pauldron keeps covering it.

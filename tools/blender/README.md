@@ -249,6 +249,22 @@ repository small: PNGs do not delta-compress, so committing the scratch director
 would store every version of every file whole. Four full render passes in one
 evening would have added about 76 MB of permanent history.
 
+**`out/` GOES STALE ACROSS MACHINES, AND THE CONTACT SHEETS ARE COMPOSED FROM IT.**
+`out/` is gitignored, so it never travels; a builder edited on the other machine
+leaves this one holding an older render of that character under the right filename.
+Compose a sheet in that state and it shows art the repository does not have, which
+is the exact failure the pre-commit sheet guard exists to prevent and the one shape
+of it that guard cannot see. It happened on 2026-08-02: four banneret sprites were
+about 1,900 pixels stale and twenty hero attack sheets differed, four of those in
+frame SIZE, and a set of sheets was committed showing all of them.
+
+**Before composing any sheet on a machine you have not rendered on, audit `out/`
+against `assets/rendered/`.** Compare pixels, never bytes: Blender's PNG encoding
+varies per run, so a byte check calls all 83 sprites changed and tells you nothing.
+Anything that differs needs re-rendering BEFORE the compose, not after. Re-rendering
+a character you did not touch is the test as well as the fix, because a correct
+scratch render reproduces the published art exactly.
+
 **One Blender process per asset, deliberately.** A shared session lets state leak
 between builds, and that already happened: the necromancer on disk was rendered
 at a KeySun energy of 3.0 while the knight and goblin beside it were rendered at
