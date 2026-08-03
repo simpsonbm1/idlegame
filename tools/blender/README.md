@@ -270,6 +270,7 @@ DEPICTS; the roster only records how it gets built.
 | `render_all.py` | headless batch driver, one Blender process per asset |
 | `compose_contact.py` | per-group contact sheets, written at the end of every run |
 | `compose_attack_contact.py` | attack contact sheets: one captioned row per character |
+| `probe_rig.py` | where a part is and where it goes, per frame, in world units |
 | `pixelfont.py` | 5x7 bitmap font, so sheet labels are hard pixels like the art |
 
 Still here from the pilot: `build_scene.py`, `compose_battle.py`,
@@ -598,6 +599,20 @@ about the shoulder tips over long before it lifts, so the mender's blessing at 5
 degrees put his own staff across his face. Under 30 keeps it upright. Actually
 raising it needs the pivot to TRANSLATE, which the (lift, swing, lunge) table
 cannot say.
+
+**MEASURE THE WEAPON WITH `probe_rig.py`, NOT WITH EYES.** It prints a part's world
+position on every frame beside the angle driving it:
+
+```bash
+blender -b --factory-startup --python tools/blender/probe_rig.py -- hero_paladin hammerhead fistL
+```
+
+Three animation rounds were rejected in one day and every diagnosis came from that
+column of numbers, never from the renders. Each failure was invisible in a strip:
+a fist that jumped 1.64 units on reparenting and landed below the ground line, a
+hammer head sharing a coordinate with the shoulder turning it, a blade reading
++0.41 forward on the WIND-UP frame and -0.92 back on the strike. The last one is
+a whole attack playing in reverse, and it survived a review by looking plausible.
 
 **FRAMING IS CHECKED WITH `render_attacks.py --check`, NOT WITH EYES.** It reports
 each sheet's smallest margin to a cell edge. A clipped blade tip on a strip of
