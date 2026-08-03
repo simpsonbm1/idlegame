@@ -130,6 +130,26 @@ Shipping the game to players who can't run a server is **M17: distribution & pac
   `assets/CREDITS.md` line (pre-commit enforced; run `git config core.hooksPath .githooks`
   once per machine)
 
+## What the pre-commit hook enforces
+Three guards in `.githooks/pre-commit`, each mechanising a rule that prose failed to keep.
+They run at the moment work leaves the machine, and they travel with the repo.
+
+1. **Credits.** Every file added under `assets/` needs a covering `CREDITS.md` line in the
+   same commit.
+2. **No dangling paths.** A staged `.md` may not name a repo file git does not track.
+   Docs pointing at renders in the gitignored scratch folder is what made a handoff
+   unusable after a machine switch.
+3. **Art brings its contact sheets.** Publishing a sprite or attack sheet without the
+   review sheets that display it is blocked, because the other machine then reviews art
+   that has been replaced. Logic in `tools/blender/audit_artifacts.py`; it tests the
+   STAGED SET rather than file contents, since Blender's PNG output is never
+   byte-identical and a content check would fire on all 83 sprites after any render.
+
+**They do not catch everything.** A tool written only into the session scratch directory
+is invisible to all three unless a doc names its path, and nothing fires on work that is
+never committed. Both gaps are covered by asking, at the end of a session, whether the
+repo alone is enough to continue on the other machine.
+
 ## Engine gotchas (violations caused real, expensive bugs)
 - `tick()` is pure simulation — never touch the DOM from the tick path; painting lives in the
   requestAnimationFrame loop (`renderFrame`/`renderAll`).

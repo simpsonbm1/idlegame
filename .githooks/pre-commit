@@ -24,4 +24,39 @@ for f in $(git diff --cached --name-only --diff-filter=ACR -- assets/); do
     fail=1
 done
 
+# ---------------------------------------------------------------------------
+# DANGLING-PATH guard. A doc that names a file the repository does not carry is
+# a map to a territory the other machine cannot reach. The handoff note pointed
+# at contact sheets living in the gitignored scratch directory, so acting on it
+# after a machine switch meant installing Blender and rendering the whole roster
+# first (user ruling 2026-08-02: if it requires re-rendering it is not an asset).
+#
+# Deliberately narrow, to stay quiet: only backticked tokens that contain a
+# slash, end in a real extension, and sit under a known source directory. A bare
+# directory such as `tools/blender/out/` passes -- naming the scratch folder is
+# not the same as depending on a file inside it. Globs and <placeholders> are
+# skipped because they name a pattern rather than a file.
+for doc in $(git diff --cached --name-only --diff-filter=ACM -- '*.md'); do
+    for tok in $(git show ":$doc" 2>/dev/null \
+                 | grep -o '`[^`]*`' | tr -d '`' \
+                 | grep -E '^(tools|assets|\.claude|\.githooks)/' \
+                 | grep -E '\.(py|js|json|md|html|css|ps1|sh|png|ogg|bat)$' \
+                 | grep -v '[*<>?]' | sort -u); do
+        if ! git ls-files --error-unmatch "$tok" >/dev/null 2>&1; then
+            echo "pre-commit: $doc names \`$tok\`, which the repo does not track" >&2
+            echo "  Commit that file, or stop pointing at it -- the other machine has only what git carries." >&2
+            fail=1
+        fi
+    done
+done
+
+# ---------------------------------------------------------------------------
+# ART-CONSISTENCY guard: published art must bring its contact sheets, so the
+# other machine never reviews a sheet showing sprites that have been replaced.
+if git diff --cached --name-only | grep -q '^assets/rendered/'; then
+    if ! git diff --cached --name-only | python tools/blender/audit_artifacts.py; then
+        fail=1
+    fi
+fi
+
 exit $fail
