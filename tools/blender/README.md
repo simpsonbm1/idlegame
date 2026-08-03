@@ -500,6 +500,41 @@ it, straight across the face. Rotate the arm chain and the weapon; leave the
 shoulder balls on the torso. They bury the upper arms' tops well enough that no
 gap opens at the joint.
 
+**AN ARM TURNS ABOUT THE TOP OF ITS OWN UPPER ARM.** That point is the shoulder
+joint, and a rotation leaves its own centre exactly where it was, so the shoulder
+ball on the torso keeps covering the arm's top. Any other centre translates the
+arm as well as turning it and the joint comes apart in view: the ball's own
+middle, the midpoint between two shoulders, a point on the chest. The fighter's
+shoulder was rejected as separating twice before this was understood (user,
+2026-08-02). Write the joint as `^upperL`, which means that part's TOP.
+
+**A WEAPON NEEDS A SECOND PIVOT AT THE FIST.** Reach is radius, and an arm
+rotation alone moves a weapon only as far as the hand goes. Give the weapon its
+own pivot at the hand, chained under the arm's, and the two rotations compound so
+the far end sweeps further than the arm is long. **They ADD, so budget the
+total** rather than each one: the paladin's hammer at 182 degrees combined passed
+straight down and came back up behind him, and the measured path doubled back
+between two frames.
+
+**But a weapon whose GRIP is wrong cannot be swung at all.** The paladin carries
+his warhammer head-up, with the head at world z 2.14, his shoulder joint at the
+same height, and his hand low on the haft. That is the lever backwards, and no
+table of angles fixes it: rotating the arm spins the hammer about its own head.
+Measured over a full chop the head drops 1.26 units and still ends beside him
+rather than in front. **Check where a weapon's mass sits relative to the hand
+before animating it**, because the answer may be that the rest pose has to change.
+
+**A STAFF'S WRIST ROTATION STAYS SMALL.** The hand grips a staff near its middle,
+so turning it about the hand spins it end over end and reads as baton twirling. At
+38 degrees the battlemage's crystal came down to hand height and the butt swung up
+behind him. The arm carries a staff; the wrist only angles it.
+
+**DO NOT ROTATE `torso_root`.** It sits on the hip, so it looks like the waist
+joint a big swing wants, and it is not one: the torso is a cylinder and a sphere
+meeting the legs flat, and turning them 20 degrees tears the belt off the hips and
+sinks the head between the shoulders. The fighter and the paladin were both tried
+that way and both came out broken.
+
 **A LUNGE IS A STEP IN WORLD X, TOWARD THE ENEMY.** Translating a figure in world
 Y buys nothing, because that is the axis the camera looks down: at its 3-degree
 tilt a 0.3 move is under half a pixel on screen. The step is multiplied by the
@@ -512,12 +547,14 @@ a 128 cell, which reads clearly without walking a figure out of its frame. The
 step is also what pays for keeping swings small, and swings have to be small --
 see the next rule.
 
-**A SWING OVER ABOUT 60 DEGREES TEARS THE ARM OFF.** A rigid pivot rotates the arm
-about one point, so a large angle carries the upper arm's top clear of the
-shoulder ball meant to swallow it and the arm reads as detached. That was the
-fighter at 92 degrees (user, 2026-08-02). Both halves of the fix are needed: take
-the shoulder masses WITH the arm, and stay under about 60. Impact comes from the
-step, not from more rotation.
+**A GROUP ROTATED ABOUT A SHARED POINT MUST STAY UNDER ABOUT 20 DEGREES.** That is
+the one case where the joint rule above cannot apply: a two-handed grip has to turn
+the arms, both shoulder balls and the weapon as ONE piece about the midpoint between
+the shoulders, or a hand leaves the hilt. The balls then travel, at twice their
+distance from that midpoint times the half-angle. On the fighter they sit 0.60 out,
+so 18 degrees moves them under five pixels and reads as a shoulder rolling, and 58
+took them off his body outright. The blade's reach comes from its own fist pivot
+instead.
 
 **A WEAPON WHOSE MASS SITS AT THE SHOULDER CANNOT BE SWUNG FROM THE SHOULDER.**
 Turn it about the FIST instead, on its own pivot chained under the arm's, which is

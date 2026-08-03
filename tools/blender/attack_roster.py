@@ -95,66 +95,75 @@ ARM_L, ARM_R = LIMB_L[1:], LIMB_R[1:]
 
 ATTACKS = [
     # ---- heroes -------------------------------------------------------------
-    # The shoulder balls swing WITH the arms. Left on the torso they stayed put
-    # while the upper arms rotated out of them, and the arms read as detached
-    # (user, 2026-08-02). `SMASH` is held under 60 degrees so that taking them
-    # along cannot sweep one over his head.
+    # A TWO-HANDED CHOP. His fists are 0.65 apart on the hilt, so the arms, both
+    # shoulder balls and the sword turn as ONE piece about the midpoint between his
+    # shoulder joints -- nothing can leave anything. That rotation stays under 20
+    # degrees because it is the one that slides the balls off the torso. The blade's
+    # reach comes from the second pivot, which turns the sword about the point
+    # between his fists.
     Attack("hero_fighter", "build_hero_fighter",
-           [([("upperL",), ("upperR",)],
-             HERO_ARM_L + HERO_ARM_R + ("shoulder",), "sword_root")],
-           A.SMASH),
-    # A DRAW, not a rock: the bow arm holds while the string hand pulls back, and
-    # the arrow and string go with the string hand so the nock visibly loads and
-    # then empties. One shared table could only swing the whole bow across his
-    # face (user, 2026-08-02).
+           [Swing([("fistL",), ("fistR",)], (), "sword_root",
+                  frames=A.CHOP_BLADE, parent=1),
+            Swing([("^upperL",), ("^upperR",)],
+                  HERO_ARM_L + HERO_ARM_R + ("shoulder",), frames=A.CHOP_ARMS)],
+           A.CHOP_ARMS),
+    # THE DRAWING ARM AND NOTHING ELSE. The bow, the string and the arrow all stay
+    # put: handing the string to the arm carried it off the bow limbs, and it read
+    # as him waving a loose bowstring at the enemy (user, 2026-08-02).
     Attack("hero_ranged", "build_hero_ranged",
-           [Swing([("^upperL",)], HERO_ARM_L, "bow_root", frames=A.BOW_HOLD),
-            Swing([("^upperR",)], HERO_ARM_R + ("arrow", "arrowhead", "bowstring"),
-                  frames=A.BOW_DRAW)],
-           A.BOW_HOLD),
+           [Swing([("^upperR",)], HERO_ARM_R, frames=A.BOW_DRAW)],
+           A.BOW_BODY),
     # He BLESSES rather than casts. All three staff heroes ran `CAST` and played
     # the identical animation (user, 2026-08-02); his is the one that holds at the
     # top of the raise.
     Attack("hero_mender", "build_hero_mender",
-           [([("armL_shoulder",)], LIMB_L, "staff_root")], A.BLESS),
-    # The hammer turns about the FIST, the arm about the shoulder. His hammer head
-    # sits at his own shoulder height, so an arm-only swing moved it 0.58 units and
-    # read as a caster's gesture (user, 2026-08-02). The weapon pivot is listed
-    # FIRST so it takes the hammer before the arm pivot can.
+           [Swing([("armL_hand",)], (), "staff_root", frames=A.BLESS_HAND, parent=1),
+            Swing([("^armL_upper",)], ARM_L, frames=A.BLESS)],
+           A.BLESS),
+    # SHOULDER, then WRIST. His hammer head sits at his own shoulder height, so a
+    # shoulder rotation alone spins the hammer about its own head and a wrist
+    # rotation alone is a flick; both were rejected (user, 2026-08-02). Chained,
+    # the shoulder throws the fist across and the wrist carries the head through
+    # another haft-length the same way.
     Attack("hero_paladin", "build_hero_paladin",
-           [Swing([("fistL",)], (), "hammer_root", frames=A.HAMMER_HEAD, parent=1),
-            Swing([("pauldron",)], HERO_ARM_L, frames=A.HAMMER_ARM)],
-           A.HAMMER_ARM),
-    # One pivot per arm, each on its OWN shoulder. His two shoulder balls are
-    # built in one loop and share the name "shoulder", so `_dual` handed both
-    # arms the same joint and the far knife swung a foot wide, over his head.
+           [Swing([("fistL",)], (), "hammer_root", frames=A.HAMMER_WRIST, parent=1),
+            Swing([("^upperL",)], HERO_ARM_L, frames=A.HAMMER_SWING)],
+           A.HAMMER_SWING),
+    # TWIN DAGGERS on real joints: each arm about the TOP OF ITS OWN UPPER ARM,
+    # which is its shoulder and the one point a rotation leaves in place, and each
+    # blade about its own fist. The drive comes from the arms extending; the step
+    # stays small, because a body sliding forward with nothing else changing read
+    # as him thrusting his pelvis at the enemy (user, 2026-08-02).
     Attack("hero_assassin", "build_hero_assassin",
-           [([("^upperL",)], HERO_ARM_L, "dagL_root"),
-            ([("^upperR",)], HERO_ARM_R, "dagR_root")],
-           A.SLASH, cell=144),
+           [Swing([("fistL",)], (), "dagL_root", frames=A.DAGGER_WRIST, parent=2),
+            Swing([("fistR",)], (), "dagR_root", frames=A.DAGGER_WRIST, parent=3),
+            Swing([("^upperL",)], HERO_ARM_L, frames=A.DAGGER_ARM),
+            Swing([("^upperR",)], HERO_ARM_R, frames=A.DAGGER_ARM)],
+           A.DAGGER_ARM, cell=144),
     # He JABS: the staff goes straight out off the longest step any hero takes.
     Attack("hero_battlemage", "build_hero_battlemage",
-           [([("armL_shoulder",)], LIMB_L, "staff_root")], A.JAB),
+           [Swing([("armL_hand",)], (), "staff_root", frames=A.JAB_HAND, parent=1),
+            Swing([("^armL_upper",)], ARM_L, frames=A.JAB)],
+           A.JAB),
     # His banner IS his polearm (user 2026-08-02) and he carries no sword, so
     # this drove a `sword_root` that no longer exists. `pivot_arm` would not have
     # raised on it either -- it only fails when NOTHING matches, so the arm parts
     # alone kept it quiet and it would have swung an empty hand.
     # The 192 cell is VERIFIED: rendered 2026-08-02, and the polearm stays inside
     # the frame through the whole swing.
-    # An overhead chop, not the horizontal sweep it had (user, 2026-08-02). It is
-    # driven from the fist like the paladin's hammer, because the mass is all at
-    # the top of a five-unit pole and the arm alone barely moves it. **Only his
-    # LEFT hand is on the pole** -- his right rests at his side in the approved
-    # sprite -- so this is a one-handed grip swung two-handed-style, and making it
-    # a real two-hander means moving that hand in the builder, which changes art
-    # that is signed off.
+    # An overhead chop, not the horizontal sweep it had (user, 2026-08-02), driven
+    # arm-then-wrist because the mass is all at the top of a five-unit pole.
+    # **Only his LEFT hand is on the pole**; his right rests at his side in the
+    # approved sprite, so this is a one-handed grip swung two-handed-style.
     Attack("hero_banneret", "build_hero_banneret",
            [Swing([("fistL",)], (), "banner_root", frames=A.POLE_HEAD, parent=1),
-            Swing([("pauldron",)], HERO_ARM_L, frames=A.POLE_ARM)],
+            Swing([("^upperL",)], HERO_ARM_L, frames=A.POLE_ARM)],
            A.POLE_ARM, cell=224),
     # He SWEEPS: the widest arc of the three staff heroes, and he never steps.
     Attack("hero_frostadept", "build_hero_frostadept",
-           [([("armL_shoulder",)], LIMB_L, "staff_root")], A.FROST, cell=144),
+           [Swing([("armL_hand",)], (), "staff_root", frames=A.FROST_HAND, parent=1),
+            Swing([("^armL_upper",)], ARM_L, frames=A.FROST)],
+           A.FROST, cell=144),
 
     # ---- goblin raid --------------------------------------------------------
     Attack("goblin_skirmisher", "build_goblin_skirmisher",

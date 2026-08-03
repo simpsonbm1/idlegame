@@ -362,6 +362,7 @@ def twohand_sheet(scn, key, root, weapon_name, arms, frames, res=128,
 # the system Python can read the roster that uses them. Re-exported here for
 # anything already importing animkit.
 from attack_shapes import (OVERHAND, SMASH, SLASH, SWEEP, CAST,  # noqa: E402,F401
-                           LOOSE, CHOP, BLESS, JAB, FROST,
-                           BOW_HOLD, BOW_DRAW, HAMMER_ARM, HAMMER_HEAD,
-                           POLE_ARM, POLE_HEAD)
+                           CHOP, LOOSE, CHOP_ARMS, CHOP_BLADE,
+                           HAMMER_SWING, HAMMER_WRIST, POLE_ARM, POLE_HEAD,
+                           BOW_DRAW, BOW_BODY, DAGGER_ARM, DAGGER_WRIST,
+                           BLESS, BLESS_HAND, JAB, JAB_HAND, FROST, FROST_HAND)

@@ -50,6 +50,24 @@ off his body (user, 2026-08-02). What buys back the impact is the lunge, not mor
 rotation.
 """
 
+# ---------------------------------------------------------------------------
+# WHERE A PIVOT GOES DECIDES WHETHER ANYTHING SWINGS
+# ---------------------------------------------------------------------------
+# Two rules, and between them they are most of what makes an attack read.
+#
+# **An arm turns about the TOP OF ITS OWN UPPER ARM.** That point is the shoulder
+# joint, and it is the one point a rotation leaves exactly where it was, so the
+# shoulder ball on the torso keeps covering the arm's top. Any other centre --
+# the ball's own middle, the midpoint between two shoulders -- TRANSLATES the arm
+# as well as turning it, and the joint visibly comes apart.
+#
+# **A weapon needs a pivot FAR from itself.** Radius is the whole of it: a hammer
+# turned about the fist holding it is a wrist flick, whatever the angle. The two
+# far pivots a figure has are its shoulder and its waist, and `torso_root` sits
+# exactly on the hip, so `[("torso_root",)]` is a waist swing that carries the
+# whole upper body. A two-handed grip has to come from the waist, because both
+# hands are then rigid with the weapon and cannot drift off it.
+
 # A one-handed overhead cut: raise behind the head, cut down and forward.
 OVERHAND = [(0, 0, 0), (-26, -40, -0.06), (-38, -86, -0.10), (-32, -66, -0.06),
             (-42, 28, 0.38), (-26, 14, 0.26), (-11, 5, 0.10), (0, 0, 0)]
@@ -82,65 +100,120 @@ CHOP = [(0, 0, 0), (-14, -22, -0.06), (-24, -34, -0.10), (-38, 20, 0.28),
 # Pairs: two tables driving two pivots of one figure. See `attack_roster.Swing`.
 # ---------------------------------------------------------------------------
 
-# A BOW DRAW. One table cannot express this: a draw is the string hand traveling
-# back while the bow hand holds still, and a single pivot can only rock the whole
-# assembly, which swung a two-unit bow across the archer's face.
+# **DO NOT ROTATE `torso_root`.** It sits on the hip, so it looks like the waist
+# joint a big swing wants, and it is not one: the torso is a cylinder and a sphere
+# meeting the legs flat, and turning them 20 degrees tears the belt off the hips
+# and sinks the head between the shoulders. The fighter and the paladin were both
+# tried that way and both came out broken. Reach comes from the shoulder and the
+# wrist, which are real joints on these models.
+
+# A TWO-HANDED CHOP. Both fists are on the hilt 0.65 apart, so the arms, both
+# shoulder balls and the sword turn as ONE solid piece about the midpoint between
+# the shoulder JOINTS. Nothing can leave anything.
 #
-# BOW_HOLD is the bow arm, and carries the body's step. BOW_DRAW is the string
-# hand, and takes the arrow and the string with it, so the arrow visibly goes
-# back on the nock and then leaves.
-BOW_HOLD = [(0, 0, 0), (3, -4, -0.05), (5, -7, -0.09), (6, -8, -0.11),
-            (1, 5, 0.20), (-2, 4, 0.12), (-1, 1, 0.04), (0, 0, 0)]
-BOW_DRAW = [(0, 0, 0), (5, -22, 0), (9, -40, 0), (11, -48, 0),
-            (0, 16, 0), (-4, 9, 0), (-2, 3, 0), (0, 0, 0)]
+# **Keep the arm rotation under about 20 degrees.** It is the one rotation that
+# slides the shoulder balls off the torso: they sit 0.60 from that midpoint and
+# travel twice that times the half-angle, so 18 degrees moves them under five
+# pixels and reads as a shoulder rolling. At 58 they came off the body outright
+# (user, 2026-08-02).
+#
+# The blade's reach comes from CHOP_BLADE, which turns the sword about the point
+# between the fists. The hands stay put and the blade sweeps through them, which
+# is what a two-handed chop looks like anyway.
+CHOP_ARMS = [(0, 0, 0), (-4, -7, -0.04), (-7, -12, -0.07), (-6, -5, -0.02),
+             (-9, 18, 0.20), (-6, 13, 0.13), (-2, 5, 0.05), (0, 0, 0)]
+CHOP_BLADE = [(0, 0, 0), (0, -22, 0), (0, -38, 0), (0, -14, 0),
+              (0, 65, 0), (0, 45, 0), (0, 18, 0), (0, 0, 0)]
+
+# A ONE-HANDED HAMMER: shoulder, then wrist. The arm turns about the top of its
+# own upper arm, which is the shoulder joint and the one point a rotation leaves
+# in place, so the pauldron keeps covering it.
+#
+# **The two angles ADD UP, so budget the total.** A hammer carried head-up needs
+# both: the wrist alone is a flick, and the shoulder alone spins the hammer about
+# its own head, because that head sits at world z 2.14 and the shoulder joint is
+# at the same height. Around 115 degrees together puts the head down and in front,
+# where a hammer lands. At 182 it passed straight down and came back up behind
+# him, and the measured path doubled back between two frames.
+HAMMER_WRIST = [(0, 0, 0), (0, -26, 0), (0, -44, 0), (0, 14, 0),
+                (0, 90, 0), (0, 62, 0), (0, 25, 0), (0, 0, 0)]
+HAMMER_SWING = [(0, 0, 0), (-8, -20, -0.06), (-14, -34, -0.10), (-10, -4, 0.06),
+                (-16, 55, 0.30), (-10, 38, 0.20), (-4, 15, 0.07), (0, 0, 0)]
+
+# A BOW DRAW: the STRING HAND ONLY, about its own shoulder. Nothing else moves.
+#
+# **Do not hand the bowstring or the arrow to the drawing arm.** They belong to the
+# bow, and an arm rotating about its shoulder carries them off it: the string
+# visibly came away from the limbs and waved about in front of him (user,
+# 2026-08-02). What reads as a draw is the elbow travelling back and returning,
+# which is the one thing here that is true.
+BOW_DRAW = [(0, 0, 0), (5, -20, 0), (9, -34, 0), (11, -40, 0),
+            (0, 12, 0), (-4, 7, 0), (-2, 2, 0), (0, 0, 0)]
+# The body's own table: a small brace and release, and NO swing at all. A step is
+# what turned the assassin into a man thrusting his pelvis at the enemy, so it
+# stays small on a figure that is meant to stand and shoot.
+BOW_BODY = [(0, 0, 0), (0, 0, -0.04), (0, 0, -0.07), (0, 0, -0.08),
+            (0, 0, 0.10), (0, 0, 0.06), (0, 0, 0.02), (0, 0, 0)]
 
 # The single-pivot fallback, for a thrown or slung weapon where one arm IS the
-# whole motion and there is no second hand to hold anything still. Kept small for
-# the reason above: rotating a bow far enough to see swings it over its owner's
-# face. Anything with a real bowstring wants the BOW_HOLD/BOW_DRAW pair instead.
+# whole motion. Kept small: rotating a bow far enough to see swings it over its
+# owner's face.
 LOOSE = [(0, 0, 0), (5, -12, -0.06), (9, -22, -0.11), (10, -26, -0.13),
          (2, 12, 0.24), (-4, 8, 0.15), (-2, 3, 0.05), (0, 0, 0)]
 
-# A HAMMER SWUNG FROM THE FIST. A warhammer carried head-up puts its mass at the
-# shoulder, and a pendulum pivoted at its own mass barely moves: measured across
-# the paladin's whole chop, his hammer head traveled 0.58 units and the attack
-# read as a caster's gesture (user, 2026-08-02). Turning the hammer about the
-# FIST instead gives it the haft as a lever, and chaining that pivot under the
-# arm's keeps the grip in the hand.
-HAMMER_ARM = [(0, 0, 0), (-10, -16, -0.08), (-18, -24, -0.13), (-24, 10, 0.28),
-              (-28, 26, 0.46), (-20, 18, 0.31), (-9, 7, 0.12), (0, 0, 0)]
-HAMMER_HEAD = [(0, 0, 0), (0, -34, 0), (0, -58, 0), (0, 44, 0),
-               (0, 104, 0), (0, 74, 0), (0, 30, 0), (0, 0, 0)]
-
-# A POLEARM CHOPPED OVERHEAD, same construction and for the same reason: the
-# banner's mass is all at the top of a five-unit pole, so the pole turns about the
-# fist while the arm only carries it.
-POLE_ARM = [(0, 0, 0), (-12, -18, -0.08), (-22, -28, -0.14), (-30, 12, 0.28),
-            (-34, 30, 0.46), (-24, 20, 0.31), (-10, 8, 0.12), (0, 0, 0)]
-POLE_HEAD = [(0, 0, 0), (0, -26, 0), (0, -44, 0), (0, 30, 0),
-             (0, 76, 0), (0, 52, 0), (0, 21, 0), (0, 0, 0)]
+# TWIN DAGGERS: each arm about its own shoulder, each blade about its own fist.
+#
+# **The step stays small.** At 0.54 the assassin slid forward as one rigid piece
+# with nothing else changing, and it read as him thrusting his pelvis at the enemy
+# (user, 2026-08-02). A body that slides without bending is not lunging. The drive
+# has to come from the arm extending, and the step only underlines it.
+DAGGER_ARM = [(0, 0, 0), (-10, -18, -0.05), (-18, -30, -0.08), (-24, 20, 0.09),
+              (-20, 46, 0.14), (-14, 30, 0.09), (-6, 12, 0.03), (0, 0, 0)]
+DAGGER_WRIST = [(0, 0, 0), (0, -14, 0), (0, -24, 0), (0, 26, 0),
+                (0, 52, 0), (0, 34, 0), (0, 14, 0), (0, 0, 0)]
 
 # ---------------------------------------------------------------------------
 # Three casters who must not move alike
 # ---------------------------------------------------------------------------
-# The mender, the battlemage and the frost adept all hold a staff in the left
-# hand and all ran `CAST`, so all three played the identical animation (user,
-# 2026-08-02). They are separated by the PATH the staff takes, which is the only
-# thing a silhouette can carry: one holds at the top of a raise, one drives
-# straight forward off a step, one travels a wide arc and never steps at all.
+# The mender, the battlemage and the frost adept all hold a staff in the left hand
+# and all ran `CAST`, so all three played the identical animation and the developer
+# read them as one character twice over (user, 2026-08-02). Each now runs a
+# shoulder and a wrist, and what separates them is the PATH the staff takes,
+# because that is all a silhouette carries.
 
-# The mender BLESSES: the staff tips back and HOLDS there. The hold is the read.
-# Kept under 30 degrees. At 50 the staff lay across his own face and chest, which
-# is the same failure as a shaft tilting its head over a figure's cheek: a raise
-# expressed as a ROTATION tips a vertical staff flat long before it lifts it.
-BLESS = [(0, 0, 0), (-10, -12, 0), (-18, -22, 0), (-26, -28, 0.02),
-         (-28, -30, 0.02), (-24, -26, 0.02), (-14, -14, 0), (0, 0, 0)]
+# The mender BLESSES: the staff tips back and HOLDS. The hold is the read, and the
+# wrist tips WITH the arm so the staff stays upright rather than laying over.
+# **Under 30 degrees at the shoulder.** A vertical staff rotated further lies flat
+# across his own face long before it looks raised; genuinely lifting it needs the
+# pivot to translate, which a (lift, swing, lunge) table cannot say.
+BLESS = [(0, 0, 0), (-8, -14, 0), (-14, -24, 0), (-20, -30, 0.02),
+         (-22, -32, 0.02), (-18, -26, 0.02), (-10, -13, 0), (0, 0, 0)]
+BLESS_HAND = [(0, 0, 0), (0, -3, 0), (0, -5, 0), (0, -7, 0),
+              (0, -8, 0), (0, -6, 0), (0, -3, 0), (0, 0, 0)]
 
-# The battlemage JABS: a short pull back, then the staff goes straight out on the
-# longest step any hero takes.
-JAB = [(0, 0, 0), (-8, -16, -0.12), (-14, -26, -0.22), (-30, 24, 0.32),
-       (-34, 44, 0.58), (-24, 30, 0.39), (-10, 12, 0.15), (0, 0, 0)]
+# The battlemage JABS: the staff goes straight out, wrist following the shoulder,
+# off the longest step any hero takes.
+JAB = [(0, 0, 0), (-8, -16, -0.10), (-14, -26, -0.18), (-30, 26, 0.28),
+       (-34, 48, 0.46), (-24, 32, 0.30), (-10, 13, 0.11), (0, 0, 0)]
+# **A staff's wrist rotation has to stay small.** The hand grips it near the
+# middle, so turning the staff about the hand spins it end over end and reads as
+# baton twirling rather than casting. At 38 degrees the battlemage's crystal came
+# down to hand height and his butt-end swung up behind him. The arm carries the
+# staff; the wrist only angles it.
+JAB_HAND = [(0, 0, 0), (0, -4, 0), (0, -7, 0), (0, 7, 0),
+            (0, 13, 0), (0, 9, 0), (0, 4, 0), (0, 0, 0)]
 
-# The frost adept SWEEPS: the widest arc of the three, and his feet never move.
-FROST = [(0, 0, 0), (-14, -40, 0), (-26, -66, 0), (-30, -20, 0),
-         (-32, 34, 0.04), (-24, 50, 0.04), (-11, 22, 0.02), (0, 0, 0)]
+# The frost adept SWEEPS: the widest arc of the three, wrist lagging the shoulder
+# so the staff head trails and then whips past. His feet barely move.
+FROST = [(0, 0, 0), (-14, -34, 0), (-26, -56, 0), (-30, -14, 0),
+         (-32, 40, 0.06), (-24, 54, 0.06), (-11, 24, 0.02), (0, 0, 0)]
+FROST_HAND = [(0, 0, 0), (0, -8, 0), (0, -13, 0), (0, 3, 0),
+              (0, 14, 0), (0, 18, 0), (0, 8, 0), (0, 0, 0)]
+
+# A POLEARM CHOPPED OVERHEAD, arm then wrist, same construction as the hammer:
+# the banner's mass is all at the top of a five-unit pole, so the wrist carries
+# most of the travel and the arm throws the grip across.
+POLE_ARM = [(0, 0, 0), (-12, -16, -0.08), (-22, -26, -0.14), (-30, 10, 0.26),
+            (-34, 34, 0.44), (-24, 23, 0.29), (-10, 9, 0.11), (0, 0, 0)]
+POLE_HEAD = [(0, 0, 0), (0, -22, 0), (0, -38, 0), (0, 18, 0),
+             (0, 62, 0), (0, 43, 0), (0, 17, 0), (0, 0, 0)]
