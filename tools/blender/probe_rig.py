@@ -64,9 +64,16 @@ def main():
     root = A.figure_root(scn, key)
     sign = A.facing_sign(root)
 
-    made = [A.pivot_arm(scn, root, g.joint, g.parts, g.weapon,
-                        name="probe_pivot_%d" % i)
-            for i, g in enumerate(spec.groups)]
+    # An inverse-kinematics entry has no pivots at all: the weapon is placed
+    # directly and the arms are solved to reach it. `animkit.ik_poses` is the
+    # renderer's own posing code, called here so the numbers below describe the
+    # attack that actually ships.
+    poses = A.ik_poses(scn, root, spec.ik.weapon, spec.ik.arms, spec.frames,
+                       mid=spec.ik.mid, stretch=spec.ik.stretch) if spec.ik else None
+
+    made = [] if poses else [A.pivot_arm(scn, root, g.joint, g.parts, g.weapon,
+                                         name="probe_pivot_%d" % i)
+                             for i, g in enumerate(spec.groups)]
     for g, piv in zip(spec.groups, made):
         if g.parent is not None:
             A.chain_pivot(piv, made[g.parent])
@@ -89,6 +96,8 @@ def main():
               % (n, c.x, c.y, c.z, t.z))
 
     for i in range(len(spec.frames)):
+        if poses:
+            poses[i]()
         for piv, own in tracks:
             lift, swing, _ = (own or spec.frames)[i]
             piv.rotation_euler = (math.radians(lift), math.radians(swing * sign), 0)

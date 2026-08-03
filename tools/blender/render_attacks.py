@@ -53,18 +53,26 @@ scn = P.get_scene()
 # instead finds nothing -- which is what it did.
 root = A.figure_root(scn, key)
 
-# Each pivot gets a UNIQUE name: `P.find` matches on the name before Blender's
-# `.001` suffix, so two empties called "atk_pivot" read as one name to it.
-made = [A.pivot_arm(scn, root, g.joint, g.parts, g.weapon, name="atk_pivot_%d" % i)
-        for i, g in enumerate(spec.groups)]
-# Chaining runs AFTER every pivot has taken its parts, so a parent cannot collect
-# a child's weapon on the way past.
-for g, p in zip(spec.groups, made):
-    if g.parent is not None:
-        A.chain_pivot(p, made[g.parent])
-tracks = [(p, g.frames) for g, p in zip(spec.groups, made)]
-A.swing_sheet(scn, key, root, tracks, spec.frames, res=spec.cell,
-              out_name="atk_" + key)
+# An entry carrying an `ik` spec drives the WEAPON and solves the arms to reach
+# it, which is the only technique that can raise a grip or extend an arm. Pivots
+# are ignored entirely for those; the two cannot be mixed on one figure.
+if spec.ik:
+    A.twohand_sheet(scn, key, root, spec.ik.weapon, spec.ik.arms, spec.frames,
+                    res=spec.cell, mid=spec.ik.mid, stretch=spec.ik.stretch,
+                    out_name="atk_" + key)
+else:
+    # Each pivot gets a UNIQUE name: `P.find` matches on the name before Blender's
+    # `.001` suffix, so two empties called "atk_pivot" read as one name to it.
+    made = [A.pivot_arm(scn, root, g.joint, g.parts, g.weapon, name="atk_pivot_%d" % i)
+            for i, g in enumerate(spec.groups)]
+    # Chaining runs AFTER every pivot has taken its parts, so a parent cannot
+    # collect a child's weapon on the way past.
+    for g, p in zip(spec.groups, made):
+        if g.parent is not None:
+            A.chain_pivot(p, made[g.parent])
+    tracks = [(p, g.frames) for g, p in zip(spec.groups, made)]
+    A.swing_sheet(scn, key, root, tracks, spec.frames, res=spec.cell,
+                  out_name="atk_" + key)
 '''
 
 

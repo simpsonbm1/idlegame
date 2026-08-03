@@ -528,6 +528,47 @@ total** rather than each one: the paladin's hammer at 182 degrees combined passe
 straight down and came back up behind him, and the measured path doubled back
 between two frames.
 
+**A RIGID PIVOT CANNOT RAISE A GRIP OR EXTEND AN ARM, AND MOST ATTACKS ARE MADE OF
+THOSE TWO MOTIONS.** A pivot welds an arm and its weapon into one piece turning
+about one point, so it can spin a weapon and drag a hand along a short arc, and
+that is the whole of what it can do. Four heroes were rejected in one pass for
+exactly this (user, 2026-08-02): the fighter "holding the sword at crotch-level
+and flicking it", the paladin "reverse-flicking" his hammer, the assassin "still
+not extending his arms", the archer "just punching himself in the stomach". No
+table of angles fixes any of them, because the geometry cannot express the motion.
+
+Use `animkit.ik_poses` instead, declared in the roster as `Attack(..., ik=IK(...))`.
+It drives the WEAPON along a path and solves each arm to reach its own grip, so
+elbows bend and nothing rotates about a shoulder to be torn off one. **A frame
+then carries five columns, `(lift, swing, lunge, dx, dz)`**, and the last two move
+the weapon in world x and z. The travel is where the attack lives; the rotation
+only angles the blade. The fighter's chop moves his left fist from world z 1.28 to
+1.86 on the raise and out to x 1.01 on the strike, where the pivot version held
+that same fist within 0.01 of its rest height across all eight frames.
+
+**FRAME 0 MUST REPRODUCE THE IDLE SPRITE, AND IT IS THE FIRST THING TO CHECK ON AN
+IK ENTRY.** A part's `location` is NOT where it is: it is an offset inside its
+parent, and these figures' parents carry the 30-degree facing and the role-height
+scale. The solve used to aim an arm from a WORLD shoulder at a target built from
+LOCAL fist positions, two spaces about 0.8 units apart on the fighter. Nothing
+errors and the sheet renders; the arm simply reaches for the wrong point. Probe
+the rest pose against frame 0 and the mismatch is one column of numbers.
+
+**A HAND HAS TO BE ON THE HANDLE IN THE MODEL, AND STANDING STILL HIDES IT.** The
+fighter's lower fist sat at sword-local z +0.129, inside a crossguard spanning
++0.066 to +0.174, with the grip entirely below both hands at -0.240 to +0.040. It
+was invisible in the idle sprite because a vertical sword puts the guard behind
+the hands from this camera, and obvious the moment the sword swung away from the
+body (user, 2026-08-02). Fix it by moving the HILT to the hands rather than the
+hands to the hilt: re-posing an arm disturbs segment angles tuned so no end cap
+shows in open air. Measure it in the WEAPON's own space, where a grip is a z range
+and a fist is one number.
+
+Known and accepted on the fighter: his fists are built 0.65 apart and straddle the
+hilt, sitting about 0.30 off its centre line sideways, so the far hand reads as
+floating. Closing it means re-posing both arms inward. The developer called it
+close enough (user, 2026-08-02).
+
 **A WEAPON'S REST POSE DECIDES WHETHER IT CAN BE ANIMATED AT ALL.** Check where its
 mass sits relative to the hand BEFORE writing any angles, because the answer may be
 that the sprite has to change. Two heroes needed it (user approved both,

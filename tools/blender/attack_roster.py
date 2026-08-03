@@ -27,13 +27,38 @@ BITE = [(0, 0, 0), (6, -14, -0.04), (10, -22, -0.06), (-8, 26, 0.12),
 
 
 class Attack:
-    def __init__(self, key, module, groups, frames, cell=128, env=None):
+    def __init__(self, key, module, groups, frames, cell=128, env=None, ik=None):
         self.key = key
         self.module = module
         self.groups = [Swing.of(g) for g in groups]
         self.frames = frames
         self.cell = cell
         self.env = env or {}
+        self.ik = ik
+
+
+class IK:
+    """The inverse-kinematics technique: drive the weapon, solve the arms to it.
+
+    An entry carrying one of these ignores `groups` entirely. `animkit.twohand_sheet`
+    does the work, and the difference from a pivot is the whole reason this exists:
+    a pivot welds an arm and its weapon into one rigid piece about one fixed point,
+    so it can spin a weapon but can never raise a grip or extend an arm. Those are
+    the two motions most attacks in this game are made of.
+
+    `arms` is a list of dicts with `shoulder` (part names the joint is derived
+    from), `upper`, `fore`, `hand`, and `pole` for which way the elbow breaks.
+    **Write each shoulder as `^upper<side>`**, meaning that part's TOP: both
+    shoulder balls on a hero share the single name "shoulder", and a name is all
+    the lookup has to choose by, so naming the ball puts both arms on whichever
+    one sits highest.
+    """
+
+    def __init__(self, weapon, arms, mid=None, stretch=0.22):
+        self.weapon = weapon
+        self.arms = arms
+        self.mid = mid
+        self.stretch = stretch
 
 
 class Swing:
@@ -95,18 +120,26 @@ ARM_L, ARM_R = LIMB_L[1:], LIMB_R[1:]
 
 ATTACKS = [
     # ---- heroes -------------------------------------------------------------
-    # A TWO-HANDED CHOP. His fists are 0.65 apart on the hilt, so the arms, both
-    # shoulder balls and the sword turn as ONE piece about the midpoint between his
-    # shoulder joints -- nothing can leave anything. That rotation stays under 20
-    # degrees because it is the one that slides the balls off the torso. The blade's
-    # reach comes from the second pivot, which turns the sword about the point
-    # between his fists.
-    Attack("hero_fighter", "build_hero_fighter",
-           [Swing([("fistL",), ("fistR",)], (), "sword_root",
-                  frames=A.CHOP_BLADE, parent=1),
-            Swing([("^upperL",), ("^upperR",)],
-                  HERO_ARM_L + HERO_ARM_R + ("shoulder",), frames=A.CHOP_ARMS)],
-           A.CHOP_ARMS),
+    # A TWO-HANDED OVERHEAD CHOP, on INVERSE KINEMATICS rather than a pivot.
+    #
+    # The pivot version was rejected as "holding the sword at crotch-level and
+    # flicking it at the enemy" (user, 2026-08-02), and it could not have been
+    # anything else. A pivot welds the arms and the sword into one rigid piece,
+    # so raising the blade means rotating that piece about the shoulders, and
+    # that rotation had to stay under 20 degrees or the shoulder balls slid off
+    # the torso. His fists therefore never left his hips and the only motion left
+    # on screen was the blade turning through his grip.
+    #
+    # Driving the sword instead lets the hilt CLIMB to head height, which is what
+    # a chop is, and each arm is solved to reach its own grip so the elbows bend
+    # to follow. Nothing rotates about a shoulder, so nothing can be torn off one.
+    Attack("hero_fighter", "build_hero_fighter", [], A.CHOP_SWORD, cell=176,
+           ik=IK("sword_root",
+                 [{"shoulder": ("^upperL",), "upper": "upperL", "fore": "foreL",
+                   "hand": "fistL", "pole": (-1.1, 0.30, -0.8)},
+                  {"shoulder": ("^upperR",), "upper": "upperR", "fore": "foreR",
+                   "hand": "fistR", "pole": (1.1, 0.30, -0.8)}],
+                 mid="hands")),
     # THE DRAWING ARM AND NOTHING ELSE. The bow, the string and the arrow all stay
     # put: handing the string to the arm carried it off the bow limbs, and it read
     # as him waving a loose bowstring at the enemy (user, 2026-08-02).
@@ -270,7 +303,7 @@ for _a in ATTACKS:
         if _t == _BASE_TIER.get(_a.key, "common"):
             continue
         _variants.append(Attack(_a.key + "_" + _t, _a.module, _a.groups, _a.frames,
-                                _a.cell, env={"HERO_TIER": _t}))
+                                _a.cell, env={"HERO_TIER": _t}, ik=_a.ik))
 ATTACKS += _variants
 
 

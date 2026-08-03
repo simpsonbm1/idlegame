@@ -125,6 +125,36 @@ CHOP_ARMS = [(0, 0, 0), (-4, -7, -0.04), (-7, -12, -0.07), (-6, -5, -0.02),
 CHOP_BLADE = [(0, 0, 0), (0, -22, 0), (0, -38, 0), (0, -14, 0),
               (0, 65, 0), (0, 45, 0), (0, 18, 0), (0, 0, 0)]
 
+# ---------------------------------------------------------------------------
+# WEAPON-DRIVEN SHAPES: five columns, and the arms are SOLVED rather than turned
+# ---------------------------------------------------------------------------
+# `(lift, swing, lunge, dx, dz)`. The last two MOVE the weapon in world x and z,
+# and they are the columns a rigid pivot can never have. `animkit.twohand_sheet`
+# then solves each arm to reach its own grip, so the elbows bend to follow.
+#
+# **A rotation cannot raise a sword.** Every hero above turns a rigid arm about
+# one fixed point, which spins a weapon and moves a hand along a short arc and
+# nothing else. The fighter's chop was rejected as "holding the sword at
+# crotch-level and flicking it at the enemy" (user, 2026-08-02) and that is
+# exactly what the geometry can produce: his fists never left his hips, so the
+# only motion on screen was the blade turning through his grip.
+#
+# The travel is where the attack lives now, and the rotation only angles the
+# blade. Judge one of these by whether the HANDS go somewhere.
+
+# A TWO-HANDED OVERHEAD CHOP. The hilt climbs about 0.8 to head height while the
+# blade tips back over the shoulder, then drives down and forward off the step.
+# Total blade travel is 136 degrees, which a rigid arm could not survive and a
+# solved one does not care about: nothing is turning about a shoulder.
+CHOP_SWORD = [(0, 0, 0, 0, 0),
+              (-6, -30, -0.10, -0.10, 0.34),
+              (-10, -58, -0.18, -0.18, 0.72),
+              (-8, -52, -0.14, -0.14, 0.80),
+              (-12, 78, 0.40, 0.34, 0.12),
+              (-8, 62, 0.28, 0.24, -0.04),
+              (-3, 26, 0.10, 0.10, -0.01),
+              (0, 0, 0, 0, 0)]
+
 # A ONE-HANDED HAMMER: shoulder, then wrist. The arm turns about the top of its
 # own upper arm, which is the shoulder joint and the one point a rotation leaves
 # in place, so the pauldron keeps covering it.

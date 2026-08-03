@@ -200,11 +200,31 @@ BLADE = {
     "epic":      [(-0.045, 0.14), (0.045, 0.14), (0.045, 1.54), (0.0, 1.82), (-0.045, 1.54)],
     "legendary": [(-0.13, 0.14), (0.13, 0.14), (0.13, 1.30), (0.0, 1.64), (-0.13, 1.30)],
 }[TIER]
-blade = BLADE
+# ---------------------------------------------------------------------------
+# THE HANDLE HAS TO REACH BOTH FISTS, AND IT DID NOT.
+#
+# He was rejected as "holding the sword by the crossguard, not the handle"
+# (user, 2026-08-02), and the measurement agrees exactly: his lower fist sat at
+# sword-local z +0.129, inside a crossguard spanning +0.066 to +0.174, and his
+# upper fist at +0.262, which is on the BLADE. The grip they were meant to be on
+# ran -0.240 to +0.040, entirely below both of them.
+#
+# It was invisible while he stood still, because a vertical sword puts the guard
+# behind the hands from this camera. It is not invisible once the sword swings
+# away from the body, which is what animating him exposed.
+#
+# The hilt goes UP to the hands rather than the hands coming DOWN to the hilt.
+# Moving the arms would mean re-posing a limb whose segment angles are tuned so
+# no end cap shows in open air (see the arm note above), and a hand-and-a-half
+# sword meant to be held in two hands should have a grip this long regardless.
+HILT_RAISE = 0.26
+blade = [(x, y + HILT_RAISE) for (x, y) in BLADE]
 sw_root = P.make_root(scn, "sword_root", rot=(0, 6, 0), loc=(-0.02, -0.80, 1.02))
 sword = [P.add_prism(scn, "blade", blade, 0.11, M["blade"]),
-         P.add_box(scn, "guard", (0, 0, 0.12), (0.46, 0.11, 0.10), TRIM or M["steel"]),
-         P.add_box(scn, "grip", (0, 0, -0.10), (0.11, 0.10, 0.26), M["leath"]),
+         P.add_box(scn, "guard", (0, 0, 0.12 + HILT_RAISE), (0.46, 0.11, 0.10),
+                   TRIM or M["steel"]),
+         # Spans pommel to guard, so both fists land on leather whatever the tier.
+         P.add_box(scn, "grip", (0, 0, 0.05), (0.11, 0.10, 0.58), M["leath"]),
          P.add_sphere(scn, "pommel", (0, 0, -0.26), 0.10, TRIM or M["steel"])]
 P.parent_all(sw_root, sword)
 

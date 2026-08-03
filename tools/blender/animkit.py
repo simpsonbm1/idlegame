@@ -287,6 +287,123 @@ def swing_sheet(scn, key, root, pivots, frames, res=128, out_name=None):
 # technique two: inverse kinematics, for a two-handed weapon
 # --------------------------------------------------------------------------
 
+def _parent_world(ob):
+    """The matrix taking a part's own space to world.
+
+    Blender's rule is `world = parent.world @ matrix_parent_inverse @ basis`, so
+    this is everything in that chain EXCEPT the part's own basis. Writing a
+    computed world matrix back onto a part means composing with its inverse.
+    """
+    from mathutils import Matrix
+    if ob.parent is None:
+        return Matrix.Identity(4)
+    return P.world_matrix(ob.parent) @ ob.matrix_parent_inverse
+
+
+def ik_poses(scn, root, weapon_name, arms, frames, mid=None, stretch=0.22):
+    """One callable per frame, each posing the whole figure. No rendering.
+
+    Split out of `twohand_sheet` so `probe_rig.py` can MEASURE an
+    inverse-kinematics attack instead of only rendering it. The probe is where
+    every diagnosis in three rejected animation rounds came from, and a second
+    copy of this maths would drift from this one silently: nothing errors when a
+    probe poses a figure differently from the renderer, and the numbers would
+    simply describe an attack nobody ships.
+
+    See `twohand_sheet` for what the frame columns mean.
+    """
+    from mathutils import Matrix, Euler, Vector
+    weapon = P.find(scn, weapon_name)[0]
+
+    # ---- ONE SPACE, AND EVERY QUANTITY CONVERTED INTO IT --------------------
+    # **A part's `location` is NOT where it is.** It is an offset inside its
+    # parent, and on these figures the parents are neither at the origin nor
+    # unrotated: a hero's root carries the 30-degree facing and the role-height
+    # scale, and the torso hangs under that again. The fighter's left fist reads
+    # (-0.36, -0.62, -0.20) as a location and sits at (0.01, -0.79, 1.28) in the
+    # world.
+    #
+    # This solve used to aim an arm from a WORLD shoulder at a target built out
+    # of LOCAL fist positions, so the two ends of the same arm were measured in
+    # different spaces. Nothing errors: the sheet renders, the arm just reaches
+    # for a point roughly 0.8 units from the one it wants. Frame 0 not matching
+    # the rest sprite is the tell, and it is the first thing to check on any
+    # inverse-kinematics entry.
+    #
+    # Everything is therefore solved in the ARM'S OWN PARENT SPACE. That is the
+    # space the bone lengths and the write-back already speak, so it is the one
+    # conversion that leaves `aim_segment` alone.
+    rest_w = P.world_matrix(weapon)
+    w_par = _parent_world(weapon)
+
+    solved = []
+    for a in arms:
+        up = P.find(scn, a["upper"])[0]
+        par = _parent_world(up)
+        par_inv = par.inverted()
+        solved.append({
+            "par_inv": par_inv,
+            "S": par_inv @ Vector(top_joint(scn, a["shoulder"])),
+            "a": segment_length(scn, a["upper"]),
+            "b": segment_length(scn, a["fore"]),
+            # The pole only steers which way the elbow breaks, but it is a
+            # DIRECTION and the parent carries a rotation, so it converts too.
+            "pole": (par_inv.to_3x3() @ Vector(a["pole"])).normalized(),
+            "up": up,
+            "fo": P.find(scn, a["fore"])[0],
+            "fi": P.find(scn, a["hand"])[0],
+        })
+
+    # Grips are captured in the WEAPON's own space off world positions, so the
+    # hands stay exactly where the sprite models them at frame 0.
+    for a in solved:
+        a["grip"] = rest_w.inverted() @ P.world_matrix(a["fi"]).translation
+
+    if mid is None:
+        # below the shoulder line, midway between the two shoulders, in world
+        mids = sum((Vector(top_joint(scn, x["shoulder"])) for x in arms),
+                   Vector((0, 0, 0))) / len(arms)
+        mid = Vector((0.0, mids.y - 0.16, mids.z - 0.38))
+    elif mid == "hands":
+        # the point between the fists: what a two-handed weapon turns about once
+        # the grip is free to travel as well as rotate
+        mid = sum((P.world_matrix(a["fi"]).translation for a in solved),
+                  Vector((0, 0, 0))) / len(solved)
+    else:
+        mid = Vector(mid)
+
+    base = tuple(root.location)
+    sign = facing_sign(root)
+
+    def make(f):
+        lift, swing, lunge = f[0], f[1], f[2]
+        # The optional travel columns. A weapon that only rotates leaves the
+        # hands where they started, which is a flick rather than a chop.
+        dx, dz = (f[3], f[4]) if len(f) > 4 else (0.0, 0.0)
+
+        def pose():
+            R = Euler((math.radians(lift), math.radians(swing * sign), 0),
+                      'XYZ').to_matrix().to_4x4()
+            # Travel is applied in WORLD space, after the rotation, so `dz` means
+            # "this far up the screen" whatever angle the weapon is at.
+            T = Matrix.Translation(Vector((dx * sign, 0.0, dz)))
+            world = (T @ Matrix.Translation(mid) @ R
+                     @ Matrix.Translation(-mid) @ rest_w)
+            weapon.matrix_basis = w_par.inverted() @ world
+            for a in solved:
+                # The grip in world, then into this arm's own space to solve.
+                target = a["par_inv"] @ (world @ a["grip"])
+                elbow, hand, la, lb = P.two_bone_ik(a["S"], target, a["a"], a["b"],
+                                                    a["pole"], stretch=stretch)
+                P.aim_segment(a["up"], a["S"], elbow, a["a"])
+                P.aim_segment(a["fo"], elbow, hand, a["b"])
+                a["fi"].location = hand
+            root.location = (base[0] + lunge * sign, base[1], base[2])
+        return pose
+
+    return [make(f) for f in frames]
+
+
 def twohand_sheet(scn, key, root, weapon_name, arms, frames, res=128,
                   mid=None, stretch=0.22, out_name=None):
     """Drive the weapon; solve each arm to reach its grip.
@@ -301,58 +418,34 @@ def twohand_sheet(scn, key, root, weapon_name, arms, frames, res=128,
     Swing a two-handed weapon about a point BELOW the shoulder line. Pivoting on
     the shoulders themselves lifts the grip to head height at full raise and
     folds both forearms across the face.
+
+    ## A CHOP NEEDS THE GRIP TO TRAVEL, NOT ONLY TO TURN
+
+    **A frame may carry two more columns, `(lift, swing, lunge, dx, dz)`, which
+    MOVE the weapon in world x and z before it is rotated.** Rotation alone
+    cannot raise a sword, and that is the whole of what made the fighter read as
+    flicking a blade at crotch height (user, 2026-08-02): his hands stayed on his
+    hips for all eight frames and only the blade turned through them. A real
+    overhead chop lifts the hilt to head height on the wind-up and drives it down
+    and forward on the strike, so the hands must climb about 0.7 units and come
+    back.
+
+    `dx` is signed by facing exactly as `lunge` is, so one table chops the right
+    way on a hero and on an enemy. The arms follow by inverse kinematics, which
+    is what makes the travel safe: a rigid pivot would tear the shoulder open at
+    this range, while a solved arm simply bends its elbow.
+
+    **`mid="hands"` puts the rotation centre at the midpoint of the two rest
+    grips.** That is the pivot a two-handed chop actually turns about, and with
+    the grip now travelling it is the correct one: the hands carry the sword and
+    the sword turns in the hands. The default chest point stays for anything that
+    only turns, where a low centre is what keeps the arc off the face.
     """
-    from mathutils import Matrix, Euler, Vector
-    weapon = P.find(scn, weapon_name)[0]
-    solved = []
-    for a in arms:
-        S_pos = top_joint(scn, a["shoulder"])
-        solved.append({
-            "S": Vector(S_pos),
-            "a": segment_length(scn, a["upper"]),
-            "b": segment_length(scn, a["fore"]),
-            "pole": Vector(a["pole"]),
-            "up": P.find(scn, a["upper"])[0],
-            "fo": P.find(scn, a["fore"])[0],
-            "fi": P.find(scn, a["hand"])[0],
-        })
-
-    rest = weapon.matrix_basis.copy()
-    for a in solved:
-        a["grip"] = rest.inverted() @ a["fi"].location.copy()
-
-    if mid is None:
-        # below the shoulder line, midway between the two shoulders
-        mids = sum((a["S"] for a in solved), Vector((0, 0, 0))) / len(solved)
-        mid = Vector((0.0, mids.y - 0.16, mids.z - 0.38))
-    else:
-        mid = Vector(mid)
-
-    base = tuple(root.location)
-    sign = facing_sign(root)
     px = anim_cam(scn, res)
-
-    def make(f):
-        lift, swing, lunge = f
-
-        def pose():
-            R = Euler((math.radians(lift), math.radians(swing * sign), 0),
-                      'XYZ').to_matrix().to_4x4()
-            weapon.matrix_basis = (Matrix.Translation(mid) @ R
-                                   @ Matrix.Translation(-mid) @ rest)
-            for a in solved:
-                target = weapon.matrix_basis @ a["grip"]
-                elbow, hand, la, lb = P.two_bone_ik(a["S"], target, a["a"], a["b"],
-                                                    a["pole"], stretch=stretch)
-                P.aim_segment(a["up"], a["S"], elbow, a["a"])
-                P.aim_segment(a["fo"], elbow, hand, a["b"])
-                a["fi"].location = hand
-            root.location = (base[0] + lunge * sign, base[1], base[2])
-        return pose
-
+    poses = ik_poses(scn, root, weapon_name, arms, frames, mid=mid, stretch=stretch)
     out = P.out_dir()
     name = out_name or ("atk_" + key)
-    path = P.render_strip(scn, [make(f) for f in frames], os.path.join(out, name + ".png"))
+    path = P.render_strip(scn, poses, os.path.join(out, name + ".png"))
     P.upscale_nearest(path, os.path.join(out, name + "_big.png"), 4, bg="#2a2320")
     print("%s -> %d frames (IK)" % (name, len(frames)))
     return path

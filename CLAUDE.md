@@ -57,7 +57,17 @@ verdict on contact sheets wasted a round. **Check framing with
 blade. The rules each fault paid for are in `tools/blender/README.md`, and the two that
 govern everything else are that a lunge must step in world X (world Y is the camera axis,
 where it moves nothing) and that a swing over about 60 degrees pulls an arm off its
-shoulder. Nothing here has been judged in motion yet.
+shoulder.
+
+**The developer judged the eight heroes in motion on 2026-08-02, and half of them
+failed.** The three casters passed, because almost any movement reads as spellcasting;
+the banneret passed as workable. **The fighter, the paladin, the assassin and the archer
+were all rejected for the same root cause: a rigid pivot cannot raise a grip or extend an
+arm.** The fighter is REBUILT on inverse kinematics and approved, which is the worked
+example the other three follow; his hilt was lengthened in the same pass, because his
+hands were gripping the crossguard. The paladin, the assassin and the archer are still on
+pivots and still wrong. Read the Animation section of `tools/blender/README.md` first.
+**Nothing outside the heroes has been judged in motion at all.**
 
 **None of it is wired into the game yet.**
 
