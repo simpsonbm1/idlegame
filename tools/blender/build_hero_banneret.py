@@ -221,11 +221,25 @@ def _arm(side, shoulder, elbow, hand):
             P.add_sphere(scn, "fist" + side, hand, 0.145, CU)]
 
 
-# The left hand grips the pole at chest height rather than at head height. Up at
-# 1.18 the forearm came out 1.7 times the upper arm, and a limb whose halves are
-# that far apart reads as broken however well its caps are buried.
-tors += _arm("L", (-0.58, -0.08, 0.72), (-0.80, -0.34, 0.50), (-0.90, -0.50, 0.95))
-tors += _arm("R", (0.58, -0.08, 0.72), (0.68, -0.34, 0.32), (0.56, -0.64, -0.06))
+# BOTH HANDS ARE ON THE POLE (user asked for two hands, 2026-08-02, and approved
+# the sprite change it costs). His right arm used to hang at his side, which meant
+# his attack could only ever be a one-handed swing of a five-unit polearm.
+#
+# **The pole had to come in for it.** At x -0.94 it stood 1.5 from the right
+# shoulder and his arm reaches about 1.0, so no pose could get that hand onto it.
+# It now sits at -0.72, which is as far in as it can come: measured against the
+# head's own span, anything past about -0.70 puts the shaft across his face. That
+# leaves the right arm reaching 1.3 where it used to reach 1.0, which the aimed
+# cones absorb, and it is close enough for a bent arm to cross the body and grip
+# low. That is the placement the README warns grazes the surcoat --
+# the difference is that a hand is now ON it at two points, so the overlap reads
+# as a grip rather than as a pole laid over the tabard.
+#
+# The left hand grips at chest height rather than at head height. Up at 1.18 the
+# forearm came out 1.7 times the upper arm, and a limb whose halves are that far
+# apart reads as broken however well its caps are buried.
+tors += _arm("L", (-0.58, -0.08, 0.72), (-0.72, -0.34, 0.54), (-0.68, -0.50, 0.95))
+tors += _arm("R", (0.58, -0.08, 0.72), (0.40, -0.48, 0.26), (-0.63, -0.44, 0.34))
 P.parent_all(tors_root, tors + hd_det)
 
 # ---- the banner ----
@@ -272,7 +286,7 @@ POLE_LEN = POLE_TOP - POLE_BUTT
 # x -0.94, not the -0.80 it was: at -0.80 the pole's screen position landed
 # within a couple of pixels of the torso's own edge and grazed the surcoat all
 # the way down. The fist moved out with it, since the hand has to stay on it.
-bn_root = P.make_root(scn, "banner_root", rot=(0, -5, 0), loc=(-0.94, -0.48, BN_ROOT_Z))
+bn_root = P.make_root(scn, "banner_root", rot=(0, -5, 0), loc=(-0.72, -0.48, BN_ROOT_Z))
 banner = [P.add_cyl(scn, "pole", (0, 0, (POLE_TOP + POLE_BUTT) / 2), 0.055, POLE_LEN,
                     POLE_MAT, verts=6),
           P.add_cyl(scn, "socket", (0, 0, POLE_TOP + 0.02), 0.085, 0.18,

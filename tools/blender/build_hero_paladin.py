@@ -241,23 +241,35 @@ else:
     P.parent_all(hs_root, symbol + radiance)
     roots.append(hs_root)
 
-# ---- the hammer in the low hand, sized to the man ----
-# Written out per tier rather than derived from the haft length. Deriving them
-# put epic's numbers a float's width off the originals, which was enough to
-# change pixels on a sprite that must not change at all.
+# ---- the hammer, carried HEAD-DOWN AND BACK so it can be swung ----
+# **A weapon's rest pose decides whether it can be animated at all** (user
+# approved this change 2026-08-02, after two rejected attack passes). He used to
+# carry it head-up with his fist part way up the haft, which put the head at world
+# z 2.14 and his shoulder joint at 2.15 -- the head sat ON the pivot. Rotating his
+# arm therefore spun the hammer about its own head, and every table of angles read
+# as a wrist flick or a caster's gesture. Measured, the head moved 0.08 units from
+# the shoulder; now it hangs 1.9 from it, so the arm has a lever to swing.
+#
+# The grip is at the TOP of the haft and everything else hangs below it, which is
+# how a maul is actually carried at rest. `rot` leans it back and down so the head
+# clears the legs and the swing has somewhere to come from.
+#
+# Sizes are written out per tier rather than derived from the haft length.
+# Deriving them put epic's numbers a float's width off the originals, which was
+# enough to change pixels on a sprite that must not change at all.
 HAFT, HAFT_Z, HEAD_Z, HEAD = {
     "common":    (1.00, 0.36, 0.90, 0.80),
     "rare":      (1.14, 0.40, 1.02, 0.92),
     "epic":      (1.30, 0.46, 1.16, 1.00),
     "legendary": (1.46, 0.52, 1.30, 1.24),
 }[TIER]
-hm_root = P.make_root(scn, "hammer_root", rot=(0, -14, 0), loc=(-0.56, -0.72, 1.02))
-hammer = [P.add_cyl(scn, "hammerhaft", (0, 0, HAFT_Z), 0.06, HAFT, M["wood"], verts=6),
-          P.add_box(scn, "hammerhead", (0, 0, HEAD_Z),
+hm_root = P.make_root(scn, "hammer_root", rot=(0, 48, 0), loc=(-0.64, -0.65, 1.26))
+hammer = [P.add_cyl(scn, "hammerhaft", (0, 0, -HAFT_Z), 0.06, HAFT, M["wood"], verts=6),
+          P.add_box(scn, "hammerhead", (0, 0, -HEAD_Z),
                     (0.30 * HEAD, 0.28 * HEAD, 0.40 * HEAD), PL, bevel=0.05),
-          P.add_box(scn, "hammerband", (0, 0, HEAD_Z),
+          P.add_box(scn, "hammerband", (0, 0, -HEAD_Z),
                     (0.34 * HEAD, 0.32 * HEAD, 0.10), GI),
-          P.add_box(scn, "hammergrip", (0, 0, -0.14), (0.10, 0.10, 0.24), M["leath"])]
+          P.add_box(scn, "hammergrip", (0, 0, 0.14), (0.10, 0.10, 0.24), M["leath"])]
 P.parent_all(hm_root, hammer)
 roots.append(hm_root)
 

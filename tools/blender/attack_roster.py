@@ -151,13 +151,16 @@ ATTACKS = [
     # alone kept it quiet and it would have swung an empty hand.
     # The 192 cell is VERIFIED: rendered 2026-08-02, and the polearm stays inside
     # the frame through the whole swing.
-    # An overhead chop, not the horizontal sweep it had (user, 2026-08-02), driven
-    # arm-then-wrist because the mass is all at the top of a five-unit pole.
-    # **Only his LEFT hand is on the pole**; his right rests at his side in the
-    # approved sprite, so this is a one-handed grip swung two-handed-style.
+    # TWO-HANDED now that both hands are on the pole. Same construction as the
+    # fighter: the arms, both pauldrons and the banner turn as ONE piece about the
+    # midpoint between the shoulder joints so no hand can leave the pole, and that
+    # rotation stays small because it is the one that slides the pauldrons off the
+    # torso. The reach comes from the pole's own pivot at the fists.
     Attack("hero_banneret", "build_hero_banneret",
-           [Swing([("fistL",)], (), "banner_root", frames=A.POLE_HEAD, parent=1),
-            Swing([("^upperL",)], HERO_ARM_L, frames=A.POLE_ARM)],
+           [Swing([("fistL",), ("fistR",)], (), "banner_root",
+                  frames=A.POLE_HEAD, parent=1),
+            Swing([("^upperL",), ("^upperR",)],
+                  HERO_ARM_L + HERO_ARM_R + ("pauldron",), frames=A.POLE_ARM)],
            A.POLE_ARM, cell=224),
     # He SWEEPS: the widest arc of the three staff heroes, and he never steps.
     Attack("hero_frostadept", "build_hero_frostadept",

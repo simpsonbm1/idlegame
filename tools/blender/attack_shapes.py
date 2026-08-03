@@ -129,16 +129,21 @@ CHOP_BLADE = [(0, 0, 0), (0, -22, 0), (0, -38, 0), (0, -14, 0),
 # own upper arm, which is the shoulder joint and the one point a rotation leaves
 # in place, so the pauldron keeps covering it.
 #
+# **A BUSINESS END BELOW ITS PIVOT INVERTS THE SIGN.** Rotating about Y sends a
+# point ABOVE the pivot forward and a point BELOW it backward, so a hammer hanging
+# head-down and a dagger pointing blade-down both need their swing column negated
+# against the table convention. Measure the tip rather than reasoning about it: the
+# assassin's blade read +0.41 forward on his WIND-UP frame and -0.92 back on his
+# strike, which is the whole attack playing in reverse.
+#
 # **The two angles ADD UP, so budget the total.** A hammer carried head-up needs
 # both: the wrist alone is a flick, and the shoulder alone spins the hammer about
 # its own head, because that head sits at world z 2.14 and the shoulder joint is
 # at the same height. Around 115 degrees together puts the head down and in front,
 # where a hammer lands. At 182 it passed straight down and came back up behind
 # him, and the measured path doubled back between two frames.
-HAMMER_WRIST = [(0, 0, 0), (0, -26, 0), (0, -44, 0), (0, 14, 0),
-                (0, 90, 0), (0, 62, 0), (0, 25, 0), (0, 0, 0)]
-HAMMER_SWING = [(0, 0, 0), (-8, -20, -0.06), (-14, -34, -0.10), (-10, -4, 0.06),
-                (-16, 55, 0.30), (-10, 38, 0.20), (-4, 15, 0.07), (0, 0, 0)]
+HAMMER_WRIST = [(0, 0, 0), (0, 18, 0), (0, 30, 0), (0, -8, 0), (0, -52, 0), (0, -36, 0), (0, -14, 0), (0, 0, 0)]
+HAMMER_SWING = [(0, 0, 0), (-8, 12, -0.06), (-14, 20, -0.1), (-10, 2, 0.06), (-16, -34, 0.3), (-10, -24, 0.2), (-4, -9, 0.07), (0, 0, 0)]
 
 # A BOW DRAW: the STRING HAND ONLY, about its own shoulder. Nothing else moves.
 #
@@ -167,10 +172,8 @@ LOOSE = [(0, 0, 0), (5, -12, -0.06), (9, -22, -0.11), (10, -26, -0.13),
 # with nothing else changing, and it read as him thrusting his pelvis at the enemy
 # (user, 2026-08-02). A body that slides without bending is not lunging. The drive
 # has to come from the arm extending, and the step only underlines it.
-DAGGER_ARM = [(0, 0, 0), (-10, -18, -0.05), (-18, -30, -0.08), (-24, 20, 0.09),
-              (-20, 46, 0.14), (-14, 30, 0.09), (-6, 12, 0.03), (0, 0, 0)]
-DAGGER_WRIST = [(0, 0, 0), (0, -14, 0), (0, -24, 0), (0, 26, 0),
-                (0, 52, 0), (0, 34, 0), (0, 14, 0), (0, 0, 0)]
+DAGGER_ARM = [(0, 0, 0), (-10, 12, -0.05), (-18, 20, -0.08), (-24, -12, 0.09), (-20, -26, 0.14), (-14, -17, 0.09), (-6, -7, 0.03), (0, 0, 0)]
+DAGGER_WRIST = [(0, 0, 0), (0, 8, 0), (0, 14, 0), (0, -14, 0), (0, -29, 0), (0, -19, 0), (0, -8, 0), (0, 0, 0)]
 
 # ---------------------------------------------------------------------------
 # Three casters who must not move alike

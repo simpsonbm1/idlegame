@@ -516,13 +516,25 @@ total** rather than each one: the paladin's hammer at 182 degrees combined passe
 straight down and came back up behind him, and the measured path doubled back
 between two frames.
 
-**But a weapon whose GRIP is wrong cannot be swung at all.** The paladin carries
-his warhammer head-up, with the head at world z 2.14, his shoulder joint at the
-same height, and his hand low on the haft. That is the lever backwards, and no
-table of angles fixes it: rotating the arm spins the hammer about its own head.
-Measured over a full chop the head drops 1.26 units and still ends beside him
-rather than in front. **Check where a weapon's mass sits relative to the hand
-before animating it**, because the answer may be that the rest pose has to change.
+**A WEAPON'S REST POSE DECIDES WHETHER IT CAN BE ANIMATED AT ALL.** Check where its
+mass sits relative to the hand BEFORE writing any angles, because the answer may be
+that the sprite has to change. Two heroes needed it (user approved both,
+2026-08-02). The paladin carried his warhammer head-up, which put the head at world
+z 2.14 with his shoulder joint at 2.15: the head sat on the pivot, so rotating his
+arm spun the hammer about its own head and no table could help. Carried head-down
+with the grip at the top of the haft, the head hangs 1.75 from the shoulder and
+travels 2.5 units from wind-up to impact. The banneret had one hand on a five-unit
+polearm, so his attack could only ever be one-handed; his pole came in from x -0.94
+to -0.72 for the right arm to reach, and -0.72 is the limit, because past about
+-0.70 the shaft lies across his face.
+
+**A BUSINESS END BELOW ITS PIVOT INVERTS THE SIGN.** Rotating about Y sends a point
+ABOVE the pivot forward and a point BELOW it backward, so a head-down hammer and a
+blade-down dagger both need their swing column negated against the table
+convention. Measure the tip rather than reasoning about it. The assassin's blade
+read +0.41 forward on his WIND-UP frame and -0.92 back on his strike, which is the
+whole attack playing in reverse, and it looked plausible enough in a strip that it
+survived a review.
 
 **A STAFF'S WRIST ROTATION STAYS SMALL.** The hand grips a staff near its middle,
 so turning it about the hand spins it end over end and reads as baton twirling. At
