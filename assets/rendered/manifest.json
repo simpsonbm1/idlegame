@@ -112,28 +112,28 @@
   ]
  },
  "attack/hero_banneret.png": {
-  "px": "48cb05b62ccd50e4c2620b3c889ebfe78d0d533964a5713b75b35c80916f0f1e|1792x224",
+  "px": "c4cdf024413f64d8fd3970835efc6dd41c2d366604d94bff09c12f9c29252aab|1792x224",
   "wh": [
    1792,
    224
   ]
  },
  "attack/hero_banneret_epic.png": {
-  "px": "f0f6c7ca0d304b03f574cc195f357abe7cd8af696a15ee7c7fa72466ae76f86e|1792x224",
+  "px": "7424ccbe81813e20883e1a422e50feabc620c999405d3d55950a4d0c2dcb2b0a|1792x224",
   "wh": [
    1792,
    224
   ]
  },
  "attack/hero_banneret_legendary.png": {
-  "px": "449bca5778c64e5202810e53b91b61e7df8a1063203fe9d05e28ef0edb561d8f|1792x224",
+  "px": "288c2b6e8cb56156964f3fb5dbcfc478f4942e28cbe738588bb6e5fa803619bf|1792x224",
   "wh": [
    1792,
    224
   ]
  },
  "attack/hero_banneret_rare.png": {
-  "px": "d7bffa7226ea52eed1731ce5784e1e8b08e7340937226d63c6210246004a7172|1792x224",
+  "px": "08e14f6e3d45133a5ed6e6ad73806b1b81fa276ed33eb42170a978617321d3e9|1792x224",
   "wh": [
    1792,
    224
@@ -555,7 +555,7 @@
  "sheets/attacks_heroes.png": {
   "inputs": {
    "attack/hero_assassin.png": "fc59f7dfcca00e8c93951eb4e968bc599d525079b9c791d43a47a354107140a9|1536x192",
-   "attack/hero_banneret.png": "48cb05b62ccd50e4c2620b3c889ebfe78d0d533964a5713b75b35c80916f0f1e|1792x224",
+   "attack/hero_banneret.png": "c4cdf024413f64d8fd3970835efc6dd41c2d366604d94bff09c12f9c29252aab|1792x224",
    "attack/hero_battlemage.png": "21db4c3efed0fa394a1ed995a0da81c4617e95009408b60fe2c3115e22e05ac6|1024x128",
    "attack/hero_fighter.png": "1cb1306e22492aa60b6068c9ed62e93df55de6ae50312285a27f6d5ad7e1c097|1408x176",
    "attack/hero_frostadept.png": "116e78dce46abc3261ef04c49055775496341b1594bee47919879c5748aa929f|1152x144",
@@ -563,7 +563,7 @@
    "attack/hero_paladin.png": "33088968ac5998dbe6a25e3067aa983e6a405071a700d0147e3ec3a192fcfaea|1408x176",
    "attack/hero_ranged.png": "97b5ff26e139a5e8cf16cd4a2f481909a3bbbaed7795d2bd7b79862b3d837d45|1664x208"
   },
-  "px": "f8e52bc4dd25837ec4631a0fff0d67d914c6ec25ab7666340a85f126b58b3509|5376x4392",
+  "px": "75325c0b8760dc1d20142c075a64cf8dd0429629254b31a1ee2f59ea0fc2b290|5376x4392",
   "wh": [
    5376,
    4392
@@ -620,10 +620,10 @@
    "attack/hero_assassin_epic.png": "aaaa27ea5804b38449cb0374116903769635da5e89da5189743d91e0e54af22b|1536x192",
    "attack/hero_assassin_legendary.png": "a94c7f15be9a2abe8a84026c1d394fec6f8204e69e11a4b1190eb70628c9588e|1536x192",
    "attack/hero_assassin_rare.png": "b32f0dd1091b114aaec988443df72f4b3a2e27bf2f717fa6ecc2b5ab2e9c841a|1536x192",
-   "attack/hero_banneret.png": "48cb05b62ccd50e4c2620b3c889ebfe78d0d533964a5713b75b35c80916f0f1e|1792x224",
-   "attack/hero_banneret_epic.png": "f0f6c7ca0d304b03f574cc195f357abe7cd8af696a15ee7c7fa72466ae76f86e|1792x224",
-   "attack/hero_banneret_legendary.png": "449bca5778c64e5202810e53b91b61e7df8a1063203fe9d05e28ef0edb561d8f|1792x224",
-   "attack/hero_banneret_rare.png": "d7bffa7226ea52eed1731ce5784e1e8b08e7340937226d63c6210246004a7172|1792x224",
+   "attack/hero_banneret.png": "c4cdf024413f64d8fd3970835efc6dd41c2d366604d94bff09c12f9c29252aab|1792x224",
+   "attack/hero_banneret_epic.png": "7424ccbe81813e20883e1a422e50feabc620c999405d3d55950a4d0c2dcb2b0a|1792x224",
+   "attack/hero_banneret_legendary.png": "288c2b6e8cb56156964f3fb5dbcfc478f4942e28cbe738588bb6e5fa803619bf|1792x224",
+   "attack/hero_banneret_rare.png": "08e14f6e3d45133a5ed6e6ad73806b1b81fa276ed33eb42170a978617321d3e9|1792x224",
    "attack/hero_battlemage.png": "21db4c3efed0fa394a1ed995a0da81c4617e95009408b60fe2c3115e22e05ac6|1024x128",
    "attack/hero_battlemage_epic.png": "80a6b2ef72671480c2dded59931141ff5ab8c84c83737b38b090d241c6b1ff58|1024x128",
    "attack/hero_battlemage_legendary.png": "c20d70e15d1b6a428b50cadddcbdae7cf3bb1dc4c08b098cda18fe051b73ce4d|1024x128",
@@ -649,7 +649,7 @@
    "attack/hero_ranged_legendary.png": "771cc3f783edd8d3c1b1048d5cfb3d914d54a675dcbfe17cfee1ffa4b7ada167|1664x208",
    "attack/hero_ranged_rare.png": "bf7d31f598a2a5bd42eda0f50a25a350a7d516f5be343dafe063e21a7beb0547|1664x208"
   },
-  "px": "40d3d19b140afae68541e8711384261bb97781da756c19fe6f23574b704494eb|5376x17568",
+  "px": "696354dfece4f19648b1cfc6d930d212cb6c600af371a03ccc34a97be7c309f8|5376x17568",
   "wh": [
    5376,
    17568

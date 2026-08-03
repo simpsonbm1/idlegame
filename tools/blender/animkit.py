@@ -718,7 +718,7 @@ def twohand_sheet(scn, key, root, weapon_name, arms, frames, res=128,
 # anything already importing animkit.
 from attack_shapes import (OVERHAND, SMASH, SLASH, SWEEP, CAST,  # noqa: E402,F401
                            CHOP, LOOSE, CHOP_ARMS, CHOP_BLADE,
-                           HAMMER_SWING, HAMMER_WRIST, POLE_ARM, POLE_HEAD,
+                           HAMMER_SWING, HAMMER_WRIST, POLE_ARM, POLE_HEAD, POLE_CHOP,
                            BOW_DRAW, BOW_BODY, BOW_PUSH, BOW_HAND, ARROW_DRAW, NOCK_DRAW,
                            DAGGER_ARM, DAGGER_WRIST,
                            STAB_LEAD, STAB_REAR, STAB_BODY,

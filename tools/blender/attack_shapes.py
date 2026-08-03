@@ -371,6 +371,24 @@ FROST = [(0, 0, 0), (-14, -34, 0), (-26, -56, 0), (-30, -14, 0),
 FROST_HAND = [(0, 0, 0), (0, -8, 0), (0, -13, 0), (0, 3, 0),
               (0, 14, 0), (0, 18, 0), (0, 8, 0), (0, 0, 0)]
 
+# A POLEARM CHOPPED OVERHEAD, weapon-driven. The pivot version swept the head 4.85
+# units and read as workable, but the two fists drifted 0.18 apart on the shaft
+# while doing it, because two pivots turning about one shared point cannot hold a
+# two-handed grip. Solving the arms locks both hands to the pole and frees the
+# grip to CLIMB, which is what the wind-up wanted and no rotation could give it.
+#
+# The head sits about 2.2 above the grip, so it travels far on a modest angle.
+# Keep the total under about 100 degrees or it passes vertical and comes back up
+# behind him, which is the fault the paladin's hammer paid for at 182.
+POLE_CHOP = [(0, 0, 0, 0, 0),
+             (-4, -22, -0.06, -0.10, 0.16),
+             (-7, -38, -0.12, -0.16, 0.30),
+             (-6, -30, -0.08, -0.12, 0.36),
+             (-12, 104, 0.44, 0.38, -0.10),
+             (-8, 84, 0.30, 0.26, -0.16),
+             (-3, 34, 0.12, 0.10, -0.06),
+             (0, 0, 0, 0, 0)]
+
 # A POLEARM CHOPPED OVERHEAD, arm then wrist, same construction as the hammer:
 # the banner's mass is all at the top of a five-unit pole, so the wrist carries
 # most of the travel and the arm throws the grip across.

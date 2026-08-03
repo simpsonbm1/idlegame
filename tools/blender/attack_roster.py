@@ -235,12 +235,13 @@ ATTACKS = [
     # midpoint between the shoulder joints so no hand can leave the pole, and that
     # rotation stays small because it is the one that slides the pauldrons off the
     # torso. The reach comes from the pole's own pivot at the fists.
-    Attack("hero_banneret", "build_hero_banneret",
-           [Swing([("fistL",), ("fistR",)], (), "banner_root",
-                  frames=A.POLE_HEAD, parent=1),
-            Swing([("^upperL",), ("^upperR",)],
-                  HERO_ARM_L + HERO_ARM_R + ("pauldron",), frames=A.POLE_ARM)],
-           A.POLE_ARM, cell=224),
+    Attack("hero_banneret", "build_hero_banneret", [], A.POLE_CHOP, cell=224,
+           ik=IK("banner_root",
+                 [{"shoulder": ("^upperL",), "upper": "upperL", "fore": "foreL",
+                   "hand": "fistL", "pole": "rest", "joint": "segment"},
+                  {"shoulder": ("^upperR",), "upper": "upperR", "fore": "foreR",
+                   "hand": "fistR", "pole": "rest", "joint": "segment"}],
+                 mid="hands")),
     # He SWEEPS: the widest arc of the three staff heroes, and he never steps.
     Attack("hero_frostadept", "build_hero_frostadept",
            [Swing([("armL_hand",)], (), "staff_root", frames=A.FROST_HAND, parent=1),
