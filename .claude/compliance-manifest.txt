@@ -1,0 +1,7 @@
+# Compliance manifest - docs that bind work in this project (read by compliance-gate.ps1;
+# one path per line, relative to project root). Drafted 2026-08-08, pending user review.
+# DESIGN.md is the design authority but large - the gate truncates each doc at 30 KB, so
+# deep design questions still need the main thread's design-read gate, not this review.
+CLAUDE.md
+AGENT_DELEGATION.md
+DESIGN.md
