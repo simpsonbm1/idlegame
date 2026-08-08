@@ -10,3 +10,6 @@ seam-preview.png
 # Blender pixel-art rig renders (regenerated on demand from tools/blender/*.py)
 tools/blender/out/
 tools/blender/__pycache__/
+
+# Machine-local Claude Code settings (per-machine permission grants; shared grants belong in .claude/settings.json)
+.claude/settings.local.json
