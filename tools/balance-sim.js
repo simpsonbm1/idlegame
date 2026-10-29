@@ -645,9 +645,10 @@ for (const [label, spec] of specs) {
 }
 
 // ---------- Final Siege gauntlet (M13 mirror) ----------
-// One battle, three phases at waves 18/19/20 of the Infernal tier: hero HP
-// carries between phases, the escalation clock resets per phase, blessing
-// fires once across the whole gauntlet. Kingdom HP is the carry-over buffer.
+// One battle, three phases at waves 14/16/18 of the Infernal tier: hero HP
+// carries between phases, the escalation clock CARRIES across phases (game.js
+// spawnFinalSiegePhase, endgame rework Stage 1), blessing fires once across
+// the whole gauntlet. Kingdom HP is the carry-over buffer.
 const FINAL_SIEGE_PHASES = [
     { wave: 14, comp: ['brute 0 0', 'brute 0 1', 'brute 0 2', 'brute 0 3', 'skirmisher 1 0', 'skirmisher 1 3', 'caster 1 1', 'shaman 1 2', 'shaman 2 1', 'sapper 2 2'] },
     { wave: 16, comp: ['brute 0 0', 'brute 0 1', 'brute 0 2', 'caster 1 0', 'caster 1 3', 'shaman 1 1', 'shaman 1 2', 'sapper 2 0', 'sapper 2 3'] },
@@ -693,13 +694,14 @@ function finalSiegeRate(squadSpec, trials = 500, doctrines = null, regen = 25, k
         blessingUsed = false;
         const heroes = squadSpec.map(([k, r, tp, th]) => makeHero(k, r, tp, th));
         assignHeroCols(heroes);
-        let khp = khpMax, dead = false;
+        let khp = khpMax, dead = false, clock = 0; // gauntlet-wide escalation clock
         for (const phase of FINAL_SIEGE_PHASES) {
             const enemies = siegePhaseSquad(phase);
             let ticks = 0;
             while (ticks++ < 600) {
+                clock++;
                 khp = Math.min(khpMax, khp + regen);
-                khp -= combatTick(heroes, enemies, () => khp > 0, escMultAt(ticks), ticks);
+                khp -= combatTick(heroes, enemies, () => khp > 0, escMultAt(clock), clock);
                 if (khp <= 0) { dead = true; break; }
                 if (!enemies.some(e => e.alive)) break;
             }

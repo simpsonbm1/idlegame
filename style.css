@@ -1122,6 +1122,19 @@ h1 {
     opacity: 0.75;
 }
 
+/* The Miracle node glows until first touched (ENDGAME_REWORK.md): the shop is
+   summary-only, so missing it costs a whole Age. Same gold as the scene's
+   new-unlock plot glow. */
+.upgrade-node--glow { cursor: pointer; animation: upgradeGlow 1.8s ease-in-out infinite; }
+@keyframes upgradeGlow {
+    0%, 100% { box-shadow: 0 0 6px rgba(232,201,109,0.45); border-color: #8a7330; }
+    50% { box-shadow: 0 0 18px rgba(232,201,109,0.95); border-color: #e8c96d; }
+}
+body.reduce-motion .upgrade-node--glow { animation: none; box-shadow: 0 0 12px rgba(232,201,109,0.8); border-color: #e8c96d; }
+@media (prefers-reduced-motion: reduce) {
+    .upgrade-node--glow { animation: none; box-shadow: 0 0 12px rgba(232,201,109,0.8); border-color: #e8c96d; }
+}
+
 .upgrade-info {
     flex: 1;
     min-width: 0;

@@ -32,6 +32,7 @@ let autoRecruitRarity = null;
 let runTime = 0; // game-seconds since this Age began — the clock resident injuries expire against
 let finalSiegeCountdown = -1; // -1 inactive · 3..1 raids remaining · 0 the Final Siege is due
 let victoryPending = false;   // campaign won, victory screen up, world frozen until Endless
+let revivalPending = false;   // the Miracle fired: revival shop up, gauntlet frozen until "Return to the fight"
 const buildingExpanded = {};
 let gameSpeed = 1;
 let tickInterval = null;
@@ -216,13 +217,18 @@ const TIER_WAVES = [
     ]
 ];
 
-// --- The Final Siege (M13) ---
+// --- The Final Siege (M13; endgame rework Stage 1, ENDGAME_REWORK.md) ---
 // After the Demon Empress falls (first time only), a herald announces the
-// Final Siege: 3 raids of prep, then a 3-phase gauntlet. One invasion, three
-// squads: heroes do NOT reset HP between phases (menders/Blessing showcase),
-// the escalation clock resets per phase, Kingdom HP is the carry-over buffer.
-const FINAL_SIEGE_COUNTDOWN_RAIDS = 3;
-const LESSONS_LEGACY = 25000; // once-per-campaign bonus for a LOST Final Siege attempt
+// Final Siege: one raid of warning, then a 3-phase gauntlet. One invasion,
+// three squads: heroes do NOT reset HP between phases (menders/Blessing
+// showcase), the escalation clock CARRIES across phases (a stalled gauntlet
+// only ever gets harder, so gold cannot rehire through a scripted loss), and
+// Kingdom HP is the carry-over buffer. The arc is three visits: visit 1 is
+// lost and unlocks Preparation; visit 2 is lost and, if the Miracle is owned,
+// the Cathedral's Miracle grants a fresh defense mid-siege and unlocks the
+// free Capstones; visit 3 is that same battle resumed from phase 1, and won.
+const FINAL_SIEGE_COUNTDOWN_RAIDS = 1;
+const LESSONS_LEGACY = 25000; // once-per-campaign bonus for a Final Siege OVERRUN (never an abandon)
 // Phase waves tuned in the sim (14/16/18): the gauntlet's difficulty comes
 // from being ONE battle — carried hero damage across phases — not from
 // out-statting the w17 boss the player just proved they could kill. Sim: the
@@ -342,7 +348,13 @@ function defaultMeta() {
         tutorialDone: false,
         tutorialStep: 0,        // index into TUTORIAL_BEATS (ordered chain)
         tutorialWallSeen: false, // the floating "Kingdom bleeds" event beat fired
-        tutorialBossSeen: false  // the floating first-boss event beat fired
+        tutorialBossSeen: false, // the floating first-boss event beat fired
+        // Endgame rework Stage 1 (additive, no SAVE_VERSION bump):
+        finalSiegeSeen: false,   // the first gauntlet has spawned (drives the arrival beat)
+        siegeArrivalSeen: false, // the arrival beat was acknowledged (once per campaign)
+        finalSiegeLost: false,   // a gauntlet ended in OVERRUN: unlocks Preparation + pays Lessons
+        miracleSpent: false,     // the Cathedral's Miracle has fired: unlocks the Capstones
+        miracleSeen: false       // the Miracle node was interacted with (ends its shop glow)
     };
 }
 
@@ -373,7 +385,12 @@ function loadMeta() {
         tutorialDone: state.tutorialDone ?? true,
         tutorialStep: state.tutorialStep ?? 0,
         tutorialWallSeen: state.tutorialWallSeen ?? false,
-        tutorialBossSeen: state.tutorialBossSeen ?? false
+        tutorialBossSeen: state.tutorialBossSeen ?? false,
+        finalSiegeSeen: state.finalSiegeSeen ?? false,
+        siegeArrivalSeen: state.siegeArrivalSeen ?? false,
+        finalSiegeLost: state.finalSiegeLost ?? false,
+        miracleSpent: state.miracleSpent ?? false,
+        miracleSeen: state.miracleSeen ?? false
     };
 }
 
@@ -413,8 +430,33 @@ const UPGRADE_TREES = {
             { id: 'walls',   name: 'Reinforced Walls',  desc: '+250 max Kingdom HP and +3 Kingdom defense per rank — every siege hit lands softer', maxRank: 4, costs: [15, 60, 250, 1000] },
             { id: 'veteran', name: "Veteran's Welcome", desc: 'Each new Age begins with a free Rare Knight', maxRank: 1, costs: [100] }
         ]
+    },
+    // Endgame sub-tiers (ENDGAME_REWORK.md). A node with `unlock` is hidden
+    // from the shop and unbuyable until it returns true, so pre-endgame
+    // summaries never show them. Sub-tier A is bought on the run summary
+    // after the first lost gauntlet; Sub-tier B in the revival shop.
+    preparation: {
+        label: 'Preparation',
+        nodes: [
+            // OPEN (developer): the price. The doc fixes only "at or below the
+            // 25k Lessons grant", so the payout landing on the same summary
+            // always covers it; this is that ceiling. The income node and the
+            // moderate power nodes the doc names are not built: their effects
+            // and sizes are undecided (SESSION_HANDOFF.md).
+            { id: 'miracle', name: "The Cathedral's Miracle", glow: 'miracleSeen',
+              desc: 'If the Final Siege brings the Kingdom down, the Cathedral answers once: the walls stand whole, a legendary host takes the field, and the battle goes on',
+              maxRank: 1, costs: [LESSONS_LEGACY], unlock: () => meta.finalSiegeLost }
+        ]
+    },
+    capstones: {
+        label: 'Capstones',
+        // Sub-tier B: free (costs [0]), unlock: () => meta.miracleSpent.
+        // OPEN (developer): no capstone is designed yet.
+        nodes: []
     }
 };
+const SHOP_TREE_ORDER = ['economy', 'military', 'preparation', 'capstones'];
+function nodeUnlocked(node) { return !node.unlock || node.unlock(); }
 
 // Base 75, not 50: buying all 3 Hamlet cottages (39g) must still leave the
 // 25g first Villager hire affordable — at 50g that was a hard new-save
@@ -435,7 +477,8 @@ function findUpgrade(id) {
 
 function buyUpgrade(id) {
     const def = findUpgrade(id);
-    if (!def) return;
+    if (!def || !nodeUnlocked(def)) return;
+    noteUpgrade(id);
     const rank = upgradeRank(id);
     if (rank >= def.maxRank) return;
     const cost = def.costs[rank];
@@ -447,6 +490,17 @@ function buyUpgrade(id) {
         resizeHeroSquad();
         saveGame();
     }
+    saveMeta();
+    renderRunSummary();
+}
+
+// First interaction with a glowing node (the Miracle) ends its glow: the shop
+// is summary-only, so a missed Miracle costs a whole Age, and it must not be
+// overlooked. Its own flag, since seenPlots belongs to the scene's renderer.
+function noteUpgrade(id) {
+    const def = findUpgrade(id);
+    if (!def || !def.glow || meta[def.glow]) return;
+    meta[def.glow] = true;
     saveMeta();
     renderRunSummary();
 }
@@ -1450,9 +1504,11 @@ function startInvasion() {
 }
 
 // Spawns a Final Siege phase into the CURRENT battle (phase 1 creates it).
-// Heroes keep their HP between phases; the escalation clock resets — each
-// phase is a fresh assault against an already-bloodied defense.
-function spawnFinalSiegePhase(phase) {
+// Heroes keep their HP between phases, and the escalation clock carries over
+// from the previous phase (ENDGAME_REWORK.md: resetting it handed back the
+// 60s grace every phase, so a rich player could rehire through a loss that
+// balance must guarantee). `freshClock` is the Miracle's restart only.
+function spawnFinalSiegePhase(phase, freshClock = false) {
     const def = FINAL_SIEGE_PHASES[phase - 1];
     const tierIndex = RAID_TIERS.length - 1;
     const tier = RAID_TIERS[tierIndex];
@@ -1465,16 +1521,50 @@ function spawnFinalSiegePhase(phase) {
             : generateEnemy(tierIndex, key, row, col, def.wave);
         squad[row * tier.grid.cols + col] = unit;
     }
-    const blessingUsed = currentInvasion ? currentInvasion.blessingUsed : false;
+    const prev = currentInvasion && currentInvasion.finalSiege ? currentInvasion : null;
+    const blessingUsed = prev ? prev.blessingUsed : false;
+    if (!prev) meta.finalSiegeSeen = true; // the gauntlet's first spawn: the arrival beat's trigger
     currentInvasion = {
         name: `The Final Siege — ${def.name}`,
         enemies: squad,
         grid: { rows: tier.grid.rows, cols: tier.grid.cols },
-        duration: 0,
+        duration: prev && !freshClock ? prev.duration : 0,
         finalSiege: true,
         phase,
-        blessingUsed // once per gauntlet, not per phase
+        blessingUsed, // once per gauntlet, not per phase
+        // The seats as the player fielded them when the gauntlet began: the
+        // Miracle raises a legendary of each archetype in each seat.
+        squadPlan: prev ? prev.squadPlan : heroSquad.map(h => h ? h.archetypeKey : null)
     };
+    saveMeta();
+}
+
+// The Cathedral's Miracle (ENDGAME_REWORK.md, The Miracle event): fires on a
+// Final Siege overrun when the Miracle is owned and unspent. It GRANTS a
+// defense rather than reviving one: at kingdomHP <= 0 every hero is already
+// gone from heroSquad, and nothing restores Kingdom HP, so a squad-only
+// revival would re-overrun on the next tick with the only win path spent.
+function triggerMiracle() {
+    kingdomHP = getKingdomHpMax();
+    // OPEN (developer): which heroes. The doc says "a full roster of
+    // legendary heroes"; this raises a legendary of each archetype in the
+    // seat the player fielded it when the gauntlet began. Seats that were
+    // empty then stay empty.
+    const plan = (currentInvasion && currentInvasion.squadPlan) || [];
+    const dims = heroGridDims();
+    heroSquad = new Array(heroSquadCap()).fill(null);
+    plan.forEach((archetypeKey, i) => {
+        if (!archetypeKey || i >= heroSquad.length || !HERO_ARCHETYPES[archetypeKey]) return;
+        heroSquad[i] = generateHero(archetypeKey, 'legendary', Math.floor(i / dims.cols), i % dims.cols);
+    });
+    // spawnFinalSiegePhase carries blessingUsed forward; visit 3 gets its own.
+    currentInvasion.blessingUsed = false;
+    meta.miracleSpent = true;
+    spawnFinalSiegePhase(1, true);
+    revivalPending = true; // tick() freezes until "Return to the fight"
+    saveMeta();
+    saveGame();
+    renderRunSummary();
 }
 
 // A raid has exactly two outcomes: Repelled (enemy squad wiped — handled
@@ -1528,14 +1618,20 @@ function endRun(reason) {
     const fellTo = currentInvasion ? currentInvasion.name : getInvasionName(raidTierIndex, tierWave);
     if (reason === 'overrun') playSfx('kingdom_fall'); // the fall sting; abandoning quietly is a choice
 
-    // Lessons of the Last Siege (M13): a LOST Final Siege attempt pays a large
-    // one-time bonus — the failed attempt visibly funds the winning one.
+    // Lessons of the Last Siege (M13): a Final Siege OVERRUN pays a large
+    // one-time bonus and unlocks Preparation; the failed attempt visibly funds
+    // the next one. Only an overrun: abandoning the instant the gauntlet
+    // spawns must not collect the 25k and the unlock without a fight.
     let lessons = 0;
-    if (currentInvasion && currentInvasion.finalSiege && !meta.lessonsGranted) {
-        meta.lessonsGranted = true;
-        lessons = LESSONS_LEGACY;
-        meta.legacy += lessons;
-        runLegacyEarned += lessons;
+    const siegeLost = reason === 'overrun' && !!(currentInvasion && currentInvasion.finalSiege);
+    if (siegeLost) {
+        meta.finalSiegeLost = true;
+        if (!meta.lessonsGranted) {
+            meta.lessonsGranted = true;
+            lessons = LESSONS_LEGACY;
+            meta.legacy += lessons;
+            runLegacyEarned += lessons;
+        }
     }
 
     meta.gameSeconds += runTime;
@@ -1553,6 +1649,7 @@ function endRun(reason) {
         waves: runWavesCleared,
         legacy: runLegacyEarned,
         lessons,
+        siegeLost,
         tutorialNote
     };
     runEnded = true;
@@ -1604,6 +1701,7 @@ function foundNewAge() {
     runTime = 0;
     finalSiegeCountdown = -1;
     victoryPending = false;
+    revivalPending = false;
     kingdomLevel = getStartingLevel();
     kingdomHP = getKingdomHpMax();
     raidsStarted = false;
@@ -1684,7 +1782,7 @@ function confirmNewAge() {
 function saveGame() {
     const state = {
         version: SAVE_VERSION,
-        gold, goldEarned, kingdomLevel, raidsStarted, raidTierIndex, tierWave, raidWinStreak, invasionTimer, currentInvasion, lastVictory, kingdomFallRecord, autoRecruitRarity, runTime, finalSiegeCountdown, victoryPending,
+        gold, goldEarned, kingdomLevel, raidsStarted, raidTierIndex, tierWave, raidWinStreak, invasionTimer, currentInvasion, lastVictory, kingdomFallRecord, autoRecruitRarity, runTime, finalSiegeCountdown, victoryPending, revivalPending,
         runEnded, runSummary, runLegacyEarned, runWavesCleared, gameSpeed,
         recruitPool, poolTimer, nextRecruitId,
         kingdomHP, heroSquad, heroRecruitPool, heroPoolTimer, heroRefreshCount, nextHeroRecruitId, seenPlots,
@@ -1722,6 +1820,7 @@ function loadGame() {
     runTime = state.runTime ?? 0;
     finalSiegeCountdown = state.finalSiegeCountdown ?? -1;
     victoryPending = state.victoryPending ?? false;
+    revivalPending = state.revivalPending ?? false;
     runEnded = state.runEnded ?? false;
     runSummary = state.runSummary ?? null;
     runLegacyEarned = state.runLegacyEarned ?? 0;
@@ -1807,7 +1906,7 @@ function tick() {
     // The world is frozen while the run-summary screen is up — the next Age
     // starts when the player founds it. Same for the victory screen, and for
     // a tutorial pause-beat (M16 phase 2: the big teaching moments).
-    if (runEnded || victoryPending || tutorialPaused) return;
+    if (runEnded || victoryPending || revivalPending || tutorialPaused) return;
 
     runTime++;
     // Authoritative recompute each tick: picks up injury expiries automatically
@@ -1837,7 +1936,11 @@ function tick() {
         if (currentInvasion) {
             combatTick(1000);
             if (kingdomHP <= 0) {
-                endRun('overrun');
+                if (currentInvasion.finalSiege && upgradeRank('miracle') > 0 && !meta.miracleSpent) {
+                    triggerMiracle(); // visit 2's loss: the Miracle, NOT a reset
+                } else {
+                    endRun('overrun');
+                }
                 return;
             }
             if (!squadAlive(currentInvasion.enemies)) {
@@ -3100,16 +3203,19 @@ function renderHeroRecruitPool() {
 // --- Run summary & upgrade shop overlay ---
 function renderUpgradeTree(treeId) {
     const tree = UPGRADE_TREES[treeId];
+    const nodes = tree.nodes.filter(nodeUnlocked);
+    if (!nodes.length) return ''; // a locked sub-tier renders nothing at all
     let html = `<div class="upgrade-tree">
         <div class="upgrade-tree-title">${tree.label}</div>`;
 
-    for (const node of tree.nodes) {
+    for (const node of nodes) {
         const rank = upgradeRank(node.id);
         const maxed = rank >= node.maxRank;
         const cost = maxed ? null : node.costs[rank];
         const canAfford = !maxed && meta.legacy >= cost;
+        const glow = node.glow && !meta[node.glow] && !maxed;
 
-        html += `<div class="upgrade-node ${maxed ? 'upgrade-node--maxed' : ''}">
+        html += `<div class="upgrade-node ${maxed ? 'upgrade-node--maxed' : ''}${glow ? ' upgrade-node--glow' : ''}"${glow ? ` data-action="noteUpgrade:${node.id}"` : ''}>
             <div class="upgrade-info">
                 <div class="upgrade-name">${node.name}</div>
                 <div class="upgrade-desc">${node.desc}</div>
@@ -3118,7 +3224,7 @@ function renderUpgradeTree(treeId) {
             <div class="upgrade-action">
                 ${maxed
                     ? `<div class="upgrade-maxed-label">Maxed</div>`
-                    : `<div class="upgrade-cost">${cost.toLocaleString()} Legacy</div>
+                    : `<div class="upgrade-cost">${cost ? cost.toLocaleString() + ' Legacy' : 'Free'}</div>
                        <button class="btn-upgrade" data-action="buyUpgrade:${node.id}" ${canAfford ? '' : 'disabled'}>Buy</button>`}
             </div>
         </div>`;
@@ -3130,6 +3236,7 @@ function renderUpgradeTree(treeId) {
 
 function renderRunSummary() {
     const overlay = document.getElementById('run-summary-overlay');
+    if (revivalPending) return renderRevivalShop();
     if (!runEnded || !runSummary) {
         overlay.classList.add('hidden');
         return;
@@ -3140,17 +3247,42 @@ function renderRunSummary() {
         <div class="summary-sub">${s.reason === 'abandoned' ? 'Abandoned during' : 'Fell to'} ${s.fellTo} at ${s.levelName} level</div>
         ${s.tutorialNote ? `<div class="summary-sub summary-tutorial-note">Every kingdom falls. That is how a Legacy begins. Spend it below, then found a new Age: stronger from its very first morning.</div>` : ''}
         ${s.lessons ? `<div class="summary-lessons">Lessons of the Last Siege: the failed assault taught the realm much. <strong>+${s.lessons.toLocaleString()} Legacy</strong></div>` : ''}
+        ${s.siegeLost ? `<div class="summary-sub summary-siege-note">We know what we're up against now. We must prepare.</div>` : ''}
         <div class="summary-stats">
             <div class="summary-stat"><span class="summary-stat-value">${s.waves}</span> wave${s.waves === 1 ? '' : 's'} repelled this Age</div>
             <div class="summary-stat"><span class="summary-stat-value">+${s.legacy.toLocaleString()}</span> Legacy earned this Age</div>
             <div class="summary-stat"><span class="summary-stat-value">${meta.legacy.toLocaleString()}</span> Legacy available</div>
         </div>
         <div class="summary-shop-heading">Spend Legacy on permanent upgrades — they carry into every future Age.</div>
-        <div class="summary-trees">${renderUpgradeTree('economy')}${renderUpgradeTree('military')}</div>
+        <div class="summary-trees">${SHOP_TREE_ORDER.map(renderUpgradeTree).join('')}</div>
         <button class="btn-new-age" data-action="foundNewAge">Found a New Age &mdash; Age ${meta.age + 1}</button>`;
 
     document.getElementById('run-summary-content').innerHTML = html;
     overlay.classList.remove('hidden');
+}
+
+// Revival shop: the run-summary overlay in "revival" mode, open while the
+// Miracle has paused the gauntlet. Shows the Capstones (free) and resumes the
+// SAME battle rather than founding an Age. Draft copy, pending the developer.
+function renderRevivalShop() {
+    const overlay = document.getElementById('run-summary-overlay');
+    const html = `<div class="summary-title summary-title--victory">The Cathedral's Miracle</div>
+        <div class="summary-sub">The Kingdom fell, and the Cathedral answered. The walls stand whole again and a legendary host holds the gate. The siege begins anew.</div>
+        <div class="summary-stats">
+            <div class="summary-stat"><span class="summary-stat-value">${meta.legacy.toLocaleString()}</span> Legacy available</div>
+        </div>
+        <div class="summary-trees">${renderUpgradeTree('capstones')}</div>
+        <button class="btn-new-age" data-action="returnToFight">Return to the fight</button>`;
+    document.getElementById('run-summary-content').innerHTML = html;
+    overlay.classList.remove('hidden');
+}
+
+function returnToFight() {
+    if (!revivalPending) return;
+    revivalPending = false;
+    document.getElementById('run-summary-overlay').classList.add('hidden');
+    saveGame();
+    updateUI();
 }
 
 // Victory screen (M13): the campaign is won. Reuses the run-summary overlay.
@@ -3472,6 +3604,14 @@ const TUTORIAL_BOSS_BEAT = { id: 'boss-wave', pause: true, button: 'Stand fast',
     title: 'Their warlord takes the field',
     text: 'A boss leads this wave, far stronger than anything before it. Slay it to break into the next, deadlier tier. If it brings the Kingdom down instead, the Age ends, and your Legacy builds the next one stronger. Hover it to gauge its strength.' };
 
+// The siege-arrival beat (ENDGAME_REWORK.md arc step 2): fires once per
+// campaign on the first gauntlet spawn, tutorial or not. Severe, but it never
+// says the gauntlet cannot be won. Draft copy, pending the developer.
+const SIEGE_ARRIVAL_BEAT = { id: 'siege-arrival', pause: true, button: 'To the walls',
+    target: () => sceneBattleUnitsRect() || document.getElementById('scene-raid-chip'),
+    title: 'The Final Siege',
+    text: 'The Demon Empress has emptied the Infernal host against your walls. Three assaults, one battle, and no respite between them: your heroes carry every wound into the next. Nothing you have faced comes close.' };
+
 function totalResidents() {
     let n = 0;
     for (const id in buildings) n += buildings[id].residents.length;
@@ -3546,7 +3686,10 @@ function renderTutorial() {
     const toggle = document.getElementById('scene-toggle');
     if (toggle) toggle.classList.toggle('hidden', !meta.tutorialDone && sceneOpen);
     let beat = null;
-    if (!meta.tutorialDone && !runEnded && !victoryPending && sceneOpen) {
+    if (meta.finalSiegeSeen && !meta.siegeArrivalSeen && !runEnded && !victoryPending && !revivalPending
+        && currentInvasion && currentInvasion.finalSiege) {
+        beat = SIEGE_ARRIVAL_BEAT; // outside the tutorial gate: veterans see it too
+    } else if (!meta.tutorialDone && !runEnded && !victoryPending && sceneOpen) {
         if (tutorialKingdomHit && !meta.tutorialWallSeen && meta.tutorialStep > TUT_BATTLE_INDEX)
             beat = TUTORIAL_WALL_BEAT;
         else if (!meta.tutorialBossSeen && meta.tutorialStep > TUT_BATTLE_INDEX
@@ -3570,7 +3713,7 @@ function renderTutorial() {
                 <div class="tut-text">${beat.text}</div>
                 <div class="tut-actions">
                     ${beat.button ? `<button class="tut-btn" data-action="tutorialNext">${beat.button}</button>` : ''}
-                    <span class="tut-skip" data-action="tutorialSkip">Skip tutorial</span>
+                    ${beat.id === 'siege-arrival' ? '' : '<span class="tut-skip" data-action="tutorialSkip">Skip tutorial</span>'}
                 </div>
             </div>`;
         layer.classList.remove('hidden');
@@ -4621,6 +4764,8 @@ const UI_ACTIONS = {
     doResetGame:     () => doResetGame(),
     cancelReset:     () => cancelReset(),
     buyUpgrade:      id => buyUpgrade(id),
+    noteUpgrade:     id => noteUpgrade(id),
+    returnToFight:   () => returnToFight(),
     foundNewAge:     () => foundNewAge(),
     continueEndless: () => continueEndless(),
     setReduceMotion: v => { meta.reduceMotion = v === '1'; saveMeta(); updateUI(); },
@@ -4641,6 +4786,7 @@ const UI_ACTIONS = {
     tutorialNext: () => {
         if (tutActiveId === 'kingdom-hit') meta.tutorialWallSeen = true;
         else if (tutActiveId === 'boss-wave') meta.tutorialBossSeen = true;
+        else if (tutActiveId === 'siege-arrival') meta.siegeArrivalSeen = true;
         else meta.tutorialStep++;
         tutorialPaused = false;
         saveMeta();

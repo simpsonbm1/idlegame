@@ -19,7 +19,8 @@ prefer small working milestones over large upfront designs.
   edit).
 - **`MILESTONES.md`** — the milestone tracker: closed history (M1–M14.1) and current scope
   (M15–M17).
-- **`ENDGAME_REWORK.md`** — the locked endgame redesign, audited, not yet built (tracker #0069).
+- **`ENDGAME_REWORK.md`** — the locked endgame redesign (tracker #0069): Stage 1 mechanics built,
+  Stage 2 balance partly open on the developer's decisions.
 - **`M15_SCOPE.md` / `M15_ASSET_SPECS.md` / `M15_ART_PILOT.md`** — game-feel scope, asset
   prompts, art pipeline and generator routing.
 - **`AGENT_DELEGATION.md`** — delegation routing, prompt checklist, verifier conventions.
@@ -89,7 +90,9 @@ Blender backdrop needs. The attack sheets are not wired: when attack frames play
 combat is undesigned.
 
 Also live: M15 (game feel) in progress; M16 tutorialization phases 1–2 built, pending the
-user's playtest; the endgame rework is designed and audited, not started. Detail:
+user's playtest; the endgame rework's Stage 1 mechanics are built (three visits, the
+Miracle, the revival shop; DESIGN.md *Victory condition*), with its Stage 2 numbers open
+for the developer. Detail:
 `MILESTONES.md` and `SESSION_HANDOFF.md`.
 
 ## Keeping docs current

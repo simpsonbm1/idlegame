@@ -2,8 +2,10 @@
 
 **Status:** design locked 2026-07-24 (user-directed), audited against live `game.js` the same
 day and revised. Supersedes the M13 Final Siege *flow* (the 3-phase gauntlet content stays; how
-you reach and survive it changes). Not yet implemented. Doc-rot corrections (below) ride along in
-the same pass. Changelog at the end.
+you reach and survive it changes). **Stage 1 (mechanics) is built** on branch
+`claude/long-build-7e252f`, not merged; Stage 2's route is ruled (below) and its numbers are
+open for the developer. Doc-rot corrections (below) ride along in the same pass. Changelog at
+the end.
 
 ## The problems this fixes
 
@@ -41,14 +43,13 @@ revival that turns the third visit into the win.
    waves** — every visit after the first re-climbs ~55 waves from Goblin w1, and each one is a
    win-or-the-Age-ends gate. Three gates at 95% is 86%; even 99.5% per wave completes the full
    climb only 76% of the time, which would kill one scripted run in four before it reached its
-   scripted beat. Two ways to satisfy this; pick one at stage 2:
-   - Tune the maxed kit to **effectively 100% per wave across the whole Infernal tier** — the
-     lever is the **top base ranks** (Drills/Armor/doctrines/War Banners, the maxed-only nodes),
-     so runs 1-8 are unchanged; or
-   - **a `finalSiegeSeen`-gated ladder skip** that starts post-siege Ages at a later tier. This
-     removes the compounding structurally rather than tuning it down, and it also shortens the
-     visit-2 Age (see step 4). CLAUDE.md already floats "start at wave N" as a candidate Economy
-     QoL node.
+   scripted beat. **Route (developer ruling 2026-10-29): the `finalSiegeSeen`-gated LADDER
+   SKIP.** Post-siege Ages start at a later tier, which removes the compounding structurally
+   rather than tuning it down, and also shortens the visit-2 Age (see step 4). **The tier it
+   starts at is NOT chosen**: the developer said "Let the run propose", so the sim measures the
+   candidates (at least Undead w1 and Infernal w1) and the pick stays the developer's (Stage 2
+   below). The rejected alternative was tuning the maxed kit to effectively 100% per wave
+   across the whole Infernal tier through the top base ranks.
 
    Either way the countdown collapses to **one non-lethal herald beat**.
 
@@ -194,6 +195,19 @@ Lessons sections to the new three-visit flow.
   escalation carried across phases; revival shop (reuse the run-summary overlay in a "revival"
   mode: Sub-tier B unlocked, "Return to the fight" resumes the gauntlet) with its flag persisted
   and `tick()` frozen; `buyUpgrade`/`renderUpgradeTree` respect `node.unlock`; Miracle glow flag.
+- **Stage 1 BUILT 2026-10-29** (branch `claude/long-build-7e252f`), browser-verified on a
+  test port: countdown 3 → 1; `finalSiegeSeen` / `siegeArrivalSeen` / `finalSiegeLost` /
+  `miracleSpent` / `miracleSeen` additive meta flags; `UPGRADE_TREES.preparation` (the Miracle
+  node) and `UPGRADE_TREES.capstones` (empty) with `unlock` predicates honoured by `buyUpgrade`
+  and `renderUpgradeTree`; the arrival beat (`SIEGE_ARRIVAL_BEAT`, outside the tutorial gate);
+  overrun routing; `triggerMiracle()`; Lessons and `finalSiegeLost` on an overrun only;
+  escalation carried across phases (mirrored in the sim's `finalSiegeRate`); the revival shop
+  (`renderRevivalShop`, `revivalPending` saved and freezing `tick()`); the Miracle glow.
+  Choices the doc did not fix, each OPEN for the developer: the Miracle's price (set to the
+  25,000 ceiling); WHICH legendaries the Miracle raises (a legendary of each archetype in the
+  seat the player fielded it at the gauntlet's start; empty seats stay empty); visit 3 starts
+  with a fresh escalation clock; all new player-facing copy is a draft. NOT built, undesigned:
+  the income node, the moderate power nodes, every capstone.
 - **Stage 2 — balance (SAVE_VERSION bump here):** make the approach a near-certainty by whichever
   route step 1 of the arc picks (top-rank buff to effectively 100% per wave across Infernal, or
   the ladder skip); tune the phase stats + the two sub-tiers so visit 1 (no sub-tier) and visit 2
@@ -248,6 +262,11 @@ Lessons sections to the new three-visit flow.
 ## Changelog
 - **2026-07-24 (design):** locked live with the user. Three-visit arc, two upgrade sub-tiers,
   purchasable Miracle, Sub-tier B free.
+- **2026-10-29 (developer rulings):** Stage 2 route is the `finalSiegeSeen`-gated ladder skip;
+  its start tier is left to the sim's measurements and the developer's pick ("Let the run
+  propose").
+- **2026-10-29 (Stage 1 built):** mechanics per the plan above, on branch
+  `claude/long-build-7e252f`.
 - **2026-07-24 (audit, Opus 5):** audited against live `game.js`; seven revisions, all
   user-approved, folded into the body above. The two that were corrections rather than
   refinements: the Miracle must **grant** a squad and Kingdom HP (as originally specced it could
