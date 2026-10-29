@@ -79,7 +79,14 @@ skirmisher and the sapper's spade thrust are rebuilt but not yet watched. The ot
 are still on pivots, called "a bit crude", not approved. **Show the developer a still of
 a new key pose before animating it.** The buildings and townsfolk are still unjudged.
 
-**None of it is wired into the game yet.**
+**The sprites are wired into the game (2026-10-29)**: all 83 load from
+`assets/rendered/sprites/` at 1:1 with no per-sprite fitting, and units stand on
+contact shadows ported from `compose_vista.py` (DESIGN.md, Render architecture). How it
+looks is still the developer's verdict. The Blender BACKDROP is not adopted: it was
+never published (`publish.py` does not cover it), so the live backdrop is still the
+Gemini painting and `SCENE_WALL_FRAC` still fits that painting, not the 0.46 the
+Blender backdrop needs. The attack sheets are not wired: when attack frames play in
+combat is undesigned.
 
 Also live: M15 (game feel) in progress; M16 tutorialization phases 1–2 built, pending the
 user's playtest; the endgame rework is designed and audited, not started. Detail:

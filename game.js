@@ -2707,106 +2707,73 @@ function spawnLevelUpBanner(levelName) {
     document.body.appendChild(b);
 }
 
-// --- M15 sprite pipeline (runtime — no build step, per the tech-stack rule) ---
-// The game loads the RAW Gemini sprites straight from assets/raw/ and runs
-// the whole art pipeline at boot, in memory: key out the magenta background,
-// trim to content, compute the foot anchor (weighted centroid of the bottom
-// rows, weapon overhang excluded — seats sprites in future diorama slots),
-// and downscale. A sprite that hasn't been generated yet is just a missing
-// file: the UI falls back to letter portraits per key, so an art drop is
-// "copy PNG into assets/raw, refresh". Needs http serving — canvas pixel
-// access is blocked on file:// and the loader degrades to letters there.
-const SPRITE_MAX_H = 160;
-const sprites = {}; // key -> { url, w, h, ax, ay } (foot anchor in output px)
-let spriteLoadBlocked = false; // file:// canvas taint — scene shows a serve-over-http notice
+/// --- M15 sprite pipeline (runtime, no build step, per the tech-stack rule) ---
+// The art is the Blender roster published in assets/rendered/sprites/ (adopted
+// 2026-10-29). Every figure there is rendered at one world scale (SPRITE_PX
+// world units per pixel) with world z=0 on a SHARED ground row, 10% up from
+// the bottom of its cell, so a sprite's pixel size already IS its role height
+// (a boss 1.5x, a sapper 0.93x). The loader therefore never fits a sprite to a
+// height budget: it trims the transparent margin, reads the foot anchor off
+// the cell geometry, and keeps every pixel at 1:1. The old per-sprite alpha-box
+// normalisation (and the magenta keying and mirroring the Gemini raws needed)
+// is gone: it sized a figure by its total extent, so a raised weapon shrank
+// its body. A sprite that fails to load is just a missing file and the UI
+// keeps the letter portrait. Needs http serving: canvas pixel access is
+// blocked on file:// and the loader degrades to letters there.
+const SPRITE_DIR = 'assets/rendered/sprites/';
+const SPRITE_GROUND_FRAC = 0.10;          // tools/blender/spritekit.py GROUND_FRAC
+const SPRITE_PX_PER_UNIT = 1 / 0.0390625; // 25.6 character pixels per world unit (pixelrig SPRITE_PX)
+// A normal-role figure's height in character pixels (spritekit NORMAL_HEIGHT,
+// 2.95 world units). Callers say "a normal figure stands h px tall here", and
+// every sprite there is drawn at the same h / SPRITE_NORMAL_H zoom.
+const SPRITE_NORMAL_H = 2.95 * SPRITE_PX_PER_UNIT;
+const sprites = {}; // key -> { url, w, h, ax, ay } (foot anchor in sprite px)
+let spriteLoadBlocked = false; // file:// canvas taint: scene shows a serve-over-http notice
 
-const SPRITE_SOURCES = {
-    hero_guardian: 'raw_hero_knight_v3.png',
-    hero_fighter: 'raw_hero_fighter.png',
-    hero_ranged: 'raw_hero_ranged.png',
-    hero_mender: 'raw_hero_mender.png',
-    hero_paladin: 'raw_hero_paladin.png',
-    hero_assassin: 'raw_hero_assassin.png',
-    hero_battlemage: 'raw_hero_battlemage.png',
-    hero_banneret: 'raw_hero_banneret.png',
-    hero_frostadept: 'raw_hero_frostadept.png',
-    town_villager: 'raw_town_villager.png',
-    town_tavernkeeper: 'raw_town_tavernkeeper.png',
-    town_blacksmith: 'raw_town_blacksmith.png',
-    town_scholar: 'raw_town_scholar.png',
-    town_builder: 'raw_town_builder.png',
-    town_alchemist: 'raw_town_alchemist.png',
-    town_mage: 'raw_town_mage.png',
-    town_priest: 'raw_town_highpriest.png',
-    enemy_goblin_brute: 'raw_enemy_goblin_brute.png',
-    enemy_goblin_skirmisher: 'raw_enemy_goblin_skirmisher.png',
-    enemy_goblin_caster: 'raw_enemy_goblin_caster.png',
-    enemy_goblin_shaman: 'raw_enemy_goblin_shaman.png',
-    enemy_goblin_sapper: 'raw_enemy_goblin_sapper.png',
-    boss_goblin: 'raw_boss_goblin.png',
-    enemy_orc_brute: 'raw_enemy_orc_brute.png',
-    enemy_orc_skirmisher: 'raw_enemy_orc_skirmisher.png',
-    enemy_orc_caster: 'raw_enemy_orc_caster.png',
-    enemy_orc_shaman: 'raw_enemy_orc_shaman.png',
-    enemy_orc_sapper: 'raw_enemy_orc_sapper.png',
-    boss_orc: 'raw_boss_orc.png',
-    enemy_bandit_brute: 'raw_enemy_bandit_brute.png',
-    enemy_bandit_skirmisher: 'raw_enemy_bandit_skirmisher.png',
-    enemy_bandit_caster: 'raw_enemy_bandit_caster.png',
-    enemy_bandit_shaman: 'raw_enemy_bandit_shaman.png',
-    enemy_bandit_sapper: 'raw_enemy_bandit_sapper.png',
-    boss_bandit: 'raw_boss_bandit.png',
-    enemy_undead_brute: 'raw_enemy_undead_brute.png',
-    enemy_undead_skirmisher: 'raw_enemy_undead_skirmisher.png',
-    enemy_undead_caster: 'raw_enemy_undead_caster.png',
-    enemy_undead_shaman: 'raw_enemy_undead_shaman.png',
-    enemy_undead_sapper: 'raw_enemy_undead_sapper.png',
-    boss_undead: 'raw_boss_undead.png',
-    enemy_infernal_brute: 'raw_enemy_infernal_brute.png',
-    enemy_infernal_skirmisher: 'raw_enemy_infernal_skirmisher.png',
-    enemy_infernal_caster: 'raw_enemy_infernal_caster.png',
-    enemy_infernal_shaman: 'raw_enemy_infernal_shaman.png',
-    enemy_infernal_sapper: 'raw_enemy_infernal_sapper.png',
-    boss_infernal: 'raw_boss_infernal.png'
-};
-
-// Hero rarity variants (spec entries 56–82, generated lazily in any order):
-// registered up front so a variant PNG dropped into assets/raw/ is live on
-// refresh; heroSpriteKey() falls back to the base archetype sprite until then.
-// 'common' included for the audit-demoted archetypes whose BASE art depicts a
-// higher tier (mender = rare, paladin = epic) and so get a plain common file.
-for (const a of ['guardian', 'fighter', 'ranged', 'mender', 'paladin', 'assassin', 'battlemage', 'banneret', 'frostadept']) {
-    for (const r of ['common', 'rare', 'epic', 'legendary']) {
-        SPRITE_SOURCES['hero_' + a + '_' + r] = 'raw_hero_' + a + '_' + r + '.png';
+// Game sprite key -> published file. Only files that exist are listed, so a
+// missing rarity variant falls back to its base archetype (heroSpriteKey) with
+// no 404 in the console.
+const SPRITE_SOURCES = {};
+{
+    // The guardian line is the roster's 'knight'. The mender's and paladin's
+    // BASE renders depict a higher tier (rare / epic), so those two lines ship
+    // a plain 'common' file and no file for the tier their base covers.
+    const heroLines = {
+        guardian: ['knight', ['rare', 'epic', 'legendary']],
+        fighter: ['hero_fighter', ['rare', 'epic', 'legendary']],
+        ranged: ['hero_ranged', ['rare', 'epic', 'legendary']],
+        mender: ['hero_mender', ['common', 'epic', 'legendary']],
+        paladin: ['hero_paladin', ['common', 'rare', 'legendary']],
+        assassin: ['hero_assassin', ['rare', 'epic', 'legendary']],
+        battlemage: ['hero_battlemage', ['rare', 'epic', 'legendary']],
+        banneret: ['hero_banneret', ['rare', 'epic', 'legendary']],
+        frostadept: ['hero_frostadept', ['rare', 'epic', 'legendary']]
+    };
+    for (const a in heroLines) {
+        const [file, tiers] = heroLines[a];
+        SPRITE_SOURCES['hero_' + a] = file + '.png';
+        for (const r of tiers) SPRITE_SOURCES['hero_' + a + '_' + r] = file + '_' + r + '.png';
     }
+    for (const t of ['villager', 'tavernkeeper', 'blacksmith', 'scholar', 'builder', 'alchemist', 'mage'])
+        SPRITE_SOURCES['town_' + t] = 'town_' + t + '.png';
+    SPRITE_SOURCES.town_priest = 'town_highpriest.png';
+    for (const tier of ['goblin', 'orc', 'bandit', 'undead', 'infernal']) {
+        for (const arch of ['brute', 'skirmisher', 'caster', 'shaman', 'sapper']) {
+            // the goblin brute was the pipeline's pilot figure, filed as plain 'goblin'
+            SPRITE_SOURCES['enemy_' + tier + '_' + arch] =
+                (tier === 'goblin' && arch === 'brute') ? 'goblin.png' : tier + '_' + arch + '.png';
+        }
+        SPRITE_SOURCES['boss_' + tier] = tier + '_boss.png';
+    }
+    // Building sprites for the scene town vista; renderVista() falls back to a
+    // schematic SVG per building until one loads.
+    for (const id of ['cottage', 'tavern', 'smithy', 'library', 'workshop', 'keep', 'apothecary', 'tower', 'cathedral'])
+        SPRITE_SOURCES['bldg_' + id] = id + '.png';
 }
 
-// Building sprites (spec entries 47–55) for the M15 scene town vista: keyed by
-// building id, so a raw_bldg_<id>.png dropped into assets/raw/ is live on
-// refresh; renderVista() falls back to a schematic SVG per building until then.
-for (const id of ['cottage', 'tavern', 'smithy', 'library', 'workshop', 'keep', 'apothecary', 'tower', 'cathedral']) {
-    SPRITE_SOURCES['bldg_' + id] = 'raw_bldg_' + id + '.png';
-}
-
-// Keys whose raw art faces the wrong way (Gemini direction misses): the loader
-// mirrors these in memory at load time — the spec's upper-left lighting inverts
-// with them, but the 2026-07-18 flip test showed it doesn't read at game scale.
-// Remove a key here if a corrected PNG ever replaces its raw file.
-const SPRITE_FLIP = new Set([
-    // 2026-07-19 assessment of the enemy batch: these 8 raws face right
-    // (spec says enemies face LEFT); orc_shaman is near-frontal with a right
-    // lean, orc_skirmisher near-frontal (left unflipped — its off-magenta
-    // crimson background keys cleanly via the corner-sampling fallback).
-    'boss_orc',
-    'enemy_bandit_brute',
-    'enemy_bandit_shaman',
-    'enemy_bandit_skirmisher',
-    'enemy_goblin_sapper',
-    'enemy_orc_brute',
-    'enemy_orc_sapper',
-    'enemy_orc_shaman'
-]);
-
+// Magenta keying, kept for the raw Gemini UI frame (loadChrome). The Blender
+// sprites carry real alpha and must never pass through this: their black
+// outlines match the transparent corners' colour and would key out.
 function keyMagentaPixels(p, w, h) {
     // With dims, sample the four corners (spec: background fills the edges); if
     // they agree on one flat color, pixels near it key too — catches off-spec
@@ -2826,52 +2793,28 @@ function keyMagentaPixels(p, w, h) {
     }
 }
 
-function processSprite(img, flip) {
+// Trim a rendered cell to its content at 1:1. The foot anchor comes from the
+// cell, not the pixels: the figure stands at the cell's horizontal centre on
+// the shared ground row.
+function processSprite(img) {
     const c = document.createElement('canvas');
     c.width = img.width; c.height = img.height;
     const ctx = c.getContext('2d');
-    // Mirror before any pixel work, so keying/trim/anchor see the final image.
-    if (flip) { ctx.translate(c.width, 0); ctx.scale(-1, 1); }
     ctx.drawImage(img, 0, 0);
-    if (flip) ctx.setTransform(1, 0, 0, 1, 0, 0);
-    const data = ctx.getImageData(0, 0, c.width, c.height); // throws on file://
-    const p = data.data;
-    keyMagentaPixels(p, c.width, c.height);
+    const p = ctx.getImageData(0, 0, c.width, c.height).data; // throws on file://
     let minX = c.width, minY = c.height, maxX = -1, maxY = -1;
     for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) {
-        if (p[(y * c.width + x) * 4 + 3] > 8) {
+        if (p[(y * c.width + x) * 4 + 3] > 0) {
             if (x < minX) minX = x; if (x > maxX) maxX = x;
             if (y < minY) minY = y; if (y > maxY) maxY = y;
         }
     }
     if (maxX < 0) return null;
-    ctx.putImageData(data, 0, 0);
     const w = maxX - minX + 1, h = maxY - minY + 1;
-    const bandTop = minY + Math.floor(h * 0.88);
-    let sx = 0, n = 0;
-    for (let y = bandTop; y <= maxY; y++) for (let x = minX; x <= maxX; x++) {
-        if (p[(y * c.width + x) * 4 + 3] > 8) { sx += (x - minX); n++; }
-    }
-    const ax = n ? sx / n : w / 2;
-    const half = w * 0.14;
-    let ay = h - 1;
-    outer:
-    for (let y = maxY; y >= minY; y--) {
-        const x0 = Math.max(minX, Math.floor(minX + ax - half));
-        const x1 = Math.min(maxX + 1, Math.ceil(minX + ax + half));
-        for (let x = x0; x < x1; x++) {
-            if (p[(y * c.width + x) * 4 + 3] > 8) { ay = y - minY; break outer; }
-        }
-    }
-    const scale = Math.min(1, SPRITE_MAX_H / h);
     const out = document.createElement('canvas');
-    out.width = Math.max(1, Math.round(w * scale));
-    out.height = Math.max(1, Math.round(h * scale));
-    const octx = out.getContext('2d');
-    octx.imageSmoothingEnabled = true;
-    octx.imageSmoothingQuality = 'high';
-    octx.drawImage(c, minX, minY, w, h, 0, 0, out.width, out.height);
-    return { canvas: out, w: out.width, h: out.height, ax: Math.round(ax * scale), ay: Math.round(ay * scale) };
+    out.width = w; out.height = h;
+    out.getContext('2d').drawImage(c, minX, minY, w, h, 0, 0, w, h);
+    return { canvas: out, w, h, ax: c.width / 2 - minX, ay: c.height * (1 - SPRITE_GROUND_FRAC) - minY };
 }
 
 function loadSprites() {
@@ -2879,7 +2822,7 @@ function loadSprites() {
         const img = new Image();
         img.onload = () => {
             try {
-                const s = processSprite(img, SPRITE_FLIP.has(key));
+                const s = processSprite(img);
                 // Tiny blob: object URLs, not 40KB data: URLs — keeps style
                 // attributes and the per-frame panel memo strings small.
                 if (s) s.canvas.toBlob(blob => {
@@ -2888,8 +2831,8 @@ function loadSprites() {
                 }, 'image/png');
             } catch (e) { spriteLoadBlocked = true; /* file:// canvas taint — letter portraits remain */ }
         };
-        img.onerror = () => {}; // not generated yet — letter portraits remain
-        img.src = 'assets/raw/' + SPRITE_SOURCES[key];
+        img.onerror = () => {}; // missing file — letter portraits remain
+        img.src = SPRITE_DIR + SPRITE_SOURCES[key];
     }
 }
 
@@ -3716,7 +3659,7 @@ const SCENE_COMP_ASPECT = 2400 / 1270; // kept-region aspect: rows below
     // aspects wider than the keep drift toward 49% — accepted, v1 did too).
 function loadScene() {
     const img = new Image();
-    img.onload = () => { sceneBgImg = img; if (sceneOpen) layoutScene(); };
+    img.onload = () => { sceneBgImg = img; readSceneBackdropPixels(); if (sceneOpen) layoutScene(); };
     img.onerror = () => {}; // absent — flat ground remains
     img.src = 'assets/raw/scene_backdrop_v2.png';
 }
@@ -3998,24 +3941,140 @@ function renderSceneHud() {
 // Wrapper div anchored at the feet (left/top %); sprite/letter, shadow, and
 // rarity ring are px-offset children computed from the sprite's foot anchor.
 // No transform on the wrapper, so the shared fx-lunge classes animate safely.
+// `h` is how tall a NORMAL-role figure stands at this spot; every sprite is
+// drawn at the one zoom that implies (sceneSpriteZoom), so role heights from
+// the Blender pipeline survive and nothing is fitted per sprite. `top` is the
+// sprite's head height above the feet, for plates and hints. A real sprite's
+// ground shadow is painted onto the backdrop by drawSceneShadows(); the CSS
+// ellipse only remains under the letter-chip fallback.
+function sceneSpriteZoom(h) { return h / SPRITE_NORMAL_H; }
 function sceneUnitBits(sKey, h, letter, rarity) {
     const s = sprites[sKey];
-    let inner, sw;
+    let inner, sw, top, html = '';
     if (s) {
-        const scale = h / s.h;
-        sw = s.w * scale;
-        inner = `<img class="sprite" src="${s.url}" style="height:${h.toFixed(0)}px;left:${(-s.ax * scale).toFixed(1)}px;top:${(-s.ay * scale).toFixed(1)}px">`;
+        const k = sceneSpriteZoom(h);
+        sw = s.w * k;
+        top = s.ay * k;
+        inner = `<img class="sprite" src="${s.url}" style="width:${sw.toFixed(1)}px;height:${(s.h * k).toFixed(1)}px;left:${(-s.ax * k).toFixed(1)}px;top:${(-top).toFixed(1)}px">`;
     } else {
         sw = 40;
+        top = 42;
         inner = `<span class="letter-chip" style="left:-17px;top:-42px">${letter}</span>`;
+        html = `<span class="shadow" style="left:-13px;top:-7px;width:26px;height:14px"></span>`;
     }
-    const shW = Math.max(26, sw * 0.62);
-    let html = `<span class="shadow" style="left:${(-shW / 2).toFixed(1)}px;top:-7px;width:${shW.toFixed(0)}px;height:14px"></span>`;
     if (rarity) {
         const rw = Math.max(34, sw * 0.72);
         html += `<span class="ring ring--${rarity}" style="left:${(-rw / 2).toFixed(1)}px;top:-9px;width:${rw.toFixed(0)}px;height:18px"></span>`;
     }
-    return { html: html + inner, sw };
+    return { html: html + inner, sw, top };
+}
+
+// ---------- unit contact shadows (ported from tools/blender/compose_vista.py) ----------
+// Sprites are composited, so they get no shadow from the backdrop's sun and
+// would float. Each unit gets a CONTACT ellipse offset the way the sun throws
+// it (right and slightly down), not a true projection. The ellipse darkens the
+// backdrop pixels it covers and snaps each result back onto the backdrop's own
+// palette, so a shadow never introduces a colour the scene does not already
+// contain; a translucent overlay reads as a layer on top. Painted into a
+// canvas at the backdrop's native resolution, laid over it with the same
+// transform, below every building and unit. All sizes are compose_vista's, in
+// world units, converted through SPRITE_PX and the unit's display zoom.
+const SHADOW_RX = 0.94, SHADOW_RY = 0.345;            // ellipse semi-axes
+const SHADOW_BROAD_RX = 1.14, SHADOW_BROAD_RY = 0.41; // broader figures (compose_vista's goblin brute)
+const SHADOW_DX = 0.62, SHADOW_DY = -0.11;            // offset toward the sun's throw
+const SHADOW_DARKEN = 0.56;
+const SHADOW_UPY = Math.cos(28 * Math.PI / 180);      // backdrop camera: ground depth foreshortening
+const SHADOW_PALETTE_SIZE = 96;
+const SHADOW_SNAP_MAX_COLOURS = 1024; // above this the backdrop is a painting: darken without snapping
+let sceneShadowPalette = null; // Float32Array rgb triples, null until the backdrop is read
+let sceneBgPixels = null;      // the backdrop's ImageData, read once per load
+let sceneShadowSig = '';
+const sceneShadowSpots = { crowd: [], battle: [] }; // { x, y (screen px), k (zoom), broad, unit? }
+
+function readSceneBackdropPixels() {
+    sceneBgPixels = null; sceneShadowPalette = null; sceneShadowSig = '';
+    try {
+        const c = document.createElement('canvas');
+        c.width = sceneBgImg.width; c.height = sceneBgImg.height;
+        const ctx = c.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(sceneBgImg, 0, 0);
+        sceneBgPixels = ctx.getImageData(0, 0, c.width, c.height); // throws on file://
+    } catch (e) { return; } // no pixel access: no shadows, as on file:// where sprites are letters anyway
+    // The backdrop's most common colours (compose_vista keeps the top 96).
+    // That only means something on a limited-palette pixel-art backdrop (the
+    // Blender render has 306 colours); a continuous-tone painting (the Gemini
+    // scene_backdrop_v2 has 43,719) would snap its greens onto brown, so there
+    // the shadow is the darkened ground itself, still no colour from outside.
+    const p = sceneBgPixels.data, counts = new Map();
+    for (let i = 0; i < p.length; i += 4) {
+        const key = (p[i] << 16) | (p[i + 1] << 8) | p[i + 2];
+        counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    if (counts.size > SHADOW_SNAP_MAX_COLOURS) { sceneShadowPalette = new Float32Array(0); return; }
+    const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, SHADOW_PALETTE_SIZE);
+    sceneShadowPalette = new Float32Array(top.length * 3);
+    top.forEach(([key], i) => {
+        sceneShadowPalette[i * 3] = key >> 16;
+        sceneShadowPalette[i * 3 + 1] = (key >> 8) & 255;
+        sceneShadowPalette[i * 3 + 2] = key & 255;
+    });
+}
+
+function shadowBroad(sKey) { return !!sKey && (sKey.startsWith('boss_') || sKey.endsWith('_brute')); }
+// A unit's feet at (x%, y%) of the scene, standing at the zoom h implies.
+function sceneShadowSpot(xPct, yPct, h, sKey) {
+    return { x: xPct / 100 * window.innerWidth, y: yPct / 100 * window.innerHeight,
+             k: sceneSpriteZoom(h), broad: shadowBroad(sKey) };
+}
+
+// Called once per rendered frame; repaints only when the set of standing
+// units, their spots or the transform changed.
+function drawSceneShadows() {
+    const cv = document.getElementById('scene-shadow');
+    const t = sceneTransform();
+    if (!cv || !t || !(t.s > 0) || !sceneBgPixels || !sceneShadowPalette) return; // zero-size pane: nothing to paint
+    const live = sceneShadowSpots.crowd.concat(sceneShadowSpots.battle.filter(sp => sp.unit.alive));
+    let sig = t.s.toFixed(4) + ',' + t.ox.toFixed(1) + ',' + t.oy.toFixed(1) + '|';
+    for (const sp of live) sig += sp.x.toFixed(1) + ',' + sp.y.toFixed(1) + ',' + sp.k.toFixed(3) + (sp.broad ? 'b' : '') + ';';
+    if (sig === sceneShadowSig) return;
+    sceneShadowSig = sig;
+    if (cv.width !== t.W || cv.height !== t.H) { cv.width = t.W; cv.height = t.H; }
+    cv.style.left = t.ox + 'px';
+    cv.style.top = t.oy + 'px';
+    cv.style.width = (t.W * t.s) + 'px';
+    cv.style.height = (t.H * t.s) + 'px';
+    const ctx = cv.getContext('2d', { willReadFrequently: true });
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    const src = sceneBgPixels.data, W = t.W, H = t.H, pal = sceneShadowPalette, n = pal.length / 3;
+    for (const sp of live) {
+        const perUnit = SPRITE_PX_PER_UNIT * sp.k / t.s; // backdrop px per world unit at this zoom
+        const cx = (sp.x - t.ox) / t.s + SHADOW_DX * perUnit;
+        const cy = (sp.y - t.oy) / t.s - SHADOW_DY * SHADOW_UPY * perUnit;
+        const ax = (sp.broad ? SHADOW_BROAD_RX : SHADOW_RX) * perUnit;
+        const ay = (sp.broad ? SHADOW_BROAD_RY : SHADOW_RY) * SHADOW_UPY * perUnit;
+        const x0 = Math.max(0, Math.floor(cx - ax) - 1), x1 = Math.min(W, Math.ceil(cx + ax) + 2);
+        const y0 = Math.max(0, Math.floor(cy - ay) - 1), y1 = Math.min(H, Math.ceil(cy + ay) + 2);
+        if (x1 <= x0 || y1 <= y0) continue;
+        const patch = ctx.getImageData(x0, y0, x1 - x0, y1 - y0);
+        const d = patch.data;
+        for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+            const ex = (x + 0.5 - cx) / ax, ey = (y + 0.5 - cy) / ay;
+            if (ex * ex + ey * ey > 1) continue;
+            const si = (y * W + x) * 4;
+            const r = src[si] * SHADOW_DARKEN, g = src[si + 1] * SHADOW_DARKEN, b = src[si + 2] * SHADOW_DARKEN;
+            const di = ((y - y0) * (x1 - x0) + (x - x0)) * 4;
+            d[di + 3] = 255;
+            if (!n) { d[di] = r; d[di + 1] = g; d[di + 2] = b; continue; }
+            let best = 0, bestD = Infinity;
+            for (let j = 0; j < n; j++) {
+                const dr = r - pal[j * 3], dg = g - pal[j * 3 + 1], db = b - pal[j * 3 + 2];
+                const dd = dr * dr + dg * dg + db * db;
+                if (dd < bestD) { bestD = dd; best = j; }
+            }
+            d[di] = pal[best * 3]; d[di + 1] = pal[best * 3 + 1]; d[di + 2] = pal[best * 3 + 2];
+        }
+        ctx.putImageData(patch, x0, y0);
+    }
 }
 
 // ---------- increment 2: the hiring crowd ----------
@@ -4048,6 +4107,7 @@ function sceneSpotToScreen(spot) {
 function renderSceneCrowd() {
     if (draggingRecruitId !== null) return; // rebuild would destroy the drag source
     let html = '';
+    const shadows = [];
     recruitPool.forEach((recruit, i) => {
         const spot = TOWN_CROWD_SPOTS[i % TOWN_CROWD_SPOTS.length];
         const [x, y] = sceneSpotToScreen(spot);
@@ -4062,7 +4122,9 @@ function renderSceneCrowd() {
         let hint = `Hire — ${recruit.cost.toLocaleString()}g`;
         if (getBuildingCap(recruit.buildingId) <= 0) hint = `Needs ${b.name}`;
         else if (b.residents.length >= b.count * b.slotsPerBuilding) hint = 'No open slots';
-        const bits = sceneUnitBits('town_' + recruit.typeId, h, recruit.name[0].toUpperCase(), recruit.rarity);
+        const sKey = 'town_' + recruit.typeId;
+        const bits = sceneUnitBits(sKey, h, recruit.name[0].toUpperCase(), recruit.rarity);
+        if (sprites[sKey]) shadows.push(sceneShadowSpot(x, y, h, sKey));
         html += `<div class="sunit sunit--recruit" data-action="hireRecruit:${recruit.id}" data-recruit-id="${recruit.id}"
             data-stat="trecruit:${recruit.id}"
             style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%;z-index:${Math.round(y * 4)}">
@@ -4070,7 +4132,7 @@ function renderSceneCrowd() {
             <div class="plate" style="top:6px">${recruit.name}
                 <div class="sub" style="color:${tier.color}">${tier.name} · ${valueLabel}</div>
                 <div class="cost">${recruit.cost.toLocaleString()}g</div></div>
-            <div class="hint" style="top:${(-h - 26).toFixed(0)}px"><span>${hint}</span></div>
+            <div class="hint" style="top:${(-bits.top - 26).toFixed(0)}px"><span>${hint}</span></div>
         </div>`;
     });
     if (kingdomLevel >= RAID_TRIGGER_LEVEL) {
@@ -4081,7 +4143,9 @@ function renderSceneCrowd() {
             const h = 84 + (spot[1] - 74) * 0.8;
             const tier = rarityTiers[recruit.rarity];
             const hint = hasSlot ? `Hire — ${recruit.cost.toLocaleString()}g` : 'Squad full';
-            const bits = sceneUnitBits(heroSpriteKey(recruit.archetypeKey, recruit.rarity), h, recruit.name[0].toUpperCase(), recruit.rarity);
+            const sKey = heroSpriteKey(recruit.archetypeKey, recruit.rarity);
+            const bits = sceneUnitBits(sKey, h, recruit.name[0].toUpperCase(), recruit.rarity);
+            if (sprites[sKey]) shadows.push(sceneShadowSpot(x, y, h, sKey));
             html += `<div class="sunit sunit--recruit" data-action="hireHero:${recruit.id}" data-hero-id="${recruit.id}"
                 draggable="true" data-drag-hire="${recruit.id}" data-stat="hrecruit:${recruit.id}"
                 style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%;z-index:${Math.round(y * 4)}">
@@ -4090,10 +4154,11 @@ function renderSceneCrowd() {
                     <div class="sub" style="color:${tier.color}">${tier.name}</div>
                     <div class="sub">${heroRecruitStatLine(recruit.archetypeKey, recruit.rarity)}</div>
                     <div class="cost">${recruit.cost.toLocaleString()}g</div></div>
-                <div class="hint" style="top:${(-h - 26).toFixed(0)}px"><span>${hint}</span></div>
+                <div class="hint" style="top:${(-bits.top - 26).toFixed(0)}px"><span>${hint}</span></div>
             </div>`;
         });
     }
+    sceneShadowSpots.crowd = shadows;
     setPanelHtml('scene-crowd', html);
 }
 
@@ -4147,8 +4212,11 @@ function sceneBattleSig(dims, enemyGrid, enemies) {
 function sceneBattleUnitHtml(unit, index, xPct, yPct, h, isHero) {
     const key = unitDomKey(unit);
     const boss = !isHero && unit.spriteKey && unit.spriteKey.startsWith('boss_');
-    if (boss) h = Math.min(155, h * 1.28);
-    const bits = sceneUnitBits(unitSpriteKey(unit), h, unit.name[0].toUpperCase(), isHero ? unit.rarity : null);
+    // No boss size bump: the Blender pipeline already builds a boss at 1.5x
+    // the normal role height, and the shared zoom keeps that ratio.
+    const sKey = unitSpriteKey(unit);
+    const bits = sceneUnitBits(sKey, h, unit.name[0].toUpperCase(), isHero ? unit.rarity : null);
+    if (sprites[sKey]) sceneShadowSpots.battle.push({ ...sceneShadowSpot(xPct, yPct, h, sKey), unit });
     const cls = 'sunit' + (isHero ? ' sunit--hero' : ' sunit--enemy') + (boss ? ' sunit--boss' : '');
     const action = isHero ? ` data-action="sceneHeroClick:${index}" data-hidx="${index}"` : '';
     // Stats live on the hover stat card (M16 phase 1) — no native titles.
@@ -4156,9 +4224,9 @@ function sceneBattleUnitHtml(unit, index, xPct, yPct, h, isHero) {
     return `<div class="${cls}" data-ukey="${key}"${action}${stat}
         style="left:${xPct.toFixed(2)}%;top:${yPct.toFixed(2)}%;z-index:${Math.round(yPct * 4) + 1}">
         ${bits.html}
-        <div class="plate" style="top:${(-h - 30).toFixed(0)}px">${unit.name}
+        <div class="plate" style="top:${(-bits.top - 30).toFixed(0)}px">${unit.name}
             <div class="hp hp--${isHero ? 'hero' : 'enemy'}"><i></i></div></div>
-        <span class="chillbadge" style="left:24px;top:${(-h - 8).toFixed(0)}px">❄</span>
+        <span class="chillbadge" style="left:24px;top:${(-bits.top - 8).toFixed(0)}px">❄</span>
     </div>`;
 }
 
@@ -4201,6 +4269,7 @@ function attachSceneDragHandlers(el, index, isTile = false) {
 function buildSceneBattle(el, dims, enemyGrid, enemies) {
     for (const k of sceneUnitElByKey.keys()) sceneUnitElByKey.delete(k);
     sceneBattleLive.length = 0;
+    sceneShadowSpots.battle = [];
     let html = '';
     const showHeroes = kingdomLevel >= RAID_TRIGGER_LEVEL;
     // ground tiles for every grid position (capacity reads even when empty);
@@ -4386,6 +4455,7 @@ function renderScene() {
     renderVista();
     renderSceneCrowd();
     renderSceneBattle();
+    drawSceneShadows();
     if (scenePlotOpen) renderScenePlotDrawer();
 
     // Volatile numbers, updated in place each frame (kept out of memoized strings).

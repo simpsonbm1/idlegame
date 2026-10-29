@@ -572,24 +572,37 @@ tick costs ~0.02ms). The mechanisms:
   `style.css`, with a `prefers-reduced-motion` guard). Death/revive events are Phase 1 scope.
 - `updateUI()` survives as the universal "repaint now" entry point for event handlers — an
   immediate full pass is cheap now that everything is memoized.
-- **Runtime sprite pipeline** (M15, same day): `loadSprites()` at boot reads the RAW Gemini
-  PNGs from `assets/raw/` (`SPRITE_SOURCES` maps all 47 keys → spec filenames) and processes
-  each in memory — magenta keying, trim, foot-anchor, downscale to 160px — into `blob:`
-  object URLs in `sprites{}`. Missing file = letter-portrait fallback per key, so art drops
-  are "copy PNG in, refresh"; no build step, no duplicate processed assets. Consumers:
-  `portraitInner()` (recruit cards, resident grids, hero pool) and battle slots
-  (`unitSpriteKey()` — heroes via `archetypeKey`, enemies via `spriteKey` set in
-  `generateEnemy` from the tier's `key` field; corner background, provisional pending the T2
-  diorama). Requires http serving (canvas is tainted on file://; loader degrades cleanly).
-  Two robustness mechanisms (2026-07-19, for Gemini generation misses): **`SPRITE_FLIP`** —
-  keys listed in this set are mirrored in memory before keying/trim/anchor (for sprites
-  generated facing the wrong way; user-approved after a side-by-side showed the upper-left
-  lighting inversion doesn't read at game scale — regenerate only if a specific flipped
-  sprite bothers in play); and a **self-calibrating keyer** — `keyMagentaPixels(p, w, h)`
-  samples the four image corners and, when all four agree on one flat color, also keys
-  pixels near that color, so off-spec flat backgrounds (e.g. a too-blue purple) key
-  automatically. Magenta behavior is unchanged; a gradient/vignetted background defeats
-  corner agreement and still needs regeneration.
+- **Runtime sprite pipeline** (M15; Blender art adopted 2026-10-29): `loadSprites()` at boot
+  reads the Blender roster from `assets/rendered/sprites/` (`SPRITE_SOURCES` maps game keys to
+  the 83 published files; only files that exist are listed, so a missing rarity variant falls
+  back to its base with no 404) and trims each to its content in memory, at 1:1, into `blob:`
+  object URLs in `sprites{}`. **Nothing is fitted per sprite**: the Blender pipeline renders
+  every figure at one world scale with z=0 on a shared ground row 10% up from the bottom of its
+  cell, so the foot anchor is read off the cell (horizontal centre, that ground row) and a
+  sprite's pixel size already is its role height (boss 1.5x, sapper 0.93x). The old
+  alpha-box normalisation (`SPRITE_MAX_H`), the magenta keying and the `SPRITE_FLIP` mirroring
+  existed for the Gemini raws and are gone; keying is kept only for the raw UI frame in
+  `loadChrome()`, and must never touch a Blender sprite, whose black outlines match the
+  transparent corners. In the scene, `sceneUnitBits(key, h, ...)` treats `h` as the height a
+  NORMAL-role figure stands at that spot and draws every sprite at the one zoom
+  `h / SPRITE_NORMAL_H` (2.95 world units = 75.5 sprite px), so plates and hints sit on each
+  sprite's real head height; the boss x1.28 presence bump is gone because the art already
+  builds bosses 1.5x. Buildings still render at the flat 134px art height. Missing file =
+  letter-portrait fallback per key. Requires http serving (canvas is tainted on file://).
+- **Unit contact shadows** (ported from `tools/blender/compose_vista.py`, 2026-10-29): every
+  sprite unit in the crowd and on the battlefield gets a contact ellipse under its feet, offset
+  the way the backdrop's sun throws it (right and slightly down), with compose_vista's sizes in
+  world units (0.94 x 0.345, broader 1.14 x 0.41 for brutes and bosses; offset 0.62 right, 0.11
+  down; darken 0.56; ground foreshortened by cos 28 deg) converted through `SPRITE_PX` and the
+  unit's zoom. `drawSceneShadows()` paints them into `#scene-shadow`, a canvas at the backdrop's
+  native resolution laid over `#scene-bg` with the same transform and under every building and
+  unit, repainting only when the standing units, their spots or the transform change. A shadow
+  darkens the backdrop pixels it covers and snaps them onto the backdrop's 96 commonest colours
+  when the backdrop is a limited-palette pixel image (the Blender render has 306 colours); on a
+  continuous-tone painting (the Gemini `scene_backdrop_v2`, 43,719 colours, still the live
+  backdrop) the snap would turn greens brown, so it is the darkened ground alone. Either way no
+  colour from outside the backdrop appears, which is what keeps it from reading as a layer on
+  top. Letter-chip units keep the old CSS ellipse.
 
 
 ## Starting state

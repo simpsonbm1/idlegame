@@ -145,26 +145,23 @@ bg.src = '../assets/raw/scene_backdrop_v2.png';
 addEventListener('resize', layout);
 
 // --- building sprites: same magenta keying + trim as processSprite() ---
-function keyAndTrim(img) {
+// The game's building art is the Blender roster (assets/rendered/sprites/),
+// which carries real alpha: trim only, never key (a magenta test would eat the
+// tower's purple roof).
+function trimSprite(img) {
     const c = document.createElement('canvas');
     c.width = img.width; c.height = img.height;
     const ctx = c.getContext('2d');
     ctx.drawImage(img, 0, 0);
     const data = ctx.getImageData(0, 0, c.width, c.height);
     const p = data.data;
-    for (let i = 0; i < p.length; i += 4) {
-        const r = p[i], g = p[i + 1], b = p[i + 2];
-        const m = Math.max(r, b);
-        if (m > 130 && g < 0.65 * m && Math.min(r, b) > 0.45 * m) p[i + 3] = 0;
-    }
     let minX = c.width, minY = c.height, maxX = -1, maxY = -1;
     for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++)
-        if (p[(y * c.width + x) * 4 + 3] > 8) {
+        if (p[(y * c.width + x) * 4 + 3] > 0) {
             if (x < minX) minX = x; if (x > maxX) maxX = x;
             if (y < minY) minY = y; if (y > maxY) maxY = y;
         }
     if (maxX < 0) return null;
-    ctx.putImageData(data, 0, 0);
     const out = document.createElement('canvas');
     out.width = maxX - minX + 1; out.height = maxY - minY + 1;
     out.getContext('2d').drawImage(c, minX, minY, out.width, out.height, 0, 0, out.width, out.height);
@@ -213,7 +210,7 @@ refreshOut();
 for (const id of Object.keys(BUILDING_PLOTS)) {
     const img = new Image();
     img.onload = () => {
-        const s = keyAndTrim(img);
+        const s = trimSprite(img);
         if (!s) return;
         const el = document.createElement('div');
         el.className = 'plot';
@@ -228,7 +225,7 @@ for (const id of Object.keys(BUILDING_PLOTS)) {
         refreshOut();
     };
     img.onerror = () => {}; // sprite not generated yet — skip
-    img.src = '../assets/raw/raw_bldg_' + id + '.png';
+    img.src = '../assets/rendered/sprites/' + id + '.png';
 }
 
 let drag = null;

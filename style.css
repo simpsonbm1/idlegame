@@ -1571,6 +1571,9 @@ body.chrome-ready #run-summary-panel {
     position: absolute; inset: 0; z-index: 0;
     background-repeat: no-repeat; image-rendering: pixelated;
 }
+/* unit contact shadows: backdrop-resolution canvas laid over #scene-bg with
+   the same transform (drawSceneShadows sets its box), under every unit */
+#scene-shadow { position: absolute; z-index: 0; pointer-events: none; image-rendering: pixelated; }
 /* readability scrim: darker at top for HUD chips, faint mid, darker floor */
 #scene::after {
     content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;

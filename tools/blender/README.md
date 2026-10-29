@@ -11,10 +11,12 @@ Nine heroes with 27 rarity variants, 30 enemies across five families, eight
 townsfolk and nine buildings. `python tools/blender/render_all.py` rebuilds all of
 it in about three minutes.
 
-Nothing is wired into the game yet. Three things stand between this and adoption:
-no human has judged the roster, `SCENE_WALL_FRAC` becomes 0.46 for this backdrop,
-and unit contact shadows are drawn by `compose_vista.py` rather than by the game's
-render loop. See `SESSION_HANDOFF.md`.
+**The sprites are wired into the game** (2026-10-29): `game.js` loads them from
+`assets/rendered/sprites/` at 1:1, anchored on the shared ground row, and paints the
+`compose_vista.py` contact shadow in its own render loop. The BACKDROP is not adopted:
+it has never been published, `publish.py` does not cover it, and adopting it means
+setting `SCENE_WALL_FRAC` to 0.46 and re-seating the plots, crowd and battle lanes that
+were hand-placed against the Gemini painting. The attack sheets are not wired either.
 
 ## Running it
 
