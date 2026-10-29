@@ -4,8 +4,22 @@
     {
       "name": "idlegame",
       "runtimeExecutable": "py",
-      "runtimeArgs": ["-m", "http.server", "8321"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8321"
+      ],
       "port": 8321
+    },
+    {
+      "name": "idlegame-worktree-test",
+      "runtimeExecutable": "py",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8340"
+      ],
+      "port": 8340
     }
   ]
 }
