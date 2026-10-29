@@ -1,9 +1,9 @@
 {
  "attack/bandit_boss.png": {
-  "px": "98577c7616e81ad8511942221f62789e34ec4632390661848717401ac009ec91|1152x144",
+  "px": "323232b4498aed713ee87e00782711208becba1e3f512a6cb180df0fe9fd37f4|1664x208",
   "wh": [
-   1152,
-   144
+   1664,
+   208
   ]
  },
  "attack/bandit_brute.png": {
@@ -14,10 +14,10 @@
   ]
  },
  "attack/bandit_caster.png": {
-  "px": "14ff234f34f50144c153722dba77e73356e179ec9f7f9a04f567ec8f17ddea5b|1024x128",
+  "px": "fbc989bfeb179eb8d72bd71869781aec0dfac1980024200c64811ab7e7d2f073|1408x176",
   "wh": [
-   1024,
-   128
+   1408,
+   176
   ]
  },
  "attack/bandit_sapper.png": {
@@ -35,10 +35,10 @@
   ]
  },
  "attack/bandit_skirmisher.png": {
-  "px": "be7f10cba36dc1d4bccefe2f90b9cdc6ce7951066f05a1dbcf448d3d3834f9ab|1024x128",
+  "px": "604200513144309b76975af47b62a9b7b6d2f1b5ee614e2f658b66099acbb82e|1280x160",
   "wh": [
-   1024,
-   128
+   1280,
+   160
   ]
  },
  "attack/goblin.png": {
@@ -406,10 +406,10 @@
   ]
  },
  "attack/undead_brute.png": {
-  "px": "69ad9aea49a7c9732c02e67e11e85573e21fdc708e9f78216dd87918b27dbb2e|1024x128",
+  "px": "98c4ebcb926552245881d8bd867bb6112f0b936bf7a3400c1678173a17d12a06|1408x176",
   "wh": [
-   1024,
-   128
+   1408,
+   176
   ]
  },
  "attack/undead_caster.png": {
@@ -420,10 +420,10 @@
   ]
  },
  "attack/undead_sapper.png": {
-  "px": "b4ddda07923ebd62a56d2627ec509052e89fc0c873ee90d3801a2aa230cc4997|1024x128",
+  "px": "a0138f3f605f01a77a66c6196d04ed02f5afc00bde900e9fde24490755d9feed|1408x176",
   "wh": [
-   1024,
-   128
+   1408,
+   176
   ]
  },
  "attack/undead_shaman.png": {
@@ -434,20 +434,20 @@
   ]
  },
  "attack/undead_skirmisher.png": {
-  "px": "2182ef05f55d316f476b9ce92503e9cc4bcaf81e3064bd324925cba11df4eaf1|1024x128",
+  "px": "36b6e8ae2f5d952febd713f67d9cf7028c38737a27cba1b01e8f011e8f9213fe|1280x160",
   "wh": [
-   1024,
-   128
+   1280,
+   160
   ]
  },
  "sheets/all_characters.png": {
   "inputs": {
-   "sprites/bandit_boss.png": "5266cbc2c40768f14ffec030b1db4c5e0ce110b7bef48cac58e42813ef243021|144x144",
+   "sprites/bandit_boss.png": "f9a1fc1ad63059528047e8e586bce3155885afefd607574234052b95c6f0339b|144x144",
    "sprites/bandit_brute.png": "a68dbd98f4ea5a5530971ecf9420f0f9bda7cfa17c907930acfdbc324fd28ae1|112x112",
-   "sprites/bandit_caster.png": "bcb003a2625ed4fbf154891ab97f34fad9f22496edbac28b853ee27a50bebff6|112x112",
+   "sprites/bandit_caster.png": "219ccdfecf208b475b28b6b5213d6bca908f11d19e61a70db36dfe5b3e04b875|112x112",
    "sprites/bandit_sapper.png": "488f3ee2c34401a44c02303020fec7864087ac54bca38e3b86645ac4619b5b74|112x112",
    "sprites/bandit_shaman.png": "09e11571a944312e93f9393f2b6c5c39f823b1e57f8d32cd92f13de198cfa485|112x112",
-   "sprites/bandit_skirmisher.png": "d78744d295c7d5e071cd03eaf023aec632f87cdc88db4e2ad326ead446f7b5a3|112x112",
+   "sprites/bandit_skirmisher.png": "372c66c7aa4f74c66dccbc7ed073aee80ff84061d84dd57a03dda55f92b980d9|112x112",
    "sprites/goblin.png": "7a8beda65124c3f52a718da33ce0f43b285b380193da04ac15090ea2f76e5f11|112x112",
    "sprites/goblin_boss.png": "054b812627d119258bf4e572cb6524d00f454f03a95590a849b8b61d6d8e51db|144x144",
    "sprites/goblin_caster.png": "e795dfb20aec9d7065ab2cf2782e13c86d736eff9e6c13bfb802cb4aca910f62|112x112",
@@ -511,13 +511,13 @@
    "sprites/town_tavernkeeper.png": "c52789d2c1e576cc048d46416928beab5f12ee04108e7587d608ace5c59fad67|112x112",
    "sprites/town_villager.png": "5eb92d5d4affadc2fff51430d8147c5928923cbfba3a6af4f9cd3cad1777002e|112x112",
    "sprites/undead_boss.png": "280311d5a7ab391868fda0ad5f43629dbb3bdc13ca0caafe5d72515ae782d561|144x144",
-   "sprites/undead_brute.png": "a9f92f31534a61c2de38bc548ce145dfb27de70134d8fcce5e872aa7aade8d44|112x112",
+   "sprites/undead_brute.png": "2751b1ae61ed8ddeac6b3d92ee9e33d81bdd04141d55ebd4acc60ca3b678dd4d|112x112",
    "sprites/undead_caster.png": "e61ad52b69bf2d483bb8de0982041028c186acab77a2162075aa1fcabb53bd82|112x112",
-   "sprites/undead_sapper.png": "508bb9156c559ba29898ebf0c26d093a43d661195c7e31cc2e1c72a1909cf007|112x112",
+   "sprites/undead_sapper.png": "48f241c206a3f1f8e2da6123118e57e41edd84ccc151536230945f2f81f539be|112x112",
    "sprites/undead_shaman.png": "9386343ce6fe903de20ef7e0369298c6616330c8be2af527d78799a155882af0|112x112",
-   "sprites/undead_skirmisher.png": "0a4a4e4f66080e338e45e1a067b14ec1ffea087fa03ee3d3dc78f4b264c288f9|112x112"
+   "sprites/undead_skirmisher.png": "5b5a20b4d5781c837299117775b01c10e50d0ded91852eb706ba41511ed556dd|112x112"
   },
-  "px": "a0799b7f1577bf04a09fddfd97074089c6c1090b622fd89a60de0e6d2e965ecc|1316x1744",
+  "px": "811966888d2bb166eeb31f8b77d347e1c9c37ee65c2cfbc362e76a294bacad88|1316x1744",
   "wh": [
    1316,
    1744
@@ -525,17 +525,17 @@
  },
  "sheets/attacks_bandit.png": {
   "inputs": {
-   "attack/bandit_boss.png": "98577c7616e81ad8511942221f62789e34ec4632390661848717401ac009ec91|1152x144",
+   "attack/bandit_boss.png": "323232b4498aed713ee87e00782711208becba1e3f512a6cb180df0fe9fd37f4|1664x208",
    "attack/bandit_brute.png": "f040f377648fa66872c888acdac39e46c5928a45d5f563b97ec507bb0e02cb05|1024x128",
-   "attack/bandit_caster.png": "14ff234f34f50144c153722dba77e73356e179ec9f7f9a04f567ec8f17ddea5b|1024x128",
+   "attack/bandit_caster.png": "fbc989bfeb179eb8d72bd71869781aec0dfac1980024200c64811ab7e7d2f073|1408x176",
    "attack/bandit_sapper.png": "ddcc77550a89bbad6956e081d9b72835fb4d7dafa6ffd3354c65b94900397962|1152x144",
    "attack/bandit_shaman.png": "5b009545140d7cadefd56c9ced2e9da6a99c8afa38791093b8523c32425ccdce|1024x128",
-   "attack/bandit_skirmisher.png": "be7f10cba36dc1d4bccefe2f90b9cdc6ce7951066f05a1dbcf448d3d3834f9ab|1024x128"
+   "attack/bandit_skirmisher.png": "604200513144309b76975af47b62a9b7b6d2f1b5ee614e2f658b66099acbb82e|1280x160"
   },
-  "px": "dc99c7d1c40b52f8ddefb5aaa6dd5a5e7b1578a5db63b09af0af0e4967dcea72|3456x2598",
+  "px": "dd34fff9d31d6d6c7c03df11a0dfce3a1fff849e24296c4209279ede724b2859|4992x3030",
   "wh": [
-   3456,
-   2598
+   4992,
+   3030
   ]
  },
  "sheets/attacks_goblin.png": {
@@ -602,16 +602,16 @@
  "sheets/attacks_undead.png": {
   "inputs": {
    "attack/undead_boss.png": "a1175a6756b91979fc9615458b9a335e35655a32e6d60e98ad591184d00db1f1|1408x176",
-   "attack/undead_brute.png": "69ad9aea49a7c9732c02e67e11e85573e21fdc708e9f78216dd87918b27dbb2e|1024x128",
+   "attack/undead_brute.png": "98c4ebcb926552245881d8bd867bb6112f0b936bf7a3400c1678173a17d12a06|1408x176",
    "attack/undead_caster.png": "59b4186e402eb006b1e7795f86948ff5548ad5225fc39f45ba737c3b4b0f8de1|1024x128",
-   "attack/undead_sapper.png": "b4ddda07923ebd62a56d2627ec509052e89fc0c873ee90d3801a2aa230cc4997|1024x128",
+   "attack/undead_sapper.png": "a0138f3f605f01a77a66c6196d04ed02f5afc00bde900e9fde24490755d9feed|1408x176",
    "attack/undead_shaman.png": "6f7e75ac15e2e78863f56b97dd6a4cb5441b317f8edbb78492dae768739df404|1024x128",
-   "attack/undead_skirmisher.png": "2182ef05f55d316f476b9ce92503e9cc4bcaf81e3064bd324925cba11df4eaf1|1024x128"
+   "attack/undead_skirmisher.png": "36b6e8ae2f5d952febd713f67d9cf7028c38737a27cba1b01e8f011e8f9213fe|1280x160"
   },
-  "px": "30a878ada9080cfe5c82652b497aab81b02f8f08b1c8833bf90a5520909826a8|4224x2646",
+  "px": "31336ae9ea06c47cf3d9fbbe0c3424ccb9090560f2e75194f93dcba3913540e7|4224x3030",
   "wh": [
    4224,
-   2646
+   3030
   ]
  },
  "sheets/attacks_variants.png": {
@@ -657,14 +657,14 @@
  },
  "sheets/bandit.png": {
   "inputs": {
-   "sprites/bandit_boss.png": "5266cbc2c40768f14ffec030b1db4c5e0ce110b7bef48cac58e42813ef243021|144x144",
+   "sprites/bandit_boss.png": "f9a1fc1ad63059528047e8e586bce3155885afefd607574234052b95c6f0339b|144x144",
    "sprites/bandit_brute.png": "a68dbd98f4ea5a5530971ecf9420f0f9bda7cfa17c907930acfdbc324fd28ae1|112x112",
-   "sprites/bandit_caster.png": "bcb003a2625ed4fbf154891ab97f34fad9f22496edbac28b853ee27a50bebff6|112x112",
+   "sprites/bandit_caster.png": "219ccdfecf208b475b28b6b5213d6bca908f11d19e61a70db36dfe5b3e04b875|112x112",
    "sprites/bandit_sapper.png": "488f3ee2c34401a44c02303020fec7864087ac54bca38e3b86645ac4619b5b74|112x112",
    "sprites/bandit_shaman.png": "09e11571a944312e93f9393f2b6c5c39f823b1e57f8d32cd92f13de198cfa485|112x112",
-   "sprites/bandit_skirmisher.png": "d78744d295c7d5e071cd03eaf023aec632f87cdc88db4e2ad326ead446f7b5a3|112x112"
+   "sprites/bandit_skirmisher.png": "372c66c7aa4f74c66dccbc7ed073aee80ff84061d84dd57a03dda55f92b980d9|112x112"
   },
-  "px": "d5c67db82d27ca9bd4b14c5990bcdb5e92876ae37159954752239452542927cd|892x162",
+  "px": "bf799e2265dc1376ad125627fcb99ac4e1308002c51bc6b0cecb9b9554d7d3d2|892x162",
   "wh": [
    892,
    162
@@ -771,13 +771,13 @@
  "sheets/undead.png": {
   "inputs": {
    "sprites/undead_boss.png": "280311d5a7ab391868fda0ad5f43629dbb3bdc13ca0caafe5d72515ae782d561|144x144",
-   "sprites/undead_brute.png": "a9f92f31534a61c2de38bc548ce145dfb27de70134d8fcce5e872aa7aade8d44|112x112",
+   "sprites/undead_brute.png": "2751b1ae61ed8ddeac6b3d92ee9e33d81bdd04141d55ebd4acc60ca3b678dd4d|112x112",
    "sprites/undead_caster.png": "e61ad52b69bf2d483bb8de0982041028c186acab77a2162075aa1fcabb53bd82|112x112",
-   "sprites/undead_sapper.png": "508bb9156c559ba29898ebf0c26d093a43d661195c7e31cc2e1c72a1909cf007|112x112",
+   "sprites/undead_sapper.png": "48f241c206a3f1f8e2da6123118e57e41edd84ccc151536230945f2f81f539be|112x112",
    "sprites/undead_shaman.png": "9386343ce6fe903de20ef7e0369298c6616330c8be2af527d78799a155882af0|112x112",
-   "sprites/undead_skirmisher.png": "0a4a4e4f66080e338e45e1a067b14ec1ffea087fa03ee3d3dc78f4b264c288f9|112x112"
+   "sprites/undead_skirmisher.png": "5b5a20b4d5781c837299117775b01c10e50d0ded91852eb706ba41511ed556dd|112x112"
   },
-  "px": "cb5b1ba389e5806091ef85e223a9cfaf05051335bcf02d961919fa8662c7ab6d|892x162",
+  "px": "4d99b81c96ebf6b9a26d8e8b88a0502d25dda2c8ac7f921d420ee2dad4217897|892x162",
   "wh": [
    892,
    162
@@ -836,7 +836,7 @@
   ]
  },
  "sprites/bandit_boss.png": {
-  "px": "5266cbc2c40768f14ffec030b1db4c5e0ce110b7bef48cac58e42813ef243021|144x144",
+  "px": "f9a1fc1ad63059528047e8e586bce3155885afefd607574234052b95c6f0339b|144x144",
   "wh": [
    144,
    144
@@ -850,7 +850,7 @@
   ]
  },
  "sprites/bandit_caster.png": {
-  "px": "bcb003a2625ed4fbf154891ab97f34fad9f22496edbac28b853ee27a50bebff6|112x112",
+  "px": "219ccdfecf208b475b28b6b5213d6bca908f11d19e61a70db36dfe5b3e04b875|112x112",
   "wh": [
    112,
    112
@@ -871,7 +871,7 @@
   ]
  },
  "sprites/bandit_skirmisher.png": {
-  "px": "d78744d295c7d5e071cd03eaf023aec632f87cdc88db4e2ad326ead446f7b5a3|112x112",
+  "px": "372c66c7aa4f74c66dccbc7ed073aee80ff84061d84dd57a03dda55f92b980d9|112x112",
   "wh": [
    112,
    112
@@ -1368,7 +1368,7 @@
   ]
  },
  "sprites/undead_brute.png": {
-  "px": "a9f92f31534a61c2de38bc548ce145dfb27de70134d8fcce5e872aa7aade8d44|112x112",
+  "px": "2751b1ae61ed8ddeac6b3d92ee9e33d81bdd04141d55ebd4acc60ca3b678dd4d|112x112",
   "wh": [
    112,
    112
@@ -1382,7 +1382,7 @@
   ]
  },
  "sprites/undead_sapper.png": {
-  "px": "508bb9156c559ba29898ebf0c26d093a43d661195c7e31cc2e1c72a1909cf007|112x112",
+  "px": "48f241c206a3f1f8e2da6123118e57e41edd84ccc151536230945f2f81f539be|112x112",
   "wh": [
    112,
    112
@@ -1396,7 +1396,7 @@
   ]
  },
  "sprites/undead_skirmisher.png": {
-  "px": "0a4a4e4f66080e338e45e1a067b14ec1ffea087fa03ee3d3dc78f4b264c288f9|112x112",
+  "px": "5b5a20b4d5781c837299117775b01c10e50d0ded91852eb706ba41511ed556dd|112x112",
   "wh": [
    112,
    112

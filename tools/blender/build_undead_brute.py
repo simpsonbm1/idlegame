@@ -23,8 +23,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.append(HERE)
 import undead_kit as U
+import spritekit as S
 import pixelrig as P
 importlib.reload(P)
+importlib.reload(S)
 importlib.reload(U)
 
 scn = P.get_scene()
@@ -68,17 +70,27 @@ for i in range(3):
     detail.append(P.add_box(scn, "rentrib", (0.02, -0.36, 2.28 + i * 0.14), (0.40, 0.04, 0.055), M["bone"]))
 
 # ---- pauldrons and arms, pulled forward off the torso so they outline ----
-for s, dz, r in ((-1, 0.0, 0.40), (1, 0.02, 0.37)):
+# **BOTH HANDS MEET ON THE HILT, and every arm part is named by SIDE.** The arms
+# used to hang straight down with the hands 0.91 apart, one on the guard and one
+# on nothing, and both sides shared the names `upper`, `fore` and `bonehand`. The
+# attack therefore had to swing both arms as one rigid block about the right
+# pauldron while the sword sat in the left hand, which read as "really strange and
+# disconnected" (user, 2026-10-29). Unique names let each arm be solved to its own
+# grip, and a hilt held in both hands is what a two-handed chop starts from.
+#
+# Each arm is aimed shoulder to elbow to hand, so the forearm runs IN to the hilt
+# rather than being a vertical cylinder tipped forward.
+for s, side, dz, r in ((-1, "L", 0.0, 0.40), (1, "R", 0.02, 0.37)):
     figure.append(P.add_sphere(scn, "pauldron", (s * 0.78, -0.12, 3.02 + dz), r, M["plate"],
                                scale=(1, .95, .78)))
     detail.append(P.add_cyl(scn, "pauldronrim", (s * 0.78, -0.12, 2.86 + dz), r * 0.92, 0.09,
                             M["iron"], verts=10))
-    figure.append(P.add_cyl(scn, "upper", (s * 0.78, -0.22, 2.58 + dz), 0.20, 0.66, M["plate"], verts=8))
-    figure.append(P.add_cyl(scn, "fore", (s * 0.71, -0.50, 2.12 + dz), 0.18, 0.62, M["plate"],
-                            rot=(math.radians(26), 0, 0), verts=8))
+    shoulder, elbow, hand = (s * 0.78, -0.20, 2.92 + dz), (s * 0.76, -0.42, 2.30), (s * 0.16, -0.86, 2.02)
+    figure.append(S.aimed_cyl(scn, "upper" + side, shoulder, elbow, 0.20, M["plate"], verts=8))
+    figure.append(S.aimed_cyl(scn, "fore" + side, elbow, hand, 0.18, M["plate"], verts=8))
     # BONE hands on the grip, not steel gauntlets. It is the cheapest place on an
     # armoured figure to say "undead" without cutting the armour open again.
-    figure.append(P.add_sphere(scn, "bonehand", (s * 0.66, -0.70, 1.80 + dz), 0.155, M["bone"]))
+    figure.append(P.add_sphere(scn, "bonehand" + side, hand, 0.155, M["bone"]))
 
 # ---- gorget, and a helm that tapers instead of sitting there as a box ----
 figure.append(P.add_box(scn, "gorget", (0, 0, 3.26), (0.56, 0.50, 0.20), M["plate"], bevel=0.04))
@@ -91,7 +103,12 @@ detail.append(P.add_box(scn, "visor", (0, -0.31, 3.52), (0.52, 0.06, 0.12), M["d
 for s in (-1, 1):
     noline.append(P.add_box(scn, "visorfire", (s * 0.14, -0.34, 3.52), (0.14, 0.05, 0.09), M["teal"]))
 
-# ---- cracked greatsword, point down across the body.
+# ---- cracked greatsword, held point UP in both hands and leaning at the enemy.
+# It used to hang point down across the body from one hand. A sword resting point
+# down has its blade BELOW the hands, so an overhead chop would first have to turn
+# it end over end; held point up, the chop is a raise and a drive, the same as the
+# fighter's. The grip centre (local z -0.12) sits between the two fists, a touch
+# behind them in depth so the bone hands read as wrapped round it.
 # The crack is a NOTCH cut from the silhouette, not a line drawn inside the
 # blade: a line at this scale is one pixel and vanishes, an interruption of the
 # edge survives. The blade is pale so it separates from the plate by VALUE --
@@ -100,7 +117,10 @@ for s in (-1, 1):
 blade = [(-0.10, 0.18), (0.10, 0.18), (0.10, 1.06), (0.02, 1.16), (0.10, 1.26),
          (0.10, 1.92), (0.0, 2.24), (-0.10, 1.92), (-0.10, 1.34), (-0.02, 1.22),
          (-0.10, 1.12)]
-sw_root = P.make_root(scn, "sword_root", rot=(0, 148, 0), loc=(-0.72, -0.86, 1.96))
+SWORD_LEAN = -25                       # degrees about Y; negative tips the point at the enemy
+_dir = (math.sin(math.radians(SWORD_LEAN)), math.cos(math.radians(SWORD_LEAN)))
+sw_root = P.make_root(scn, "sword_root", rot=(0, SWORD_LEAN, 0),
+                      loc=(0.12 * _dir[0], -0.80, 2.02 + 0.12 * _dir[1]))
 sword = [P.add_prism(scn, "blade", blade, 0.15, M["bone"]),
          P.add_box(scn, "guard", (0, 0, 0.14), (0.66, 0.14, 0.13), M["iron"]),
          P.add_box(scn, "grip", (0, 0, -0.12), (0.14, 0.13, 0.34), M["wood"]),

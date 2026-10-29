@@ -281,33 +281,126 @@ ATTACKS = [
     Attack("bandit_brute", "build_bandit_brute",
            [([("bupperL",), ("bupperR",)], B_L + B_R, "club_root")],
            A.SMASH),
-    Attack("bandit_skirmisher", "build_bandit_skirmisher",
-           _dual(B_L, B_R, "knifeL_root", "knifeR_root"), A.SLASH),
-    Attack("bandit_caster", "build_bandit_caster",
-           [([("bupperL",), ("bupperR",)], B_L + B_R, "bow_root")],
-           A.LOOSE),
+    # TWIN STABS, on INVERSE KINEMATICS, the assassin's construction. The pivot
+    # version rocked the raised arm in place and never sent a knife anywhere: "i
+    # dont understand the ... skirmisher animations" (user, 2026-10-29). The low
+    # knife thrusts straight out first; the high reverse-grip one comes down and
+    # forward a frame later.
+    Attack("bandit_skirmisher", "build_bandit_skirmisher", [], A.STAB_BODY, cell=160,
+           ik=IK([{"root": "knifeR_root", "frames": A.STAB_LEAD, "mid": "hands",
+                   "aim": (1.0, 0.0, 0.0)},
+                  {"root": "knifeL_root", "frames": A.STAB_HIGH, "mid": "hands",
+                   "aim": (1.0, 0.0, -0.8)}],
+                 [{"shoulder": ("bshoulderR",), "upper": "bupperR", "fore": "bforeR",
+                   "hand": "bfistR", "pole": "rest", "joint": "segment", "weapon": 0},
+                  {"shoulder": ("bshoulderL",), "upper": "bupperL", "fore": "bforeL",
+                   "hand": "bfistL", "pole": "rest", "joint": "segment", "weapon": 1}])),
+    # A CROSSBOW SHOT, on INVERSE KINEMATICS: two hands, up to the eye, the bow
+    # FLAT throughout. His rests pointing out of the screen, so the tiller's
+    # pointing axis is local -y, not +z. The pivot version was "more of a headbutt
+    # than an attack" (user, 2026-10-29).
+    #
+    # **Flat, and aimed only 30 degrees off screen-left, toward the camera.** Aimed
+    # straight along screen x a flat bow runs directly away from the camera and he
+    # holds "a blob"; rolled 45 or 90 to show it, "hes holding the crossbow so the
+    # side arms are vertical, it needs to be at least 90% flat" (user, same day).
+    # Thirty degrees toward the camera spreads the flat bow across half its width
+    # on screen while still aiming at the heroes' side.
+    Attack("bandit_caster", "build_bandit_caster", [], A.CASTER_SHOT, cell=176,
+           ik=IK([{"root": "bow_root", "mid": "hands", "aim": (0.866, -0.5, 0.0),
+                   "axis": (0.0, -1.0, 0.0)},
+                  {"root": "bolt_root", "frames": A.CASTER_BOLT, "mid": "hands",
+                   "follow": 0}],
+                 [{"shoulder": ("bshoulderL",), "upper": "bupperL", "fore": "bforeL",
+                   "hand": "bfistL", "pole": "rest", "joint": "segment", "weapon": 0},
+                  {"shoulder": ("bshoulderR",), "upper": "bupperR", "fore": "bforeR",
+                   "hand": "bfistR", "pole": "rest", "joint": "segment",
+                   "weapon": 0}])),
     Attack("bandit_shaman", "build_bandit_shaman",
            [([("bshoulder",)], B_R, "bottle_root")], A.CAST),
     Attack("bandit_sapper", "build_bandit_sapper",
            [([("bshoulder",)], B_L, "torch_root")], A.SLASH, cell=144),
-    Attack("bandit_boss", "build_bandit_boss",
-           [([("bshoulder",)], B_R, "bow_root")], A.LOOSE, cell=144),
+    # A TWO-HANDED CROSSBOW SHOT, on INVERSE KINEMATICS: raise it to his face,
+    # level it at the enemy, fire the bolt, lower it. Both arms are solved with
+    # `"grab"`: the hand resting on the crossbow slides back to the trigger, and
+    # the belt hand comes up under the front and returns to the belt afterwards.
+    # One-handed and at chest height it read as "shooting his crossbow one handed
+    # across his body" (user, 2026-10-29). Grab points are in the crossbow's own
+    # space, where the tiller runs along z with the prod at the top.
+    Attack("bandit_boss", "build_bandit_boss", [], A.CROSSBOW_SHOT, cell=208,
+           # It turns about the hand it RESTS in, named outright: `"hands"` would
+           # average in the belt hand, which holds nothing at rest, and turning
+           # about that midpoint threw the crossbow up level with his crown.
+           # Aimed along SCREEN x, at the heroes, and ROLLED upright so the bow
+           # lies flat. Along his own facing it shot the camera (user,
+           # 2026-10-29); unrolled, the bow stood on edge, "shooting it sideways".
+           ik=IK([{"root": "bow_root", "mid": "bfistR", "aim": (1.0, 0.0, 0.0),
+                   # -60 lays the bow flat (its tips measured 0.05 apart in
+                   # height) with the bolt UNDERNEATH; a half turn more keeps it
+                   # flat and puts the bolt on top, where it is loaded.
+                   "roll": 120},
+                  {"root": "bolt_root", "frames": A.BOLT_FLIGHT, "mid": "bfistR",
+                   "follow": 0}],
+                 [{"shoulder": ("bshoulderR",), "upper": "bupperR", "fore": "bforeR",
+                   "hand": "bfistR", "pole": "rest", "joint": "segment", "weapon": 0,
+                   "grab": {"at": (0.0, 0.0, -0.22), "weights": A.CROSSBOW_HANDS}},
+                  {"shoulder": ("bshoulderL",), "upper": "bupperL", "fore": "bforeL",
+                   "hand": "bfistL", "pole": "rest", "joint": "segment", "weapon": 0,
+                   "free": True,
+                   "grab": {"at": (0.0, 0.0, 0.0), "weights": A.CROSSBOW_HANDS}}])),
 
     # ---- undead legion ------------------------------------------------------
-    # His arm parts share a name on both sides, which is exactly the case the
-    # rigid-pivot technique handles and inverse kinematics cannot.
-    Attack("undead_brute", "build_undead_brute",
-           [([("pauldron",)], ("upper", "fore", "bonehand", "pauldron"), "sword_root")],
-           A.SMASH),
-    Attack("undead_skirmisher", "build_undead_skirmisher",
-           _dual(("upperL", "foreL", "handL"), ("upperR", "foreR", "handR"),
-                 "bladeL_root", "bladeR_root"), A.SLASH),
+    # A TWO-HANDED OVERHEAD CHOP, on INVERSE KINEMATICS: the fighter's table. The
+    # pivot version swung both arms as one block about the RIGHT pauldron while the
+    # sword sat in his LEFT hand, because both arms shared one set of part names:
+    # "really strange and disconnected" (user, 2026-10-29). The builder now names
+    # each arm by side and puts both bone hands on the hilt.
+    Attack("undead_brute", "build_undead_brute", [], A.CHOP_SWORD, cell=176,
+           ik=IK("sword_root",
+                 [{"shoulder": ("^upperL",), "upper": "upperL", "fore": "foreL",
+                   "hand": "bonehandL", "pole": "rest", "joint": "segment"},
+                  {"shoulder": ("^upperR",), "upper": "upperR", "fore": "foreR",
+                   "hand": "bonehandR", "pole": "rest", "joint": "segment"}],
+                 mid="hands")),
+    # TWIN STABS, on INVERSE KINEMATICS, the bandit skirmisher's construction. The
+    # pivot version rocked his arms in place: "kind of headbutting" (user,
+    # 2026-10-29). The forward blade drives out first, the far one two frames on.
+    Attack("undead_skirmisher", "build_undead_skirmisher", [], A.STAB_BODY, cell=160,
+           ik=IK([{"root": "bladeL_root", "frames": A.REAVER_LEAD, "mid": "hands",
+                   "aim": (1.0, 0.0, 0.0)},
+                  {"root": "bladeR_root", "frames": A.STAB_REAR, "mid": "hands",
+                   "aim": (1.0, 0.0, 0.0)}],
+                 [{"shoulder": ("shoulderL",), "upper": "upperL", "fore": "foreL",
+                   "hand": "handL", "pole": "rest", "joint": "segment", "weapon": 0},
+                  {"shoulder": ("shoulderR",), "upper": "upperR", "fore": "foreR",
+                   "hand": "handR", "pole": "rest", "joint": "segment", "weapon": 1}])),
     Attack("undead_caster", "build_undead_caster",
            [([("shoulderL",)], ("sleeveA1", "sleeveA2", "handA"), "staff_root")], A.CAST),
     Attack("undead_shaman", "build_undead_shaman",
            [([("armL_shoulder",)], LIMB_L, "staff_root")], A.CAST),
-    Attack("undead_sapper", "build_undead_sapper",
-           [([("armL_shoulder",)], LIMB_L, "shovel_root")], A.OVERHAND),
+    # A SHOVEL SMASH, on INVERSE KINEMATICS. The pivot version held the shovel by
+    # its blade (user, 2026-10-29); the builder now puts his hand on the T-grip, and
+    # the solved arm lifts the blade up in front of him and brings it down.
+    # DRAFT: SHOVEL_THRUST, two-handed, awaiting the developer's verdict on a
+    # still. `SHOVEL_SMASH` was "waving the shovel at the enemy like a sassy
+    # cheerleader" (user, 2026-10-29). The shovel turns about the hand on its
+    # grip, named outright, because `"hands"` would average in the free hand.
+    Attack("undead_sapper", "build_undead_sapper", [], A.SHOVEL_THRUST, cell=176,
+           ik=IK("shovel_root",
+                 # The hint is the shoulder BALL, not `^armL_upper`: his arm is
+                 # raised, so the upper arm's top is its ELBOW end, and the solver
+                 # took that for the shoulder and put the elbow ball on his
+                 # collarbone on frame 0.
+                 [{"shoulder": ("armL_shoulder",), "upper": "armL_upper",
+                   "fore": "armL_fore", "hand": "armL_hand", "pole": "rest",
+                   "joint": "segment", "covers": ("armL_elbow",)},
+                  {"shoulder": ("armR_shoulder",), "upper": "armR_upper",
+                   "fore": "armR_fore", "hand": "armR_hand", "pole": "rest",
+                   "joint": "segment", "covers": ("armR_elbow",), "free": True,
+                   # On the T-GRIP, as a spade is held: at 1.30, down the shaft,
+                   # his short back arm fell 0.16 behind the grip on the thrust.
+                   "grab": {"at": (0.0, 0.0, 1.78), "weights": A.SHOVEL_HANDS}}],
+                 mid="armL_hand")),
     Attack("undead_boss", "build_undead_boss",
            [([("armL_shoulder",)], LIMB_L, "staff_root")], A.CAST, cell=176),
 

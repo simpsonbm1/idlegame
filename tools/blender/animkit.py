@@ -533,11 +533,25 @@ def ik_poses(scn, root, weapon_name, arms, frames, mid=None, stretch=0.22,
             "fo": fo,
             # Joint covers: same name, same parent, dropped on the solved elbow so
             # they keep burying the segment ends they were modelled to bury.
-            "cover": [o for o in up_extra + fo_extra if o.parent is up.parent],
+            # `"covers"` names more of them: `spritekit.limb()` builds its elbow
+            # sphere as `armL_elbow`, a name of its own, so without this the
+            # sphere stays at the rest elbow while the arm bends away from it.
+            "cover": [o for o in up_extra + fo_extra if o.parent is up.parent]
+                     + [o for n in a.get("covers", ()) for o in P.find(scn, n)
+                        if o.parent is up.parent],
             "fi": fi,
             "shoulder": a["shoulder"],
             "w": a.get("weapon", 0),
             "track": a.get("track"),
+            # `"grab"` moves a hand to a NAMED POINT on a weapon over the attack,
+            # blended per frame from 0 (where it would otherwise be) to 1 (on that
+            # point). A crossbow is two-handed: the bandit boss rests it under one
+            # hand with his other thumb in his belt, so the shot has to bring the
+            # free hand UP onto it and send it back. `"free": True` says the arm
+            # holds nothing at rest, so its 0 is the idle hand rather than a grip.
+            "grab": a.get("grab"),
+            "free": a.get("free", False),
+            "rest_hand": par_inv @ Vector(hand_w),
         })
 
     weapons = []
@@ -556,8 +570,14 @@ def ik_poses(scn, root, weapon_name, arms, frames, mid=None, stretch=0.22,
             axis = Vector(ws.get("axis", (0.0, 0.0, 1.0)))
             rest_dir = (rest.to_3x3() @ axis).normalized()
             tgt = Vector(ws["aim"])
-            aim = rest_dir.rotation_difference(
-                Vector((tgt.x * facing_sign(root), tgt.y, tgt.z)).normalized())
+            tdir = Vector((tgt.x * facing_sign(root), tgt.y, tgt.z)).normalized()
+            aim = rest_dir.rotation_difference(tdir)
+            # `"roll"` turns the weapon about its own pointing axis once it is
+            # aimed. The shortest rotation from upright to level keeps a
+            # crossbow's bow in the camera plane, which stands it on its side --
+            # "shooting it sideways" (user, 2026-10-29). Degrees, measured.
+            if ws.get("roll"):
+                aim = Quaternion(tdir, math.radians(ws["roll"])) @ aim
         weapons.append({
             "ob": ob,
             "rest": rest,
@@ -616,6 +636,12 @@ def ik_poses(scn, root, weapon_name, arms, frames, mid=None, stretch=0.22,
                 # The optional travel columns. A weapon that only rotates leaves
                 # the hands where they started, which is a flick, not a chop.
                 dx, dz = (f[3], f[4]) if len(f) > 4 else (0.0, 0.0)
+                # A SEVENTH column moves it in world y, toward (-) or away from
+                # the camera. Nearly invisible on screen by itself, so it exists
+                # for a follower that has to travel along a weapon resting at an
+                # angle to the camera: the bandit caster's bolt leaves a crossbow
+                # whose rest pose points out of the screen.
+                dy = f[6] if len(f) > 6 else 0.0
                 R = Euler((math.radians(lift), math.radians(swing * sign), 0),
                           'XYZ').to_matrix().to_4x4()
                 # A sixth column blends the weapon from its rest orientation to
@@ -627,7 +653,7 @@ def ik_poses(scn, root, weapon_name, arms, frames, mid=None, stretch=0.22,
                     R = (R @ Quaternion().slerp(w["aim"], f[5]).to_matrix().to_4x4())
                 # Travel is applied in WORLD space, after the rotation, so `dz`
                 # means "this far up the screen" whatever angle the weapon is at.
-                T = Matrix.Translation(Vector((dx * sign, 0.0, dz)))
+                T = Matrix.Translation(Vector((dx * sign, dy, dz)))
                 w["world"] = (T @ Matrix.Translation(w["mid"]) @ R
                               @ Matrix.Translation(-w["mid"]) @ w["rest"])
                 if w["follow"] is not None:
@@ -641,7 +667,12 @@ def ik_poses(scn, root, weapon_name, arms, frames, mid=None, stretch=0.22,
                 if a["track"]:
                     tx, ty, tz = a["track"][i]
                     point = point + Vector((tx * sign, ty, tz))
-                target = a["par_inv"] @ point
+                target = a["rest_hand"] if a["free"] else a["par_inv"] @ point
+                g = a["grab"]
+                if g and g["weights"][i]:
+                    on = a["par_inv"] @ (weapons[g.get("weapon", a["w"])]["world"]
+                                         @ Vector(g["at"]))
+                    target = target.lerp(on, g["weights"][i])
                 elbow, hand, la, lb = P.two_bone_ik(a["S"], target, a["a"], a["b"],
                                                     a["pole"], stretch=stretch)
                 P.aim_segment(a["up"], a["S"], elbow, a["a"])

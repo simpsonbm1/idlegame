@@ -77,23 +77,34 @@ for i in range(5):
 detail.append(P.add_box(scn, "bcrownjewel", (0, -0.38, 1.44), (0.10, 0.05, 0.10), M["red"]))
 
 # ---- shoulders, one hand on the crossbow, one thumb hooked in the belt ----
-for s in (-1, 1):
-    tors.append(P.add_sphere(scn, "bshoulder", (s * 0.62, -0.08, 0.72), 0.26, M["coat"],
+# Shoulder balls named by SIDE, so the attack's solver can find the right one: two
+# balls at one height under one name give it no way to choose.
+for s, side in ((-1, "L"), (1, "R")):
+    tors.append(P.add_sphere(scn, "bshoulder" + side, (s * 0.62, -0.08, 0.72), 0.26, M["coat"],
                              scale=(1, .95, .88)))
     tors.append(P.add_box(scn, "bepaulette", (s * 0.66, -0.12, 0.84), (0.34, 0.30, 0.10), M["gold"]))
-tors.append(P.add_cyl(scn, "bupperL", (-0.66, -0.22, 0.42), 0.175, 0.50, M["coat"], verts=8))
-tors.append(P.add_cyl(scn, "bforeL", (-0.68, -0.48, 0.06), 0.155, 0.48, M["coat"], verts=8,
-                      rot=(math.radians(24), 0, 0)))
-tors.append(P.add_sphere(scn, "bfistL", (-0.70, -0.62, -0.18), 0.17, M["skin"]))
-for i, dz in enumerate((-0.06, 0.0, 0.06)):
-    tors.append(P.add_box(scn, "bring", (-0.72 - i * 0.01, -0.72, -0.18 + dz),
-                          (0.09, 0.05, 0.05), M["gold"]))
-tors.append(P.add_cyl(scn, "bupperR", (0.66, -0.20, 0.44), 0.175, 0.48, M["coat"], verts=8))
-tors.append(P.add_cyl(scn, "bforeR", (0.60, -0.42, 0.16), 0.155, 0.46, M["coat"], verts=8,
-                      rot=(math.radians(38), 0, math.radians(10))))
-tors.append(P.add_sphere(scn, "bfistR", (0.54, -0.54, -0.06), 0.17, M["skin"]))
+# The belt arm is aimed shoulder to elbow to fist too: the shot brings this hand
+# up onto the crossbow, so it is solved, and a solver needs segment ends that are
+# real joints.
+_shL, _elL, _fiL = (-0.66, -0.20, 0.68), (-0.66, -0.26, 0.20), (-0.70, -0.62, -0.18)
+tors.append(S.aimed_cyl(scn, "bupperL", _shL, _elL, 0.175, M["coat"], verts=8))
+tors.append(S.aimed_cyl(scn, "bforeL", _elL, _fiL, 0.155, M["coat"], verts=8))
+fistL = P.add_sphere(scn, "bfistL", _fiL, 0.17, M["skin"])
+tors.append(fistL)
+# The rings ride the FIST, parented after the torso is, so they go wherever the
+# solver puts the hand rather than staying behind at his belt.
+rings = [P.add_box(scn, "bring", (-0.02 - i * 0.01, -0.10, dz), (0.09, 0.05, 0.05), M["gold"])
+         for i, dz in enumerate((-0.06, 0.0, 0.06))]
+# The crossbow arm is AIMED shoulder to elbow to fist so its segments meet at real
+# joints: the attack raises this arm by solving it, and a solver reads the joints
+# off the segment ends. Placed one cylinder at a time, they did not meet.
+_shR, _elR, _fiR = (0.66, -0.20, 0.68), (0.66, -0.24, 0.22), (0.54, -0.54, -0.06)
+tors.append(S.aimed_cyl(scn, "bupperR", _shR, _elR, 0.175, M["coat"], verts=8))
+tors.append(S.aimed_cyl(scn, "bforeR", _elR, _fiR, 0.155, M["coat"], verts=8))
+tors.append(P.add_sphere(scn, "bfistR", _fiR, 0.17, M["skin"]))
 
 P.parent_all(tors_root, tors + hd_det)
+P.parent_all(fistL, rings)
 
 # ---- the ornate crossbow, propped upright under his right hand ----
 cb_root = P.make_root(scn, "bow_root", rot=(0, 8, 0), loc=(0.60, -0.62, 1.16))
@@ -108,6 +119,16 @@ for s in (-1, 1):
                            0.020, M["cloth"], verts=4))
 P.parent_all(cb_root, bow)
 
+# ---- the loaded bolt: its own root, lying on the camera face of the tiller ----
+# Separate from the crossbow so the attack can FIRE it: it rides the crossbow up
+# into the aim and leaves along the tiller on the shot. Same rotation as the
+# crossbow, offset only in depth, so at rest it lies exactly along the tiller.
+bolt_root = P.make_root(scn, "bolt_root", rot=(0, 8, 0), loc=(0.60, -0.73, 1.16))
+P.parent_all(bolt_root, [
+    P.add_cyl(scn, "bboltshaft", (0, 0, 0.30), 0.028, 0.60, M["wood"], verts=6),
+    P.add_cone(scn, "bbolthead", (0, 0, 0.66), 0.055, 0.0, 0.13, M["steel"], verts=4),
+    P.add_box(scn, "bboltfletch", (0, 0, 0.05), (0.10, 0.02, 0.10), M["red"])])
+
 B.finish(scn, px, "bandit_boss", figure, detail, noline,
-         roots=[tors_root, cb_root], skip_extra=tuple(o.name for o in hd_det),
+         roots=[tors_root, cb_root, bolt_root], skip_extra=tuple(o.name for o in hd_det),
          role="boss", body_roots=[tors_root])

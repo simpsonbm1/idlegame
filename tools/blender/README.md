@@ -628,6 +628,84 @@ kinematics the same name has to resolve the other way: `find()[0]` picks the
 SPHERE, measures its diameter as the forearm and leaves the real forearm unposed.
 Take the longest part as the segment and drop the others on the solved elbow.
 
+**ON A RAISED ARM, `^upper` IS THE ELBOW.** The caret reads a bounding-box top,
+and an upper arm pointing UP has its elbow at the top. The undead sapper holds his
+shovel above his shoulder, so `^armL_upper` handed the solver his elbow as the
+shoulder, and frame 0 put his elbow ball on his collarbone, 0.35 below where the
+idle sprite has it. Hint with the shoulder BALL's centre instead, which needs the
+ball to have a name of its own: the bandit skirmisher and boss build both balls in
+one loop, so they are now `bshoulderL` and `bshoulderR`.
+
+**`spritekit.limb()` NAMES ITS ELBOW SPHERE `armL_elbow`, SO THE SOLVER MISSES IT.**
+Only parts sharing the segment's own name are moved onto the solved elbow. List
+the sphere in the arm's `"covers"` or it stays where the rest pose left it while
+the arm bends away.
+
+**ARM SEGMENTS PLACED ONE AT A TIME DO NOT MEET, AND FRAME 0 SHOWS IT.** The
+solver reads each joint off a segment's own ends. The bandit skirmisher's and the
+bandit boss's arms were cylinders positioned and tipped separately, whose ends
+missed each other, so frame 0 drew both forearms 0.07 to 0.10 off the idle sprite.
+Build any arm that will be solved with `aimed_cyl` from shoulder to elbow to fist,
+so the ends ARE the joints. Frame 0 then matched within 0.02.
+
+**A FOLLOWER'S TABLE IS READ IN ITS LEADER'S REST FRAME.** `"follow"` composes
+`lead.world @ lead.rest⁻¹ @ own`, so a follower's travel happens in the space the
+leader had at rest and is then carried through the leader's motion. The bandit
+boss's crossbow rests UPRIGHT and is turned level to shoot, so his bolt flies
+along `dz`, up the upright tiller, which the aim has turned to point at the enemy.
+A `dx` there would have fired the bolt straight down.
+
+**A CROSSBOW IS TWO-HANDED, AND A HAND CAN COME TO A WEAPON MID-ATTACK.** The boss
+first shot his one-handed, levelled across his chest: "generally a crossbow is a
+two handed situation" (user, 2026-10-29). An arm's `"grab"` names a point in the
+weapon's own space and a per-frame weight, blending the hand from where it would
+be to that point; `"free": True` makes "where it would be" the idle hand, for an
+arm holding nothing at rest. His belt hand comes up under the front and his
+resting hand slides back to the trigger. **AIM AT THE OPPONENT ALONG SCREEN x, AT THE EYE, WITH THE BOW LYING FLAT.** The
+boss's crossbow took four tries in one day (user, 2026-10-29), and each rejection
+names one of the three requirements:
+
+- one-handed at chest height: "shooting his crossbow one handed across his body";
+- two-handed but at chin height with the bow standing on edge: "like hes holding
+  onto a railing and shooting it sideways, not holding it in front of him to his
+  eyeline";
+- aimed along his own 30-degree facing, toward the camera: "now hes shooting the
+  camera and not the enemy (hero) units".
+
+So `aim` is `(1, 0, 0)`, the butt is at the cheek with the bolt level with the
+eyes, and `"roll"` turns the weapon about its pointing axis afterwards. The
+shortest rotation from upright to level keeps a crossbow's bow in the camera
+plane, which is a crossbow on its side; `roll: 120` lays his flat with the bolt on
+top (-60 lays it flat with the bolt underneath). Rolling about the aim also
+shifts the weapon's height, so set `dz` after the roll, by measurement.
+
+**A FLAT BOW AIMED STRAIGHT ALONG SCREEN x VANISHES.** It then runs directly
+away from the camera, and the bandit caster's crossbow "turns into a blob when he
+holds it up" (user, 2026-10-29). Rolling it up to show the bow is NOT the fix:
+"hes holding the crossbow so the side arms are vertical, it needs to be at least
+90% flat". Keep it flat and aim it 30 degrees off screen-left toward the camera,
+`aim: (0.866, -0.5, 0)`, which spreads the bow across half its width on screen;
+measured, its two tips stay at one height on every frame.
+
+**A CROSSBOW IS HELD LIKE A RIFLE: it runs FROM FIST TO FIST.** The rear hand is
+on the stock and the front hand under the tiller, well BEHIND the bow. Laid
+across the caster's fists instead, each hand landed on a bow arm once the
+crossbow was enlarged: "it looks like hes holding it by the side arms instead of
+rifle-like" (user, 2026-10-29). A flat bow is drawn on a diagonal from this
+camera, so its far arm passes behind a front hand that sits near the bow's join;
+keep that hand about 0.3 back. **The rear hand grips the stock's NECK and the
+butt runs on past it to the shoulder**: gripping the butt's back end left it
+"on his forearm" (user, 2026-10-29), and pushing the aim out left the butt 0.6
+short of the shoulder. **The stock sits IN the fists, not under them**: with the
+fists 0.27 on top of it, the trigger fist rose over his eye at the aim and its
+forearm crossed his face whichever way the elbow bent (three poles tried, all
+three covered the face). **A follower's flight is in the leader's REST
+frame, so it must be re-measured whenever the rest pose turns**: after the rifle
+hold the caster's bolt still flew the old rest direction, backwards into him.
+**Name the turning point
+outright when a free arm joins a weapon**: `mid="hands"` averages in the free hand too, and the
+crossbow turned about a point beside his hip and rose level with his crown.
+
 **A POLE VECTOR CANNOT BE BORROWED ACROSS A RARITY LINE.** Four tiers are four
 different people with four different arm poses, and the fighter's
 `(1.1, 0.30, -0.8)` on the epic assassin put his solved elbow at world x 1.12 with

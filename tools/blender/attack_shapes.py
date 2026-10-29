@@ -233,6 +233,30 @@ STAB_REAR = [(0, 0, 0, 0, 0, 0.00),
              (0, 0, 0, 0.58, 0.00, 1.00),
              (0, 0, 0, 0.26, -0.01, 0.55),
              (0, 0, 0, 0, 0, 0.00)]
+# The UNDEAD SKIRMISHER's lead blade: `STAB_LEAD` with a shorter strike. His arm
+# is already held out wide, so the full 0.62 drive left his hand 0.15 behind the
+# grip on frame 4, measured, with the arm at full stretch.
+REAVER_LEAD = [(0, 0, 0, 0, 0, 0.00),
+               (0, 0, 0, -0.16, 0.06, 0.30),
+               (0, 0, 0, -0.24, 0.10, 0.55),
+               (0, 0, 0, 0.30, 0.04, 0.90),
+               (0, 0, 0, 0.46, -0.02, 1.00),
+               (0, 0, 0, 0.36, -0.02, 0.85),
+               (0, 0, 0, 0.14, 0.00, 0.40),
+               (0, 0, 0, 0, 0, 0.00)]
+
+# The BANDIT SKIRMISHER's high knife: a reverse grip held above his head, so its
+# stab comes DOWN and forward rather than straight out. He leads with the low knife
+# on `STAB_LEAD` and this one lands a frame behind it, angled at the enemy's chest.
+STAB_HIGH = [(0, 0, 0, 0, 0, 0.00),
+             (0, 0, 0, -0.08, 0.06, 0.15),
+             (0, 0, 0, -0.14, 0.10, 0.30),
+             (0, 0, 0, -0.18, 0.12, 0.40),
+             (0, 0, 0, 0.18, -0.06, 0.80),
+             (0, 0, 0, 0.44, -0.36, 1.00),
+             (0, 0, 0, 0.22, -0.16, 0.55),
+             (0, 0, 0, 0, 0, 0.00)]
+
 # The body under those two: a small brace back and a small step in. Its lift and
 # swing columns drive nothing, because every weapon here carries its own table.
 STAB_BODY = [(0, 0, 0), (0, 0, -0.05), (0, 0, -0.09), (0, 0, 0.10),
@@ -296,6 +320,71 @@ BOW_HAND = [(0, 0, 0),
             (-0.02, 0, 0.05),
             (-0.01, 0, 0.01),
             (0, 0, 0)]
+
+# A CROSSBOW SHOT, weapon-driven: the bandit boss's. He rests it upright under one
+# hand, so the shot is a RAISE and a TURN: the hand climbs toward his shoulder
+# while the sixth column swings the tiller from upright to level at the enemy,
+# then a short kick back on the frame the bolt leaves. The pivot version ran
+# `LOOSE`, a bow table, and only twisted the crossbow at belly height: "i dont
+# understand the bandit boss ... animations" (user, 2026-10-29).
+#
+# The lunge column is the BODY's brace, not a step: he stands and shoots.
+#
+# **It is TWO-HANDED, at his EYES, aimed at the HEROES, with the bow FLAT.** Three
+# versions were rejected in one day (user, 2026-10-29): one-handed at chest height
+# ("one handed across his body"), two-handed at chin height with the bow on edge
+# ("holding onto a railing and shooting it sideways"), and aimed along his own
+# facing ("shooting the camera"). The roster entry aims along screen x and rolls
+# the crossbow flat; these columns raise it until the bolt is level with his eyes
+# and push it out past his left side, toward the heroes ("needs to be more to
+# the left in the frame at its highest point when he fires it", same day).
+# `CROSSBOW_HANDS` moves both hands onto it.
+CROSSBOW_SHOT = [(0, 0, 0, 0, 0, 0.00),
+                 (0, 0, -0.03, 0.40, 0.60, 0.35),
+                 (0, 0, -0.05, 1.36, 1.30, 0.85),
+                 (0, 0, -0.05, 1.71, 1.47, 1.00),
+                 (0, 0, -0.10, 1.61, 1.51, 1.00),
+                 (0, 0, -0.06, 1.65, 1.45, 0.96),
+                 (0, 0, -0.02, 0.54, 0.66, 0.45),
+                 (0, 0, 0, 0, 0, 0.00)]
+# How far each hand has moved onto its crossbow grip, per frame: 0 is the idle
+# hand, 1 is on the grip. On by the time the crossbow is level, off as it lowers.
+CROSSBOW_HANDS = [0.0, 0.4, 0.9, 1.0, 1.0, 1.0, 0.5, 0.0]
+# The bolt, which RIDES the crossbow (`"follow"`), so its own table is read in the
+# crossbow's REST frame, where the tiller stands upright. Its flight is therefore
+# `dz`, along the tiller, which the aim has by then turned to point at the enemy.
+# Back on the tiller by the next frame, the archer's convention: eight frames have
+# no room to fly a bolt anywhere and still return to rest.
+# 2.00 was set while he aimed along his own facing, when half the flight went
+# toward the camera. Aimed along screen x it all shows, and it is what sets the
+# sheet's 8 px margin: lengthen it and raise the cell.
+BOLT_FLIGHT = [(0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0),
+               (0, 0, 0, 0, 2.00), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0), (0, 0, 0, 0, 0)]
+
+# The BANDIT CASTER's crossbow shot: the boss's rules on a different rest pose.
+# He already holds his in both hands at chest height, pointing OUT OF THE SCREEN
+# with the bow flat, so the shot is a raise to the eye and a quarter turn to aim
+# at the heroes; no roll is needed. The pivot version only bobbed it in place,
+# "more of a headbutt than an attack" (user, 2026-10-29).
+# **The butt goes to his SHOULDER.** Pushed out to dx 0.30 at the aim, the butt
+# ended 0.6 short of it and lay on his forearm (user, 2026-10-29), so the aim now
+# pulls the crossbow back toward him while it rises.
+CASTER_SHOT = [(0, 0, 0, 0, 0, 0.00),
+               (0, 0, -0.03, -0.02, 0.22, 0.35),
+               (0, 0, -0.05, -0.08, 0.48, 0.85),
+               (0, 0, -0.05, -0.10, 0.58, 1.00),
+               (0, 0, -0.10, -0.18, 0.62, 1.00),
+               (0, 0, -0.06, -0.14, 0.56, 0.96),
+               (0, 0, -0.02, -0.04, 0.24, 0.45),
+               (0, 0, 0, 0, 0, 0.00)]
+# His bolt, riding the crossbow. Read in the crossbow's REST frame, where the
+# rifle-held tiller points left and away from the camera, so the flight needs
+# the seventh column: 1.8 units along (-0.866, +0.5) in world x and y, measured
+# off the stock-to-tiller line. dx is signed by facing like every other dx.
+# **Re-measure this whenever the crossbow's rest pose turns**: after the rifle
+# hold it still pointed the old way and the bolt flew backwards into him.
+CASTER_BOLT = [(0, 0, 0, 0, 0, 0, 0)] * 4 + [(0, 0, 0, 1.56, 0, 0, 0.90)] + \
+              [(0, 0, 0, 0, 0, 0, 0)] * 3
 
 # SUPERSEDED by BOW_PUSH and BOW_HAND above, and kept only for what it records:
 # a bow draw expressed as a shoulder rotation. It is not on the roster.
@@ -388,6 +477,46 @@ POLE_CHOP = [(0, 0, 0, 0, 0),
              (-8, 84, 0.30, 0.26, -0.16),
              (-3, 34, 0.12, 0.10, -0.06),
              (0, 0, 0, 0, 0)]
+
+# A ONE-HANDED SHOVEL SMASH, weapon-driven: the undead sapper's. He holds the
+# shovel by its T-grip with the blade hanging down and forward, so the blade is
+# BELOW the hand it turns about and the sign rule inverts: NEGATIVE swing carries
+# it forward and then up, which is the lift, and swinging back toward zero brings
+# it down onto the target. The strike stops at -30, not at rest: the blade rests
+# 64 degrees below level, and landing there reads as the shovel merely being put
+# back down rather than hitting anything. The hand climbs on the wind-up and drives down and forward on the
+# strike, so the arm extends rather than the shovel only spinning in a fixed fist.
+SHOVEL_SMASH = [(0, 0, 0, 0, 0),
+                (-4, -50, -0.06, -0.08, 0.24),
+                (-8, -120, -0.12, -0.14, 0.34),
+                (-8, -136, -0.10, -0.12, 0.38),
+                (-10, -30, 0.36, 0.30, -0.10),
+                (-7, -22, 0.26, 0.22, -0.12),
+                (-3, -8, 0.10, 0.08, -0.04),
+                (0, 0, 0, 0, 0)]
+
+# DRAFT, awaiting the developer's verdict on a still: a TWO-HANDED SPADE THRUST
+# for the undead sapper. `SHOVEL_SMASH` above read as "waving the shovel at the
+# enemy like a sassy cheerleader" (user, 2026-10-29): his raised arm is so short
+# its hand can climb only from 2.39 to 2.57, so the smash was the shovel spinning
+# in a nearly still fist. A thrust needs no reach upward. The shaft drops level
+# under both hands and the blade drives forward off a step.
+#
+# **The wind-up must pull BACK.** Levelling the shaft about the top hand swings
+# the blade forward as it rises: the first draft's wind-up carried it 0.61
+# forward and 0.70 up before the thrust began, which is an uppercut, and the
+# developer could not tell from stills whether it was one (2026-10-29). The
+# wind-up now steps back and only half-levels, so the forward travel is all on
+# the thrust.
+SHOVEL_THRUST = [(0, 0, 0, 0, 0),
+                 (-4, -15, -0.10, -0.20, -0.20),
+                 (-6, -30, -0.26, -0.40, -0.36),
+                 (-6, -34, -0.24, -0.38, -0.38),
+                 (-8, -45, 0.44, 0.08, -0.46),
+                 (-6, -44, 0.32, 0.06, -0.42),
+                 (-3, -20, 0.10, 0.10, -0.15),
+                 (0, 0, 0, 0, 0)]
+SHOVEL_HANDS = [0.0, 0.5, 1.0, 1.0, 1.0, 1.0, 0.5, 0.0]
 
 # A POLEARM CHOPPED OVERHEAD, arm then wrist, same construction as the hammer:
 # the banner's mass is all at the top of a five-unit pole, so the wrist carries

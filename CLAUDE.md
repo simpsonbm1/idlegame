@@ -72,7 +72,12 @@ the Animation section of `tools/blender/README.md` first -- it now carries twent
 rules. The newest cover measurement (a bone's length is its joint-to-joint distance in
 the arm's own parent space) and orientation (point a weapon at a DIRECTION, never by an
 angle, because a rarity line grips one weapon four ways).
-**Nothing outside the heroes has been judged in motion at all.**
+**The enemy attacks were judged in motion on 2026-10-29.** Six were rebuilt on inverse
+kinematics; the bandit boss and caster passed after nine rounds between them (crossbows:
+two hands, rifle hold, at the eye, bow flat, aimed at the heroes). The brute, the bandit
+skirmisher and the sapper's spade thrust are rebuilt but not yet watched. The other 24
+are still on pivots, called "a bit crude", not approved. **Show the developer a still of
+a new key pose before animating it.** The buildings and townsfolk are still unjudged.
 
 **None of it is wired into the game yet.**
 

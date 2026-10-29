@@ -57,8 +57,26 @@ tors += U.bone_arm(scn, M, (0.38, -0.10, 0.62), (0.48, -0.44, 0.18))
 
 P.parent_all(tors_root, tors + sk_det + sk_nol)
 
-# ---- worn shovel: own root, laid back across the shoulder on the diagonal ----
-sh_root = P.make_root(scn, "shovel_root", rot=(0, -152, 0), loc=(-0.54, -0.52, 2.28))
+# ---- worn shovel: own root, a digger leaning on it, blade in the dirt ahead ----
+# **The hand holds the GRIP, not the blade.** This root used to sit at his raised
+# hand with the blade at the root end, so he held the shovel by its blade and the
+# T-grip rested on the floor in front of him: "holding his weapon at the wrong end"
+# (user, 2026-10-29). Measured before the fix, his hand was at world z 2.39 beside
+# the blade at 2.43 and the grip was down at 0.73.
+#
+# The root is the BLADE end (local z 0) and the grip is at local z 1.74, so the
+# root is placed SHOVEL_HOLD down the shaft from the hand, which puts the hand just
+# under the T-grip. The hand's position here is its torso-local (-0.50, -0.42,
+# 0.92) carried through the torso's 22-degree hunch, so moving the arm means
+# moving this too. Depth is the fist's own, a touch nearer the camera so the shaft
+# reads as IN the hand; it used to sit 0.44 in front of it.
+SHOVEL_HOLD = 1.58
+_hand = (-0.50, -0.42 * math.cos(math.radians(22)) + 0.92 * math.sin(math.radians(22)),
+         1.44 + 0.42 * math.sin(math.radians(22)) + 0.92 * math.cos(math.radians(22)))
+_up = (math.sin(math.radians(28)), math.cos(math.radians(28)))   # blade-to-grip, in x and z
+sh_root = P.make_root(scn, "shovel_root", rot=(0, 28, 0),
+                      loc=(_hand[0] - SHOVEL_HOLD * _up[0], _hand[1] - 0.08,
+                           _hand[2] - SHOVEL_HOLD * _up[1]))
 blade_pts = [(-0.21, 0.0), (0.21, 0.0), (0.23, -0.30), (0.13, -0.46), (-0.13, -0.46), (-0.23, -0.30)]
 shovel = [P.add_cyl(scn, "handle", (0, 0, 0.86), 0.048, 1.72, M["wood"], verts=6),
           P.add_prism(scn, "shovelblade", blade_pts, 0.06, M["iron"]),

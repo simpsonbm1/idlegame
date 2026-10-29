@@ -32,8 +32,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.append(HERE)
 import undead_kit as U
+import spritekit as S
 import pixelrig as P
 importlib.reload(P)
+importlib.reload(S)
 importlib.reload(U)
 
 scn = P.get_scene()
@@ -71,19 +73,19 @@ for i, (dx, dz, r) in enumerate(((-0.33, 1.14, 0.10), (-0.39, 1.38, 0.07),
                                M["violet"] if i % 2 == 0 else M["teal_d"], segs=8, rings=5))
 
 # ---- narrow shoulders and two thin arms held out wide with the blades ----
-for s in (-1, 1):
-    figure.append(P.add_sphere(scn, "shoulder", (s * 0.36, -0.06, 2.62), 0.155, M["rag"],
+# Shoulders named by SIDE and arms AIMED shoulder to elbow to hand: his attack
+# solves each arm from its own shoulder, and reads the joints off the segment
+# ends, which only works when the segments meet. Placed one cylinder at a time
+# they did not, and the pivot attack that rocked them read as "kind of
+# headbutting" (user, 2026-10-29).
+for s, side in ((-1, "L"), (1, "R")):
+    figure.append(P.add_sphere(scn, "shoulder" + side, (s * 0.36, -0.06, 2.62), 0.155, M["rag"],
                                scale=(1, .95, .85)))
-figure.append(P.add_cyl(scn, "upperL", (-0.50, -0.20, 2.36), 0.095, 0.60, M["flesh"], verts=8,
-                        rot=(0, math.radians(-18), 0)))
-figure.append(P.add_cyl(scn, "foreL", (-0.68, -0.48, 2.00), 0.082, 0.58, M["flesh"], verts=8,
-                        rot=(math.radians(30), math.radians(-22), 0)))
-figure.append(P.add_sphere(scn, "handL", (-0.79, -0.64, 1.74), 0.11, M["flesh"]))
-figure.append(P.add_cyl(scn, "upperR", (0.50, -0.22, 2.38), 0.095, 0.58, M["flesh"], verts=8,
-                        rot=(0, math.radians(20), 0)))
-figure.append(P.add_cyl(scn, "foreR", (0.66, -0.50, 2.14), 0.082, 0.56, M["flesh"], verts=8,
-                        rot=(math.radians(36), math.radians(26), 0)))
-figure.append(P.add_sphere(scn, "handR", (0.75, -0.66, 1.90), 0.11, M["flesh"]))
+for side, shoulder, elbow, hand in (("L", (-0.40, -0.16, 2.64), (-0.60, -0.30, 2.08), (-0.79, -0.64, 1.74)),
+                                    ("R", (0.40, -0.16, 2.64), (0.60, -0.30, 2.10), (0.75, -0.66, 1.90))):
+    figure.append(S.aimed_cyl(scn, "upper" + side, shoulder, elbow, 0.095, M["flesh"], verts=8))
+    figure.append(S.aimed_cyl(scn, "fore" + side, elbow, hand, 0.082, M["flesh"], verts=8))
+    figure.append(P.add_sphere(scn, "hand" + side, hand, 0.11, M["flesh"]))
 
 # ---- a visible NECK, which is most of what separates gaunt from hulking. Pass 2
 # seated the head straight on the shoulders and he read as having none.
@@ -102,9 +104,11 @@ for s in (-1, 1):
 # Pale bone so they separate from the cloth by value, not only by outline.
 curve = [(-0.05, 0.0), (0.05, 0.0), (0.14, 0.44), (0.17, 0.82), (0.02, 1.00),
          (0.02, 0.76), (-0.04, 0.42)]
+# **Each grip sits IN its hand.** Measured 2026-10-29 they sat 0.12 and 0.18 off
+# the hands, which standing still hides and a stab shows at once.
 blade_roots = []
-for name, rot, loc in (("bladeL_root", (0, 156, 0), (-0.83, -0.74, 1.68)),
-                       ("bladeR_root", (0, 26, 0), (0.79, -0.76, 1.84))):
+for name, rot, loc in (("bladeL_root", (0, 156, 0), (-0.74, -0.63, 1.62)),
+                       ("bladeR_root", (0, 26, 0), (0.81, -0.65, 2.02))):
     br = P.make_root(scn, name, rot=rot, loc=loc)
     P.parent_all(br, [P.add_prism(scn, "curveblade", curve, 0.07, M["bone"]),
                       P.add_box(scn, "bladegrip", (0, 0, -0.13), (0.09, 0.09, 0.24), M["wood"]),
